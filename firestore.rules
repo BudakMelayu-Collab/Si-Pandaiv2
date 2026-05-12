@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // AUTH HELPERS
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // AUTH tokens NEVER contain custom claims. Look up roles using a trusted document.
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'muhammad.nawa@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // SCHEMA HELPERS
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // VALIDATION HELPERS
+    function isValidRecipient(data) {
+      return data.keys().hasAll(['name', 'nik', 'status', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.nik is string && data.nik.size() == 16
+        && data.status is string && data.status.size() <= 50
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidRecipientUpdate(data) {
+      return data.name is string && data.name.size() <= 200
+        && data.nik is string && data.nik.size() == 16
+        && data.status is string && data.status.size() <= 50
+        && data.updatedAt == request.time;
+    }
+
+    // RECIPIENTS
+    match /recipients/{recipientId} {
+      // Pillar 8: Secure List Queries. Evaluate resource.data.
+      allow list: if isVerified(); 
+      allow get: if isVerified() && isValidId(recipientId);
+      
+      allow create: if isVerified() && isValidId(recipientId) && isValidRecipient(incoming());
+      
+      allow update: if isVerified() && isValidRecipientUpdate(incoming())
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || 
+          // Action: Update Basic Data
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'nik', 'kk', 'pob', 'dob', 'gender', 'familyStatus', 'headOfFamilyName',
+            'headOfFamilyDob', 'address', 'rt', 'rw', 'kampung', 'district', 'registrationId',
+            'source', 'sector', 'subSector', 'aidType', 'programName', 'purpose', 'amountProposed',
+            'contact', 'companion', 'submissionDate', 'surveyDate', 'disbursementDate', 'amountDisbursed',
+            'schoolName', 'schoolLevel', 'schoolClass', 'schoolAddress', 'schoolPhone', 
+            'bankAccountNo', 'bankName', 'bankAccountHolder', 'status', 'notes', 'isTermsAccepted',
+            'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf',
+            'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl',
+            'updatedAt'
+          ])
+        );
+      
+      allow delete: if isAdmin();
+      
+      match /templates/{templateId} {
+        allow read: if isVerified();
+        allow write: if isVerified() && isValidId(templateId);
+      }
+      match /scans/{scanId} {
+        allow read: if isVerified();
+        allow write: if isVerified() && isValidId(scanId);
+      }
+    }
+
+    // PPD RECORDS
+    match /ppd_records/{recordId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(recordId);
+      allow create: if isVerified() && isValidId(recordId) && incoming().createdAt == request.time;
+      allow update: if isVerified() && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // COMPANION REPORTS
+    match /companionReports/{reportId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(reportId);
+      allow create: if isVerified() && isValidId(reportId) && incoming().uploaderId == request.auth.uid;
+      allow update: if isVerified() && existing().uploaderId == request.auth.uid;
+      allow delete: if isAdmin() || (isVerified() && existing().uploaderId == request.auth.uid);
+    }
+
+    // MONTHLY PAYMENTS
+    match /monthly_payments/{paymentId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(paymentId);
+      allow create: if isVerified() && isValidId(paymentId) && incoming().createdAt == request.time;
+      allow update: if isVerified() && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // ASSESSMENTS
+    match /assessments/{assessmentId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(assessmentId);
+      allow create: if isVerified() && isValidId(assessmentId) && incoming().createdAt == request.time;
+      allow update: if isVerified() && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // ANNOUNCEMENTS
+    match /announcements/{announcementId} {
+      allow list, get: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    // SETTINGS
+    match /settings/{settingId} {
+      allow get: if isVerified();
+      allow write: if isAdmin();
+    }
+
+    // ADMINS (Only Admins can manage other admins)
+    match /admins/{userId} {
+      allow read: if isVerified();
+      allow write: if isAdmin();
+    }
+  }
+}
