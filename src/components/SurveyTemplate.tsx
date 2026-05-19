@@ -421,8 +421,13 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             box-shadow: none !important;
           }
           .page-break {
-            page-break-after: always;
-            break-after: page;
+            page-break-after: always !important;
+            break-after: page !important;
+            display: block !important;
+            margin-bottom: 0 !important;
+          }
+          .print-no-transform {
+            transform: none !important;
           }
         }
       `}} />
@@ -898,11 +903,11 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
           {activeTab === 'survey' ? (
             <div 
-              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0"
+              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0 print:p-0 print:m-0 print:gap-0 print-no-transform"
               style={{ transform: `scale(${scale})` }}
             >
             {/* PAGE 1: TEMPLATE 1 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1050px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-3 uppercase tracking-wider text-center">TEMPLATE 1: BIODATA & PROFIL MUSTAHIK</h3>
@@ -1178,7 +1183,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 2: TEMPLATE 2 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1050px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 2: ANALISA KEUANGAN (ONLINE)</h3>
@@ -1303,7 +1308,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 3: TEMPLATE 3 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1050px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 3: VERIFIKASI LAPANGAN (OFFLINE)</h3>
@@ -1490,7 +1495,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                 {photos.length > 0 && Array.from({ length: Math.ceil(photos.length / 4) }, (_, pageIdx) => {
                   const chunk = photos.slice(pageIdx * 4, pageIdx * 4 + 4);
                   return (
-                    <div key={`photo-page-${pageIdx}`} className="min-h-[1050px] flex flex-col bg-white overflow-hidden p-8 gap-6 page-break shadow-2xl print:shadow-none mt-10 print:mt-0">
+                    <div key={`photo-page-${pageIdx}`} className="min-h-[1050px] flex flex-col bg-white overflow-hidden p-8 gap-6 page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
                       <div className="border-b-2 border-black pb-2 mb-4 flex justify-between items-end">
                         <div>
                           <h2 className="text-sm font-bold uppercase tracking-tight">Lampiran Dokumentasi Verifikasi Lapangan</h2>
@@ -1540,7 +1545,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
                 {/* ARCHIVE PAGES */}
                 {archivedFiles.map((file, fIdx) => (
-                  <div key={`archive-page-${fIdx}`} className="min-h-[1050px] flex flex-col bg-white overflow-hidden page-break shadow-2xl print:shadow-none mt-10 print:mt-0">
+                  <div key={`archive-page-${fIdx}`} className="min-h-[1050px] flex flex-col bg-white overflow-hidden page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
                     <div className="flex-1 w-full h-full relative bg-slate-100 flex items-center justify-center overflow-hidden">
                        {file.data.startsWith('data:application/pdf') ? (
                          <iframe 
@@ -1559,7 +1564,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
           ) : (
             <div 
-              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0"
+              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0 print:p-0 print:m-0 print:gap-0 print-no-transform"
               style={{ transform: `scale(${scale})` }}
             >
               <div className="flex items-center justify-between border-b pb-4 mb-4">
