@@ -245,48 +245,47 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
   const renderReceiptContent = (type: 'PEMOHON' | 'ARSIP') => (
     <div className={cn(
-      "w-full p-8 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
-      type === 'PEMOHON' ? "border-b-2 border-dashed pb-12 mb-8 print:mb-0 print:pb-8" : "pt-4"
+      "w-full px-8 py-4 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
+      type === 'PEMOHON' ? "border-b border-dashed pb-4 mb-2 print:mb-0 print:pb-2" : "pt-1"
     )}>
       {/* Header */}
-      <div className="flex items-center gap-4 mb-4 border-b-2 border-black pb-2">
-        <div className="w-24 h-24 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-slate-200 relative group overflow-hidden rounded bg-white print:border-none print:bg-transparent">
+      <div className="flex items-center gap-4 mb-2 border-b border-black pb-1">
+        <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-slate-200 relative group overflow-hidden rounded bg-white print:border-none print:bg-transparent">
           {logo ? (
             <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain" />
           ) : (
-            <div className="text-center p-2">
-              <ImageIcon className="w-8 h-8 text-slate-300 mx-auto mb-1 group-hover:text-indigo-400 transition-colors" />
-              <p className="text-[10px] text-slate-400">Logo</p>
+            <div className="text-center p-1">
+              <ImageIcon className="w-6 h-6 text-slate-300 mx-auto group-hover:text-indigo-400 transition-colors" />
             </div>
           )}
           <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-black/0 hover:bg-black/40 opacity-0 hover:opacity-100 transition-all print:hidden">
-            <Upload className="w-5 h-5 text-white" />
+            <Upload className="w-4 h-4 text-white" />
             <input type="file" className="hidden" onChange={handleLogoUpload} accept="image/*" />
           </label>
         </div>
-        <div className="flex-1 text-center pr-24">
-          <h1 className="text-xl font-bold uppercase tracking-tight mb-0">BADAN AMIL ZAKAT NASIONAL</h1>
-          <p className="text-lg font-bold uppercase tracking-tight mb-0">KABUPATEN SIAK</p>
-          <p className="text-xs leading-tight">Gedung Graha Baznas Kabupaten Siak, Jl Sultan Syarif Ali</p>
-          <p className="text-xs leading-tight font-medium">Kecamatan Siak, Kabupaten Siak, Riau</p>
+        <div className="flex-1 text-center pr-16">
+          <h1 className="text-lg font-bold uppercase tracking-tight mb-0">BADAN AMIL ZAKAT NASIONAL</h1>
+          <p className="text-base font-bold uppercase tracking-tight mb-0">KABUPATEN SIAK</p>
+          <p className="text-[10px] leading-tight">Gedung Graha Baznas Kabupaten Siak, Jl Sultan Syarif Ali</p>
+          <p className="text-[10px] leading-tight font-medium">Kecamatan Siak, Kabupaten Siak, Riau</p>
         </div>
       </div>
 
       {/* Title */}
-      <div className="text-center mb-6 relative">
-        <h2 className="text-2xl font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
-        <p className="text-base mt-2 font-bold">Nomor: {recipient.id.substring(0, 8).toUpperCase()}/TT/BAZ-SIAK/{new Date().getFullYear()}</p>
-        <div className="absolute top-0 right-0 px-4 py-1.5 bg-slate-100 rounded text-xs font-bold tracking-widest text-black border border-slate-200 uppercase print:border-black print:bg-white shadow-sm">
+      <div className="text-center mb-2 relative">
+        <h2 className="text-xl font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
+        <p className="text-sm mt-1 font-bold">Nomor: {recipient.id.substring(0, 8).toUpperCase()}/TT/BAZ-SIAK/{new Date().getFullYear()}</p>
+        <div className="absolute top-0 right-0 px-3 py-1 bg-slate-100 rounded text-[10px] font-bold tracking-widest text-black border border-slate-200 uppercase print:border-black print:bg-white shadow-sm">
           {type} COPY
         </div>
       </div>
 
-      <p className="mb-4 text-lg">
+      <p className="mb-2 text-base">
         Telah di terima berkas permohonan bantuan atas nama :
       </p>
 
       {/* Data Body */}
-      <div className="space-y-3 mb-8 text-lg">
+      <div className="space-y-1 mb-3 text-base">
         {[
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
@@ -295,20 +294,20 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
           { label: 'Alamat Lengkap', value: receiptData.address, key: 'address', multiline: true }
         ].map((item) => (
-          <div key={item.key} className="grid grid-cols-[200px_30px_1fr] items-start">
+          <div key={item.key} className="grid grid-cols-[180px_20px_1fr] items-start">
             <span className="text-black font-bold">{item.label}</span>
             <span className="text-black font-bold">:</span>
             {isEditing ? (
               item.multiline ? (
                 <textarea 
-                  className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-1 resize-none font-sans text-lg"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 resize-none font-sans text-base"
                   rows={2}
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
               ) : (
                 <input 
-                  className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-1 font-sans text-lg"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 font-sans text-base"
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
@@ -320,8 +319,10 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         ))}
       </div>
 
-      <h4 className="border-b-2 border-black pb-1 mb-4 text-base font-bold tracking-wider uppercase">Berkas Lampiran :</h4>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-10 text-sm min-h-[50px]">
+      <h4 className="border-b border-black pb-0.5 mb-2 text-sm font-bold tracking-wider uppercase">Berkas Lampiran :</h4>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-0.5 mb-4 text-xs min-h-[30px]">
+
+
         {receiptData.documents.map((doc, idx) => {
           const isPredefined = DOCUMENT_OPTIONS.slice(0, -1).includes(doc);
 
@@ -372,52 +373,54 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       </div>
 
       {/* Signatures */}
-      <div className="flex justify-between items-start pt-6">
-        <div className="text-center w-52">
+      <div className="flex justify-between items-start pt-2">
+        <div className="text-center w-48">
           {isEditing ? (
             <input 
-              className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-24 text-sm uppercase font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-12 text-xs uppercase font-bold"
               value={receiptData.receiverLabel}
               onChange={e => setReceiptData({...receiptData, receiverLabel: e.target.value})}
             />
           ) : (
-            <p className="mb-24 text-base font-bold underline">{receiptData.receiverLabel},</p>
+            <p className="mb-12 text-sm font-bold underline">{receiptData.receiverLabel},</p>
           )}
           
           {isEditing ? (
             <input 
-              className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-base font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-sm font-bold"
               value={receiptData.receiverName}
               onChange={e => setReceiptData({...receiptData, receiverName: e.target.value})}
             />
           ) : (
-            <p className="border-b-2 border-black pb-1 uppercase tracking-tighter text-base font-bold">{receiptData.receiverName}</p>
+            <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-sm font-bold">{receiptData.receiverName}</p>
           )}
         </div>
-        <div className="text-center w-56">
-          <p className="text-base mb-24 text-black font-bold">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <div className="text-center w-52">
+          <p className="text-sm mb-12 text-black font-bold">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <div className="mb-1">
             {isEditing ? (
               <input 
-                className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-base font-bold"
+                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-sm font-bold"
                 value={receiptData.giverName}
                 onChange={e => setReceiptData({...receiptData, giverName: e.target.value})}
               />
             ) : (
-              <p className="border-b-2 border-black pb-1 uppercase tracking-tighter text-base font-bold">{receiptData.giverName || '(....................................)'}</p>
+              <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-sm font-bold">{receiptData.giverName || '(....................................)'}</p>
             )}
           </div>
           {isEditing ? (
             <input 
-              className="border-b-2 border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-sm font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
               value={receiptData.giverLabel}
               onChange={e => setReceiptData({...receiptData, giverLabel: e.target.value})}
             />
           ) : (
-            <p className="text-sm text-black font-bold uppercase">{receiptData.giverLabel}</p>
+            <p className="text-xs text-black font-bold uppercase">{receiptData.giverLabel}</p>
           )}
         </div>
       </div>
+
+
       
       {/* Watermark */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none -rotate-12 text-center">
@@ -548,7 +551,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           @media print {
             @page {
               size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
-              margin: 15mm 10mm;
+              margin: 10mm 10mm;
             }
             body { 
               background: white !important;
