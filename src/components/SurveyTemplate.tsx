@@ -401,7 +401,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
   );
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden survey-print-container">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -421,18 +421,49 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             box-shadow: none !important;
           }
           .page-break {
-            page-break-after: always !important;
-            break-after: page !important;
+            break-before: page !important;
+            page-break-before: always !important;
             display: block !important;
-            margin-bottom: 0 !important;
             width: 100% !important;
+            position: relative !important;
+            clear: both !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
+          .page-break:first-child {
+            break-before: auto !important;
+            page-break-before: auto !important;
           }
           .print-block {
             display: block !important;
             width: 100% !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: initial !important;
           }
           .print-no-transform {
             transform: none !important;
+          }
+          @media print {
+            body, html {
+              overflow: visible !important;
+              height: auto !important;
+              background: white !important;
+            }
+            #root > div:not(.survey-print-container) {
+              display: none !important;
+            }
+            #root {
+              overflow: visible !important;
+              display: block !important;
+            }
+            .fixed {
+              position: relative !important;
+            }
+          }
+          @page {
+            size: auto;
+            margin: 0mm;
           }
         }
       `}} />
@@ -912,7 +943,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
               style={{ transform: `scale(${scale})` }}
             >
             {/* PAGE 1: TEMPLATE 1 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
+            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-3 uppercase tracking-wider text-center">TEMPLATE 1: BIODATA & PROFIL MUSTAHIK</h3>
@@ -1188,7 +1219,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 2: TEMPLATE 2 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
+            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 2: ANALISA KEUANGAN (ONLINE)</h3>
@@ -1313,7 +1344,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 3: TEMPLATE 3 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
+            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
               <PageHeader />
               
               <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 3: VERIFIKASI LAPANGAN (OFFLINE)</h3>
@@ -1500,7 +1531,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                 {photos.length > 0 && Array.from({ length: Math.ceil(photos.length / 4) }, (_, pageIdx) => {
                   const chunk = photos.slice(pageIdx * 4, pageIdx * 4 + 4);
                   return (
-                    <div key={`photo-page-${pageIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden p-8 gap-6 page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
+                    <div key={`photo-page-${pageIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden print:overflow-visible p-8 gap-6 page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
                       <div className="border-b-2 border-black pb-2 mb-4 flex justify-between items-end">
                         <div>
                           <h2 className="text-sm font-bold uppercase tracking-tight">Lampiran Dokumentasi Verifikasi Lapangan</h2>
@@ -1550,7 +1581,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
                 {/* ARCHIVE PAGES */}
                 {archivedFiles.map((file, fIdx) => (
-                  <div key={`archive-page-${fIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
+                  <div key={`archive-page-${fIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden print:overflow-visible page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
                     <div className="flex-1 w-full h-full relative bg-slate-100 flex items-center justify-center overflow-hidden">
                        {file.data.startsWith('data:application/pdf') ? (
                          <iframe 
