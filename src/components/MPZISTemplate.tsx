@@ -140,55 +140,42 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
       let processedCount = 0;
 
       for (const file of fileList) {
-        const isPdf = file.type === 'application/pdf';
-        const isImage = file.type.startsWith('image/');
-        
-        if (isPdf || isImage) {
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            let base64 = reader.result as string;
-
-            if (isImage) {
-              base64 = await compressImage(base64);
-            }
-
-            if (!isBase64SizeValid(base64)) {
-              alert(`File "${file.name}" terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB per file).`);
-              processedCount++;
-              if (processedCount === fileList.length) setIsSaving(false);
-              return;
-            }
-
-            newFiles.push({
-              name: file.name,
-              data: base64
-            });
-            processedCount++;
-            
-            if (processedCount === fileList.length) {
-              const updated = [...mpzisFiles, ...newFiles];
-              setMpzisFiles(updated);
-              await handleSaveArchives(updated);
-              setIsSaving(false);
-              if (newFiles.length > 0) {
-                alert('Berhasil mengunggah scan MPZIS');
-                setActiveTab('scan'); // Switch to scan tab to show results
-              }
-            }
-          };
-          reader.readAsDataURL(file);
-        } else {
+        if (file.type !== 'application/pdf') {
+          alert(`File "${file.name}" bukan PDF. Harap unggah hanya file PDF.`);
           processedCount++;
-          alert(`Format file ${file.name} tidak didukung. Harap unggah PDF atau Foto (JPEG/PNG).`);
-          if (processedCount === fileList.length) {
-            if (newFiles.length > 0) {
-              const updated = [...mpzisFiles, ...newFiles];
-              setMpzisFiles(updated);
-              await handleSaveArchives(updated);
-            }
-            setIsSaving(false);
-          }
+          if (processedCount === fileList.length) setIsSaving(false);
+          continue;
         }
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result as string;
+
+          if (!isBase64SizeValid(base64)) {
+            alert(`File "${file.name}" terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB per file).`);
+            processedCount++;
+            if (processedCount === fileList.length) setIsSaving(false);
+            return;
+          }
+
+          newFiles.push({
+            name: file.name,
+            data: base64
+          });
+          processedCount++;
+          
+          if (processedCount === fileList.length) {
+            const updated = [...mpzisFiles, ...newFiles];
+            setMpzisFiles(updated);
+            await handleSaveArchives(updated);
+            setIsSaving(false);
+            if (newFiles.length > 0) {
+              alert('Berhasil mengunggah scan MPZIS');
+              setActiveTab('scan'); // Switch to scan tab to show results
+            }
+          }
+        };
+        reader.readAsDataURL(file);
       }
     }
   };
@@ -942,7 +929,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                       )}
                       
                       {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                      <div className="absolute inset-0 bg-black/60 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                         <button 
                           onClick={() => openInNewTab(file.data)}
                           className="p-3 bg-white text-black rounded-full hover:bg-purple-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0"

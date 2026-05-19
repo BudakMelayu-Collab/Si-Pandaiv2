@@ -1,59 +1,34 @@
 import { PDFDocument } from 'pdf-lib';
-import { getRecipientFile } from '../firebase';
+import { getRecipientFile, getRecipientTemplateData } from '../firebase';
 
 /**
  * Merges all available scans for a recipient into a single PDF.
- * Order: Receipt, MPZIS, E-PPD, Survey
+ * Order: Receipt, MPZIS, E-PPD, Survey (including multiple pages if any)
  */
 export async function mergeRecipientScans(recipientId: string, recipientName: string) {
-  const fileTypes = ['receipt', 'mpzis', 'eppd', 'survey'];
+  const fileTypes = ['receipt', 'mpzis', 'eppd'];
   const mergedPdf = await PDFDocument.create();
   
   let addedCount = 0;
 
+  // 1. Process Receipt, MPZIS, E-PPD
   for (const type of fileTypes) {
     const base64 = await getRecipientFile(recipientId, type);
     if (!base64) continue;
+    await appendToPdf(mergedPdf, base64, () => addedCount++);
+  }
 
-    try {
-      // Extract pure base64 data
-      const parts = base64.split(',');
-      if (parts.length < 2) continue;
-      
-      const binaryString = atob(parts[1]);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      if (base64.includes('application/pdf')) {
-        const pdf = await PDFDocument.load(bytes);
-        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
-        addedCount++;
-      } else if (base64.includes('image/')) {
-        let image;
-        if (base64.includes('image/jpeg') || base64.includes('image/jpg')) {
-          image = await mergedPdf.embedJpg(bytes);
-        } else if (base64.includes('image/png')) {
-          image = await mergedPdf.embedPng(bytes);
-        }
-
-        if (image) {
-          // Add a new page with the image size (or fit to A4 if preferred)
-          // For simplicity, we use image size
-          const page = mergedPdf.addPage([image.width, image.height]);
-          page.drawImage(image, {
-            x: 0,
-            y: 0,
-            width: image.width,
-            height: image.height,
-          });
-          addedCount++;
-        }
-      }
-    } catch (err) {
-      console.error(`Error merging ${type}:`, err);
+  // 2. Process Survey Scans (can be multiple from SurveyTemplate)
+  const surveyData = await getRecipientTemplateData(recipientId, 'survey');
+  if (surveyData && surveyData.scanUrls && Array.isArray(surveyData.scanUrls)) {
+    for (const base64 of surveyData.scanUrls) {
+      await appendToPdf(mergedPdf, base64, () => addedCount++);
+    }
+  } else {
+    // Fallback to legacy single file survey scan if template data not found
+    const base64 = await getRecipientFile(recipientId, 'survey');
+    if (base64) {
+      await appendToPdf(mergedPdf, base64, () => addedCount++);
     }
   }
 
@@ -73,6 +48,46 @@ export async function mergeRecipientScans(recipientId: string, recipientName: st
   link.click();
   document.body.removeChild(link);
   
-  setTimeout(() => URL.revokeObjectURL(url), 100);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   return true;
+}
+
+async function appendToPdf(mergedPdf: PDFDocument, base64: string, onAdd: () => void) {
+  try {
+    const parts = base64.split(',');
+    if (parts.length < 2) return;
+    
+    const binaryString = atob(parts[1]);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    if (base64.includes('application/pdf')) {
+      const pdf = await PDFDocument.load(bytes);
+      const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+      copiedPages.forEach((page) => mergedPdf.addPage(page));
+      onAdd();
+    } else if (base64.includes('image/')) {
+      let image;
+      if (base64.includes('image/jpeg') || base64.includes('image/jpg')) {
+        image = await mergedPdf.embedJpg(bytes);
+      } else if (base64.includes('image/png')) {
+        image = await mergedPdf.embedPng(bytes);
+      }
+
+      if (image) {
+        const page = mergedPdf.addPage([image.width, image.height]);
+        page.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        });
+        onAdd();
+      }
+    }
+  } catch (err) {
+    console.error('Error appending to PDF:', err);
+  }
 }

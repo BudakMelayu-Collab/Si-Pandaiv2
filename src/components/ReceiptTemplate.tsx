@@ -154,6 +154,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     if (signedReceiptPdfUrl && signedReceiptPdfUrl.startsWith('data:application/pdf')) {
       const createBlobUrl = async () => {
         try {
+          if (signedPdfBlobUrl) URL.revokeObjectURL(signedPdfBlobUrl);
           const response = await fetch(signedReceiptPdfUrl);
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
@@ -167,7 +168,10 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         if (signedPdfBlobUrl) URL.revokeObjectURL(signedPdfBlobUrl);
       };
     } else {
-      setSignedPdfBlobUrl(null);
+      if (signedPdfBlobUrl) {
+        URL.revokeObjectURL(signedPdfBlobUrl);
+        setSignedPdfBlobUrl(null);
+      }
     }
   }, [signedReceiptPdfUrl]);
 
@@ -209,22 +213,16 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
     setIsUploading(true);
     try {
-      const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
 
-      if (!isImage && !isPdf) {
-        alert('Mohon upload file dalam format PDF atau Gambar (JPG/PNG).');
+      if (!isPdf) {
+        alert('Mohon upload file dalam format PDF.');
         return;
       }
 
       const reader = new FileReader();
       reader.onloadend = async () => {
-        let base64 = reader.result as string;
-
-        // If it's an image, attempt compression
-        if (isImage) {
-          base64 = await compressImage(base64);
-        }
+        const base64 = reader.result as string;
 
         // Validate size for Firestore (1MB limit)
         if (!isBase64SizeValid(base64)) {
@@ -634,10 +632,40 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col bg-white/5 rounded-3xl overflow-hidden border border-white/10 p-2 relative shadow-2xl">
+                  {/* Action Header for PDF View */}
+                  <div className="flex items-center justify-between p-3 bg-black/40 border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                        <FileCheck className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-bold text-white">HASIL SCAN TANDA TERIMA</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a 
+                        href={signedReceiptPdfUrl} 
+                        download={`Scan_Tanda_Terima_${recipient.registrationId}.pdf`}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-500 transition-all"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download
+                      </a>
+                      <button 
+                        onClick={() => {
+                          if(confirm('Hapus file scan dari Cloud?')) handleSavePdfToServer(null);
+                        }}
+                        disabled={isUploading}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-red-500 text-white rounded-lg text-[10px] font-bold hover:bg-red-600 transition-all disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+
                    <object 
                     data={signedPdfBlobUrl || signedReceiptPdfUrl} 
                     type="application/pdf"
-                    className="w-full h-full rounded-2xl bg-white"
+                    className="w-full h-full rounded-b-2xl bg-white"
                   >
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                       <p className="text-white font-bold mb-2 text-lg">Pratinjau Gagal Dimuat</p>

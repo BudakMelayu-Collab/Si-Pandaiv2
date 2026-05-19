@@ -164,6 +164,20 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["recipientId", "aidType", "village", "district"]
+    },
+    "SurveyTemplateConfig": {
+      "title": "Survey Template Configuration",
+      "description": "Global settings for the survey template branding",
+      "type": "object",
+      "properties": {
+        "logo": { "type": "string" },
+        "institution": { "type": "string" },
+        "region": { "type": "string" },
+        "subText": { "type": "string" },
+        "fontSize": { "type": "number" },
+        "logoSize": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -198,6 +212,10 @@
     "/settings/app": {
       "schema": "object",
       "description": "Global application settings"
+    },
+    "/settings/survey_template": {
+      "schema": "SurveyTemplateConfig",
+      "description": "Global survey template branding configuration"
     },
     "/recipients/{recipientId}/scans/{scanId}": {
       "schema": "object",

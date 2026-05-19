@@ -32,6 +32,7 @@ export interface Recipient {
   // Timeline
   submissionDate: string; // Tanggal Masuk Berkas
   surveyDate?: string;
+  skmp?: string; // SKMP Ke -
   disbursementDate?: string;
   amountDisbursed?: number;
   

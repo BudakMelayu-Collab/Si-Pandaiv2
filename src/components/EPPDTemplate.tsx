@@ -342,22 +342,17 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
 
     setIsUploading(true);
     try {
-      const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
 
-      if (!isImage && !isPdf) {
-        alert('Mohon upload file dalam format PDF atau Gambar (JPG/PNG).');
+      if (!isPdf) {
+        alert('Mohon upload file dalam format PDF.');
         setIsUploading(false);
         return;
       }
 
       const reader = new FileReader();
       reader.onloadend = async () => {
-        let base64 = reader.result as string;
-
-        if (isImage) {
-          base64 = await compressImage(base64);
-        }
+        const base64 = reader.result as string;
 
         if (!isBase64SizeValid(base64)) {
           alert('File scan terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB setelah kompresi).');
@@ -1576,7 +1571,10 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
                   </label>
                   <button 
                     onClick={() => {
-                      if(confirm('Hapus hasil scan ini?')) setSignedPdfUrl(null);
+                      if(confirm('Hapus hasil scan ini?')) {
+                        setSignedPdfUrl(null);
+                        handleSavePdfToServer(null);
+                      }
                     }}
                     className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all"
                   >

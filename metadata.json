@@ -1,6 +1,6 @@
 {
   "name": "Remix2: Si-PANDAI - Sistem Administrasi Bantuan Sosial 2",
-  "description": "Dashboard manajemen administrasi rencana bantuan sosial dengan fitur input data terstruktur, rekapitulasi, pencarian, dan cetak dokumen resmi.",
+  "description": "Sistem administrasi bantuan sosial (Si-PANDAI) dengan fitur manajemen data mustahik, verifikasi lapangan terstruktur, dan cetak dokumen resmi yang sedang disesuaikan ke template baru.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

@@ -1,469 +1,297 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Recipient } from '../types';
-import { Printer, X, ClipboardList, Scissors, Save, Calculator, Landmark, Wallet, Plus, Trash2, Users, FileText, CheckCircle2, ExternalLink, Download, Upload, ChevronRight, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
-import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
-import * as storage from '../lib/storage';
+import { ChevronRight, Printer, Save, FileText, ImageIcon, AlertCircle, Upload, Settings, Loader2, MessageSquare } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { db, updateRecipientSurveyPdf } from '../firebase';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { mergeRecipientScans } from '../lib/pdfMerger';
 
 interface SurveyTemplateProps {
   recipient: Recipient;
   onClose: () => void;
 }
 
+const Checkbox = ({ label, fontSize }: { label: string, fontSize?: number }) => (
+  <div className="flex items-center gap-1.5 py-0.5">
+    <div className="w-3 h-3 border border-black flex-shrink-0" />
+    <span className="leading-tight flex-1" style={{ fontSize: fontSize ? `${fontSize}pt` : 'inherit' }}>{label}</span>
+  </div>
+);
+
 export default function SurveyTemplate({ recipient, onClose }: SurveyTemplateProps) {
-  const [logo, setLogo] = useState<string | null>(null);
-
-  const [scale, setScale] = useState(0.8);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config' | 'isi-data'>('template');
   const [isSaving, setIsSaving] = useState(false);
-  const [familyCount, setFamilyCount] = useState(1);
-  const [surveyDate, setSurveyDate] = useState('');
-  const [skmpKe, setSkmpKe] = useState('1');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [archivedFiles, setArchivedFiles] = useState<{ name: string; data: string }[]>([]);
-  const [signedSurveyPdfUrl, setSignedSurveyPdfUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFile, setIsLoadingFile] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
-  const [loadedRecipientId, setLoadedRecipientId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
-
-  // Toolbar switcher state
-  const [activeTab, setActiveTab] = useState<'survey' | 'scan'>('survey');
-
-  // Fetch scan from subcollection
-  React.useEffect(() => {
-    const fetchScan = async () => {
-      if (recipient.hasSignedSurveyPdf && !signedSurveyPdfUrl) {
-        setIsLoadingFile(true);
-        try {
-          const { getRecipientFile } = await import('../firebase');
-          const base64 = await getRecipientFile(recipient.id, 'survey');
-          if (base64) {
-            setSignedSurveyPdfUrl(base64);
-          } else {
-            // Clear stale flag
-            const { updateRecipientSurveyPdf } = await import('../firebase');
-            await updateRecipientSurveyPdf(recipient.id, null);
-          }
-        } catch (error) {
-          console.error("Failed to fetch scan", error);
-        } finally {
-          setIsLoadingFile(false);
-        }
-      }
-    };
-    fetchScan();
-  }, [recipient.id, recipient.hasSignedSurveyPdf]);
-
-  // Financial State
-  const [income, setIncome] = useState({
-    husband: '',
-    wife: '',
-    others: '',
-    parents: '',
-    children: '',
-    additional: '',
-    additionalNominal: ''
+  const [surveyData, setSurveyData] = useState({
+    skmp: recipient.skmp || '',
+    jumlahKeluarga: '1',
+    usahaSuami: '',
+    usahaIstri: '',
+    usahaLain: '',
+    dariOrtu: '',
+    dariAnak: '',
+    penghasilanLain: '',
+    penghasilanLainKet: '',
+    kebutuhanDapur: '',
+    pendidikan: '',
+    kesehatan: '',
+    biayaIuran: '',
+    transportasi: '',
+    pengeluaranLain: '',
+    penjelasanKeuangan: '',
+    namaPetugas: '',
+    namaMustahik: recipient.name || '',
+    scanUrls: [] as string[],
   });
 
-  const [expenses, setExpenses] = useState({
-    kitchen: '',
-    education: '',
-    health: '',
-    electricity: '',
-    water: '',
-    security: '',
-    transport: '',
-    rent: '',
-    others: ''
+  const formatCurrency = (val: string | number) => {
+    if (val === undefined || val === null || val === "") return "";
+    const clean = String(val).replace(/\D/g, '');
+    if (!clean) return "";
+    return parseInt(clean).toLocaleString('id-ID');
+  };
+
+  const handleCurrencyChange = (key: keyof typeof surveyData, val: string) => {
+    const clean = val.replace(/\D/g, '');
+    setSurveyData(prev => ({ ...prev, [key]: clean }));
+  };
+  const [templateConfig, setTemplateConfig] = useState({
+    logo: '',
+    institution: 'BAZNAS',
+    region: 'KABUPATEN SIAK',
+    subText: 'Badan Amil Zakat Nasional',
+    fontSize: 9,
+    logoSize: 48
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [explanation, setExplanation] = useState('');
-
-  // Load saved data from storage on mount
-  React.useEffect(() => {
-    const loadData = async () => {
-      setIsLoaded(false);
-      setLogo(await storage.getItem('baznas_logo'));
-      
-      let savedData = await storage.getItem(`survey_${recipient.nik || recipient.id}`);
-      
-      if (!savedData) {
-        try {
-          const { getRecipientTemplateData } = await import('../firebase');
-          savedData = await getRecipientTemplateData(recipient.id, 'survey');
-          if (savedData) {
-             await storage.setItem(`survey_${recipient.nik || recipient.id}`, savedData);
-          }
-        } catch (e) {
-          console.error("Cloud survey load failed", e);
-        }
-      }
-
-      if (savedData) {
-        try {
-          const parsed = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
-          setIncome(parsed.income || income);
-          setExpenses(parsed.expenses || expenses);
-          setExplanation(parsed.explanation || '');
-          setFamilyCount(parsed.familyCount || 1);
-          setSurveyDate(parsed.surveyDate || '');
-          setSkmpKe(parsed.skmpKe || '1');
-          setPhotos(parsed.photos || []);
-          setArchivedFiles(parsed.archivedFiles || []);
-        } catch (e) {
-          console.error('Failed to load survey data', e);
-        }
-      }
-      setLoadedRecipientId(recipient.id);
-      setIsLoaded(true);
-    };
-    loadData();
-  }, [recipient.id, recipient.nik]);
-
-  // Auto-save survey data
-  React.useEffect(() => {
-    if (!isLoaded || loadedRecipientId !== recipient.id) return;
-    
-    const saveToCloud = async () => {
-      setSaveStatus('saving');
-      const dataToSave = {
-        income,
-        expenses,
-        explanation,
-        familyCount,
-        surveyDate,
-        skmpKe,
-        photos,
-        archivedFiles
-      };
-      
+  useEffect(() => {
+    const loadSurveyData = async () => {
       try {
-        await storage.setItem(`survey_${recipient.nik || recipient.id}`, dataToSave);
-        const { saveRecipientTemplateData } = await import('../firebase');
-        await saveRecipientTemplateData(recipient.id, 'survey', dataToSave);
-        setSaveStatus('saved');
-      } catch (e) {
-        console.error("Cloud survey save failed", e);
-        setSaveStatus('error');
+        const surveyDoc = doc(db, 'recipients', recipient.id, 'templates', 'survey');
+        const snap = await getDoc(surveyDoc);
+        if (snap.exists()) {
+          const loadedData = snap.data().data;
+          setSurveyData(prev => ({
+            ...prev,
+            ...loadedData
+          }));
+        }
+      } catch (error) {
+        console.error("Error loading survey data:", error);
       }
     };
+    loadSurveyData();
+  }, [recipient.id]);
 
-    const timer = setTimeout(saveToCloud, 2000); // Debounce auto-save
-    return () => clearTimeout(timer);
-  }, [income, expenses, explanation, familyCount, surveyDate, skmpKe, photos, archivedFiles, recipient.nik, recipient.id, isLoaded, loadedRecipientId]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    const dataToSave = {
-      income,
-      expenses,
-      explanation,
-      familyCount,
-      surveyDate,
-      skmpKe,
-      photos,
-      archivedFiles
-    };
-    
+  const handleSaveSurvey = async (silent: boolean = false) => {
     try {
-      await storage.setItem(`survey_${recipient.nik || recipient.id}`, dataToSave);
+      setIsSaving(true);
       
-      setTimeout(() => {
-        setIsSaving(false);
+      // 1. Save to subcollection (detailed template data)
+      const surveyRef = doc(db, 'recipients', recipient.id, 'templates', 'survey');
+      await setDoc(surveyRef, {
+        data: surveyData,
+        updatedAt: serverTimestamp()
+      });
+
+      // 2. Sync back key fields to main recipient document if they changed
+      const recipientRef = doc(db, 'recipients', recipient.id);
+      await updateDoc(recipientRef, {
+        skmp: surveyData.skmp,
+        name: surveyData.namaMustahik,
+        hasSignedSurveyPdf: surveyData.scanUrls && surveyData.scanUrls.length > 0,
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. Update scan collection for merging utility
+      if (surveyData.scanUrls && surveyData.scanUrls.length > 0) {
+        // Use the first scan as the primary survey scan for rekap
+        await updateRecipientSurveyPdf(recipient.id, surveyData.scanUrls[0]);
+      }
+
+      if (!silent) {
         alert('Data survey berhasil disimpan!');
-      }, 500);
-    } catch (e) {
-      console.error('Save failed', e);
+      }
+      if (activeTab === 'isi-data' && !silent) {
+        setActiveTab('template');
+      }
+    } catch (error) {
+      console.error("Error saving survey:", error);
+      if (!silent) {
+        alert('Gagal menyimpan data survey. ' + (error instanceof Error ? error.message : ''));
+      }
+      throw error; // Re-throw for handleRekapPdf to catch
+    } finally {
       setIsSaving(false);
-      alert('Gagal menyimpan data: Ukuran file mungkin terlalu besar atau penyimpanan penuh.');
     }
   };
-  
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const fileList = Array.from(files) as File[];
-      for (const file of fileList) {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const compressed = await compressImage(reader.result as string, 800, 0.6); // Aggressive compression for photos
-          setPhotos(prev => [...prev, compressed]);
-        };
-        reader.readAsDataURL(file);
+
+  useEffect(() => {
+    // Listen to real-time updates for global configuration
+    const configDoc = doc(db, 'settings', 'survey_template');
+    const unsubscribe = onSnapshot(configDoc, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setTemplateConfig(prev => ({
+          ...prev,
+          ...data,
+          fontSize: data.fontSize || 9,
+          logoSize: data.logoSize || 48
+        }));
       }
-    }
-  };
+    });
 
-  const handleArchiveUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const fileList = Array.from(files) as File[];
-      for (const file of fileList) {
-        const isPdf = file.type === 'application/pdf';
-        const isImage = file.type.startsWith('image/');
-        
-        if (isPdf || isImage) {
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            let base64 = reader.result as string;
-            
-            if (isImage) {
-              base64 = await compressImage(base64);
-            }
+    return () => unsubscribe();
+  }, []);
 
-            if (!isBase64SizeValid(base64)) {
-              alert(`File "${file.name}" terlalu besar. Maksimal ~700KB setelah kompresi.`);
-              return;
-            }
-
-            setArchivedFiles(prev => [...prev, {
-              name: file.name,
-              data: base64
-            }]);
-          };
-          reader.readAsDataURL(file);
-        } else {
-          alert(`Format file ${file.name} tidak didukung. Harap unggah PDF atau Foto (JPEG/PNG).`);
-        }
-      }
-    }
-  };
-
-  const removeArchiveFile = (index: number) => {
-    setArchivedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSurveyScanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf';
-
-      if (!isImage && !isPdf) {
-        alert('Mohon upload file dalam format PDF atau Gambar (JPG/PNG).');
-        setIsUploading(false);
-        return;
-      }
-
+    if (file) {
       const reader = new FileReader();
-      reader.onloadend = async () => {
-        let base64 = reader.result as string;
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_DIM = 400;
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/png');
+          setTemplateConfig(prev => ({ ...prev, logo: dataUrl }));
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-        if (isImage) {
-          base64 = await compressImage(base64);
-        }
-
-        if (!isBase64SizeValid(base64)) {
-          alert('File scan terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB setelah kompresi).');
-          setIsUploading(false);
+  const handleScanUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach((file: File) => {
+        if (file.type !== 'application/pdf') {
+          alert('Hanya diperbolehkan mengupload file format PDF.');
           return;
         }
 
-        try {
-          const { updateRecipientSurveyPdf } = await import('../firebase');
-          await updateRecipientSurveyPdf(recipient.id, base64);
-          setSignedSurveyPdfUrl(base64);
-          await storage.setItem(`survey_signed_pdf_${recipient.id}`, base64);
-        } catch (error) {
-          console.error(error);
-          alert('Gagal mengunggah scan ke Cloud.');
-        } finally {
-          setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Scan upload error:', error);
-      setIsUploading(false);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          
+          // Check approximate size for PDF
+          const approxSize = dataUrl.length * 0.75;
+          if (approxSize > 950000) { 
+            alert('File PDF terlalu besar. Maksimal 950KB.');
+            return;
+          }
+          
+          setSurveyData(prev => {
+            const newScanUrls = [...(prev.scanUrls || []), dataUrl];
+            const totalSize = JSON.stringify({ ...prev, scanUrls: newScanUrls }).length * 0.75;
+            if (totalSize > 1000000) { 
+              alert('Total ukuran data survey melampaui batas Firestore (1MB). Kurangi jumlah berkas scan.');
+              return prev;
+            }
+            return { ...prev, scanUrls: newScanUrls };
+          });
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
-  const removeSurveyScan = async () => {
-    if (confirm('Hapus scan Lembar Verifikasi?')) {
-      setIsUploading(true);
-      try {
-        const { updateRecipientSurveyPdf } = await import('../firebase');
-        await updateRecipientSurveyPdf(recipient.id, null);
-        setSignedSurveyPdfUrl(null);
-        await storage.setItem(`survey_signed_pdf_${recipient.id}`, null);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
-  const openInNewTab = (data: string) => {
+  const openPdf = (dataUrl: string) => {
     try {
-      const parts = data.split(';base64,');
-      if (parts.length > 1) {
-        const contentType = parts[0].split(':')[1];
-        const raw = window.atob(parts[1]);
-        const rawLength = raw.length;
-        const uInt8Array = new Uint8Array(rawLength);
-        for (let i = 0; i < rawLength; ++i) {
-          uInt8Array[i] = raw.charCodeAt(i);
-        }
-        const blob = new Blob([uInt8Array], { type: contentType });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-      } else {
-        window.open(data, '_blank');
+      if (!dataUrl.startsWith('data:application/pdf')) {
+        alert('Format file bukan PDF yang valid.');
+        return;
       }
-    } catch (e) {
-      console.error('Failed to open file', e);
-      window.open(data, '_blank');
+      const base64Content = dataUrl.split(',')[1];
+      const byteCharacters = atob(base64Content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error("Error opening PDF:", error);
+      alert("Gagal membuka PDF.");
     }
   };
 
-  const downloadFile = (data: string, name: string) => {
-    const link = document.createElement('a');
-    link.href = data;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const removeScan = (index: number) => {
+    setSurveyData(prev => ({
+      ...prev,
+      scanUrls: prev.scanUrls.filter((_, i) => i !== index)
+    }));
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+  const saveConfig = async () => {
+    try {
+      setIsSaving(true);
+      const configDoc = doc(db, 'settings', 'survey_template');
+      await setDoc(configDoc, {
+        ...templateConfig,
+        updatedAt: new Date().toISOString()
+      });
+      alert('Konfigurasi template berhasil disimpan secara global!');
+      setActiveTab('template');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      alert('Gagal menyimpan konfigurasi. Pastikan Anda memiliki izin.');
+    } finally {
+      setIsSaving(false);
+    }
   };
-
-  // Calculations
-  const totalA = useMemo(() => {
-    const values = [
-      income.husband, income.wife, income.others, 
-      income.parents, income.children, income.additionalNominal
-    ];
-    return values.reduce((acc, val) => acc + (Number(val) || 0), 0);
-  }, [income]);
-
-  const totalB = useMemo(() => {
-    const values = [
-      expenses.kitchen, expenses.education, expenses.health,
-      expenses.electricity, expenses.water, expenses.security,
-      expenses.transport, expenses.rent, expenses.others
-    ];
-    return values.reduce((acc, val) => acc + (Number(val) || 0), 0);
-  }, [expenses]);
-
-  const balance = totalA - totalB;
-  const perCapita = familyCount > 0 ? totalA / familyCount : 0;
 
   const handlePrint = () => {
     window.print();
   };
 
-  const formatCurrency = (val: number) => {
-    if (val === 0) return '0';
-    return new Intl.NumberFormat('id-ID').format(val);
+  const handleRekapPdf = async () => {
+    try {
+      setIsSaving(true);
+      // Wait for all saves to finish first to be sure
+      await handleSaveSurvey(true);
+      await mergeRecipientScans(recipient.id, recipient.name);
+    } catch (error) {
+      console.error("Error creating Rekap PDF:", error);
+      alert(error instanceof Error ? error.message : "Gagal membuat Rekap PDF.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const PageHeader = () => (
-    <div className="flex items-stretch border border-black mb-4">
-      <div className="w-[150px] p-2 flex items-center justify-center border-r border-black">
-        {logo ? (
-          <img src={logo} alt="BAZNAS Logo" className="max-h-12 object-contain" />
-        ) : (
-          <div className="text-center font-bold text-[8px]">
-            <p>BAZNAS</p>
-            <p className="text-[6px]">Badan Amil Zakat Nasional</p>
-            <p className="text-[6px]">KABUPATEN SIAK</p>
-          </div>
-        )}
-      </div>
-      <div className="flex-1 p-2 flex flex-col items-center justify-center text-center">
-        <h1 className="text-base font-bold uppercase tracking-tight">SURVEY MUSTAHIK (PERORANGAN)</h1>
-        <p className="text-[10px] font-medium">F-AZN / PDP /</p>
-      </div>
-      <div className="w-[100px] p-2 flex items-center justify-center border-l border-black text-[10px] font-bold">
-        F-AZN / PDP /
-      </div>
-    </div>
-  );
-
-  const Checkbox = ({ label, checked }: { label: string; checked?: boolean }) => (
-    <div className="flex items-center gap-2 mb-0.5">
-      <div className={cn(
-        "w-3 h-3 border border-black flex items-center justify-center text-[8px]",
-        checked && "bg-black text-white"
-      )}>
-        {checked && "✓"}
-      </div>
-      <span className="text-[9px] whitespace-nowrap">{label}</span>
-    </div>
-  );
-
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden survey-print-container">
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:bg-white overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
-            margin: 10mm;
+            size: 210mm 330mm;
+            margin: 0;
           }
-          body { 
-            background: white !important;
+          body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-          }
-          .print-container {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-          }
-          .page-break {
-            break-before: page !important;
-            page-break-before: always !important;
-            display: block !important;
-            width: 100% !important;
-            position: relative !important;
-            clear: both !important;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-          }
-          .page-break:first-child {
-            break-before: auto !important;
-            page-break-before: auto !important;
-          }
-          .print-block {
-            display: block !important;
-            width: 100% !important;
-            overflow: visible !important;
-            height: auto !important;
-            min-height: initial !important;
-          }
-          .print-no-transform {
-            transform: none !important;
-          }
-          @media print {
-            body, html {
-              overflow: visible !important;
-              height: auto !important;
-              background: white !important;
-            }
-            #root > div:not(.survey-print-container) {
-              display: none !important;
-            }
-            #root {
-              overflow: visible !important;
-              display: block !important;
-            }
-            .fixed {
-              position: relative !important;
-            }
-          }
-          @page {
-            size: auto;
-            margin: 0mm;
           }
         }
       `}} />
@@ -473,1125 +301,1148 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
           <button 
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-            title="Tutup (Esc)"
           >
             <ChevronRight className="w-6 h-6 rotate-180" />
           </button>
           
           <div className="flex items-center gap-3 border-l border-white/10 pl-4 h-10">
             <div className="w-9 h-9 bg-emerald-600/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
-              <ClipboardList className="w-5 h-5 text-emerald-400" />
+              <FileText className="w-5 h-5 text-emerald-400" />
             </div>
-            <div className="hidden sm:block">
-              <h3 className="font-bold text-white text-sm leading-tight">Verification System</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-emerald-300/60 uppercase font-bold tracking-wider">Survey & Verifikasi Mustahik</span>
-                {saveStatus === 'saving' && <span className="text-white/40 animate-pulse text-[8px] uppercase tracking-tighter bg-white/5 px-1.5 py-0.5 rounded border border-white/5">● Menyimpan...</span>}
-                {saveStatus === 'saved' && <span className="text-emerald-400 text-[8px] uppercase tracking-tighter bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/10">● Tersimpan</span>}
-                {saveStatus === 'error' && <span className="text-red-400 text-[8px] uppercase tracking-tighter bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/10">● Gagal</span>}
-              </div>
+            <div>
+              <h3 className="font-bold text-white text-sm leading-tight">BAZNAS Siak</h3>
+              <span className="text-[10px] text-emerald-300/60 uppercase font-bold tracking-wider">Survey Mustahik (P)</span>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center gap-2 max-w-xl px-4 overflow-x-auto scrollbar-hide">
-          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2">
-            <button
-              onClick={() => setActiveTab('survey')}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                activeTab === 'survey' 
-                  ? "bg-indigo-600 text-white shadow-lg" 
-                  : "text-white/40 hover:text-white/60"
-              )}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Template
-            </button>
-            <button
-              onClick={() => setActiveTab('scan')}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 relative",
-                activeTab === 'scan' 
-                  ? "bg-purple-600 text-white shadow-lg" 
-                  : "text-white/40 hover:text-white/60"
-              )}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Hasil Scan
-              {signedSurveyPdfUrl && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] flex items-center justify-center rounded-full border border-black">
-                  1
-                </span>
-              )}
-            </button>
-          </div>
-
-          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2">
-            <button 
-              onClick={() => setPaperSize('A4')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                paperSize === 'A4' ? "bg-white/10 text-white" : "text-white/30 hover:text-white"
-              )}
-            >
-              A4
-            </button>
-            <button 
-              onClick={() => setPaperSize('F4')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                paperSize === 'F4' ? "bg-white/10 text-white" : "text-white/30 hover:text-white"
-              )}
-            >
-              F4
-            </button>
-          </div>
-
-          <div className="w-px h-6 bg-white/10 shrink-0 mx-2" />
-
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 shrink-0">
-            <span className="text-[10px] font-bold text-white/40 uppercase">Zoom</span>
-            <input 
-              type="range" 
-              min="0.4" 
-              max="1.2" 
-              step="0.05" 
-              value={scale} 
-              onChange={(e) => setScale(parseFloat(e.target.value))}
-              className="w-16 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-            />
-            <span className="text-[10px] font-mono font-bold text-white/60 min-w-[30px] text-right">
-              {Math.round(scale * 100)}%
-            </span>
-          </div>
-
-          <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
+          <button
+            onClick={() => setActiveTab('template')}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0",
-              isSidebarOpen 
-                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
+              "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+              activeTab === 'template' ? "bg-indigo-600 text-white" : "text-white/40 hover:text-white/60"
             )}
           >
-            <Calculator className="w-4 h-4" />
-            {isSidebarOpen ? "Tutup Editor" : "Buka Editor"}
+            <FileText className="w-3.5 h-3.5" />
+            Template
+          </button>
+          <button
+            onClick={() => setActiveTab('scan')}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+              activeTab === 'scan' ? "bg-purple-600 text-white" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            Hasil Scan
+          </button>
+          <button
+            onClick={() => setActiveTab('isi-data')}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+              activeTab === 'isi-data' ? "bg-emerald-600 text-white" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <AlertCircle className="w-3.5 h-3.5" />
+            Isi Form
+          </button>
+          <button
+            onClick={() => setActiveTab('config')}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+              activeTab === 'config' ? "bg-amber-600 text-white" : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Config
           </button>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl text-xs font-bold transition-all shrink-0 border border-white/10"
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-xl text-xs font-bold border border-white/10"
           >
             <Printer className="w-4 h-4" /> Cetak
           </button>
-
           <button 
-            onClick={handleSave}
+            onClick={handleRekapPdf}
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50 shrink-0"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-bold border border-emerald-500/20 disabled:opacity-50"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            Format PDF Rekap
+          </button>
+          <button 
+            onClick={handleSaveSurvey}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 shadow-lg disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Manual
+            {isSaving ? 'Menyimpan...' : 'Simpan'}
           </button>
         </div>
       </div>
 
-
-      <div className="flex-1 flex overflow-hidden print:block">
-        {/* Sidebar Form */}
-        {isSidebarOpen && (
-          <div className="w-[450px] border-r border-white/10 bg-white/5 overflow-y-auto p-6 space-y-8 print:hidden scrollbar-hide">
-            {/* Income Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-emerald-400">
-                <Landmark className="w-5 h-5" />
-                <h4 className="font-bold text-sm uppercase tracking-wider">Pendapatan (A)</h4>
-              </div>
-              <div className="grid gap-3">
-                {[
-                  { key: 'husband', label: 'Usaha Pokok Suami' },
-                  { key: 'wife', label: 'Usaha Pokok Istri' },
-                  { key: 'others', label: 'Usaha Lainnya' },
-                  { key: 'parents', label: 'Dari Orang Tua' },
-                  { key: 'children', label: 'Dari Anak/Menantu' },
-                ].map((item) => (
-                  <div key={item.key} className="space-y-1">
-                    <label className="text-[10px] font-bold text-white/40 uppercase pl-1">{item.label}</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-[10px]">Rp</span>
-                      <input 
-                        type="number"
-                        value={income[item.key as keyof typeof income]}
-                        onChange={(e) => setIncome({ ...income, [item.key]: e.target.value })}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-white text-xs focus:border-emerald-500/50 outline-none"
-                      />
-                    </div>
-                  </div>
-                ))}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1">Penghasilan Lainnya</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input 
-                      placeholder="Keterangan..."
-                      value={income.additional}
-                      onChange={(e) => setIncome({ ...income, additional: e.target.value })}
-                      className="bg-white/5 border border-white/10 rounded-lg py-1.5 px-3 text-white text-[10px] outline-none focus:border-emerald-500/50"
-                    />
-                    <input 
-                      type="number"
-                      placeholder="Nominal"
-                      value={income.additionalNominal}
-                      onChange={(e) => setIncome({ ...income, additionalNominal: e.target.value })}
-                      className="bg-white/5 border border-white/10 rounded-lg py-1.5 px-3 text-white text-[10px] outline-none focus:border-emerald-500/50"
-                    />
-                  </div>
+      <div className="flex-1 overflow-y-auto p-10 flex flex-col items-center bg-slate-900 print:bg-white print:p-0">
+        {activeTab === 'config' && (
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 shadow-2xl">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-amber-500/20 rounded-xl">
+                  <Settings className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Konfigurasi Template</h3>
+                  <p className="text-slate-400 text-sm">Sesuaikan branding dan logo lembaga Anda</p>
                 </div>
               </div>
-            </div>
 
-            {/* Expenses Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-rose-400">
-                <Wallet className="w-5 h-5" />
-                <h4 className="font-bold text-sm uppercase tracking-wider">Pengeluaran (B)</h4>
-              </div>
-              <div className="grid gap-3">
-                {[
-                  { key: 'kitchen', label: 'Kebutuhan Dapur' },
-                  { key: 'education', label: 'Pendidikan' },
-                  { key: 'health', label: 'Kesehatan' },
-                  { key: 'electricity', label: 'Listrik' },
-                  { key: 'water', label: 'Air Minum' },
-                  { key: 'security', label: 'Siskamling' },
-                  { key: 'transport', label: 'Transportasi' },
-                  { key: 'rent', label: 'Sewa Rumah' },
-                ].map((item) => (
-                  <div key={item.key} className="space-y-1">
-                    <label className="text-[10px] font-bold text-white/40 uppercase pl-1">{item.label}</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-[10px]">Rp</span>
-                      <input 
-                        type="number"
-                        value={expenses[item.key as keyof typeof expenses]}
-                        onChange={(e) => setExpenses({ ...expenses, [item.key]: e.target.value })}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-white text-xs focus:border-rose-500/50 outline-none"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-                {/* Family Members Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-blue-400">
-                <Users className="w-5 h-5" />
-                <h4 className="font-bold text-sm uppercase tracking-wider">Informasi Survey</h4>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1">SKMP Ke</label>
-                  <select 
-                    value={skmpKe}
-                    onChange={(e) => setSkmpKe(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 px-3 text-white text-xs outline-none focus:border-blue-500/50"
+              <div className="space-y-6">
+                {/* Logo Upload Section */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-300">Logo Lembaga</label>
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="group relative h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/5 transition-all overflow-hidden"
                   >
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <option key={n} value={n} className="bg-slate-900 text-white">{n}</option>
-                    ))}
-                  </select>
+                    {templateConfig.logo ? (
+                      <>
+                        <img src={templateConfig.logo} alt="Logo Preview" className="h-full object-contain p-4" />
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Upload className="w-8 h-8 text-white mb-2" />
+                          <span className="text-white text-xs font-bold">Ganti Logo</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-slate-500 mb-2 group-hover:text-amber-500 transition-colors" />
+                        <span className="text-slate-400 text-sm group-hover:text-amber-400">Klik untuk upload logo</span>
+                      </>
+                    )}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleLogoUpload} 
+                      className="hidden" 
+                      accept="image/*"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1">Tgl Survey</label>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Lembaga (Utama)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      value={templateConfig.institution}
+                      onChange={(e) => setTemplateConfig(p => ({ ...p, institution: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Region / Wilayah</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      value={templateConfig.region}
+                      onChange={(e) => setTemplateConfig(p => ({ ...p, region: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lembaga (Bottom)</label>
                   <input 
-                    type="date"
-                    value={surveyDate}
-                    onChange={(e) => setSurveyDate(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 px-3 text-white text-xs outline-none focus:border-blue-500/50"
+                    type="text" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                    value={templateConfig.subText}
+                    onChange={(e) => setTemplateConfig(p => ({ ...p, subText: e.target.value }))}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase pl-1">Jumlah Anggota Keluarga</label>
-                <input 
-                  type="number"
-                  min="1"
-                  value={familyCount}
-                  onChange={(e) => setFamilyCount(Number(e.target.value) || 1)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 px-3 text-white text-xs outline-none focus:border-blue-500/50"
-                />
-              </div>
-
-              {/* Photo & Archive Upload Section */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1 flex items-center justify-between">
-                    <span>Dokumentasi Lapangan</span>
-                    <span className="text-emerald-400 font-mono">{photos.length} Foto</span>
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {photos.map((photo, idx) => (
-                      <div key={idx} className="relative aspect-square group">
-                        <img src={photo} alt="" className="w-full h-full object-cover rounded-lg border border-white/10" />
-                        <button 
-                          onClick={() => removePhoto(idx)}
-                          className="absolute -top-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                    <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-lg cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-white/20 hover:text-emerald-400">
-                      <Plus className="w-6 h-6 mb-1" />
-                      <span className="text-[8px] font-bold uppercase">Tambah</span>
-                      <input type="file" multiple accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1 flex items-center justify-between">
-                    <span>Arsip Hasil Scan (PDF/Foto)</span>
-                    <span className="text-blue-400 font-mono text-[9px]">{archivedFiles.length} Berkas</span>
-                  </label>
-                  
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    {archivedFiles.map((file, idx) => (
-                      <div key={idx} className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-2.5 group hover:border-blue-500/30 transition-all">
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400 shrink-0">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-white text-[10px] font-bold truncate">{file.name}</span>
-                            <span className="text-white/30 text-[8px] uppercase font-bold">Hlm {idx + 1}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <button 
-                            onClick={() => openInNewTab(file.data)}
-                            title="Buka di tab baru"
-                            className="p-1.5 text-white/20 hover:text-blue-400 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => downloadFile(file.data, file.name)}
-                            title="Unduh berkas"
-                            className="p-1.5 text-white/20 hover:text-emerald-400 transition-colors"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => removeArchiveFile(idx)}
-                            title="Hapus"
-                            className="p-1.5 text-white/20 hover:text-rose-500 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    <label className="w-full flex items-center gap-3 bg-white/5 border border-dashed border-white/10 rounded-xl p-3 cursor-pointer hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group">
-                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:scale-110 transition-transform">
-                        <Plus className="w-5 h-5" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-white text-[10px] font-bold uppercase">Tambah Berkas Scan</span>
-                        <span className="text-white/30 text-[9px]">Maks 5MB • PDF, JPG, PNG</span>
-                      </div>
-                      <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleArchiveUpload} />
-                    </label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="range" 
+                        min="20" 
+                        max="120" 
+                        className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        value={templateConfig.logoSize}
+                        onChange={(e) => setTemplateConfig(p => ({ ...p, logoSize: Number(e.target.value) }))}
+                      />
+                      <span className="text-white font-mono text-sm w-12 text-right">{templateConfig.logoSize}px</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.max(6, p.fontSize - 1) }))}
+                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                      >-</button>
+                      <span className="text-white font-mono text-sm w-8 text-center">{templateConfig.fontSize}</span>
+                      <button 
+                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.min(14, p.fontSize + 1) }))}
+                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                      >+</button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Lembar Verifikasi Scan Section */}
-                <div className="space-y-2 pt-4 border-t border-white/10">
-                  <label className="text-[10px] font-bold text-white/40 uppercase pl-1 flex items-center justify-between">
-                    <span>Scan Lembar Verifikasi Bertanda Tangan</span>
-                    <span className={cn(
-                      "text-[9px] font-bold px-1.5 py-0.5 rounded",
-                      signedSurveyPdfUrl ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
-                    )}>
-                      {signedSurveyPdfUrl ? "SUDAH UPLOAD" : "BELUM UPLOAD"}
-                    </span>
-                  </label>
-                  
-                  <div className="grid grid-cols-1 gap-2">
-                    {signedSurveyPdfUrl ? (
-                      <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3 group hover:border-emerald-500/30 transition-all">
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-white text-[10px] font-bold truncate">Verification_Scan.pdf</span>
-                            <span className="text-white/30 text-[8px] uppercase font-bold text-emerald-400/60">Tersimpan di Cloud</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button 
-                            onClick={() => openInNewTab(signedSurveyPdfUrl)}
-                            className="p-2 text-white/20 hover:text-blue-400 transition-colors"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={removeSurveyScan}
-                            className="p-2 text-white/20 hover:text-rose-500 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <label className={cn(
-                        "w-full flex items-center gap-4 bg-white/5 border border-dashed border-white/10 rounded-xl p-4 cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group",
-                        (isUploading || isLoadingFile) && "opacity-50 cursor-not-allowed"
-                      )}>
-                        <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400 group-hover:scale-110 transition-transform">
-                          {isUploading || isLoadingFile ? <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent animate-spin rounded-full" /> : <Upload className="w-5 h-5" />}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-white text-[11px] font-bold uppercase">
-                            {isLoadingFile ? 'Memuat dari Cloud...' : 'Upload Hasil Scan Bertanda Tangan'}
-                          </span>
-                          <span className="text-white/30 text-[9px]">Maks 1MB • PDF, JPG, PNG</span>
-                        </div>
-                        <input type="file" accept="application/pdf,image/*" className="hidden" onChange={handleSurveyScanUpload} disabled={isUploading || isLoadingFile} />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-            {/* Explanation Section */}
-            <div className="space-y-4 pt-4 border-t border-white/10">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase pl-1">Penjelasan / Catatan Survey</label>
-                <textarea 
-                  rows={4}
-                  value={explanation}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs outline-none focus:border-emerald-500/50 resize-none"
-                  placeholder="Masukkan penjelasan tambahan..."
-                />
-              </div>
-            </div>
-
-            {/* Calculations Summary */}
-            <div className="bg-emerald-600/10 rounded-xl p-4 border border-emerald-500/20 space-y-3 sticky bottom-0 backdrop-blur-md">
-              <h5 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Ringkasan Otomatis</h5>
-              <div className="space-y-2">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-white/60">Total A (Pendapatan)</span>
-                  <span className="text-emerald-400 font-bold">Rp {formatCurrency(totalA)}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-white/60">Total B (Pengeluaran)</span>
-                  <span className="text-rose-400 font-bold">Rp {formatCurrency(totalB)}</span>
-                </div>
-                <div className="h-px bg-white/10" />
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-white font-bold text-[11px]">Sisa (A-B)</span>
-                  <span className={cn(balance >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                    Rp {formatCurrency(balance)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px] mt-1 pt-1 border-t border-white/5">
-                  <span className="text-white/40 italic">Jml. Anggota Keluarga</span>
-                  <span className="text-white/60 font-mono">{familyCount} Jiwa</span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-white/40 italic">Pendapatan (A) / Anggota</span>
-                  <span className="text-emerald-400/80 font-bold">Rp {formatCurrency(Math.round(perCapita))}</span>
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    onClick={saveConfig}
+                    disabled={isSaving}
+                    className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi Secara Global'}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('template')}
+                    disabled={isSaving}
+                    className="px-6 bg-white/5 hover:bg-white/10 text-slate-400 font-bold py-3 rounded-xl transition-all"
+                  >
+                    Batal
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Print Preview Container */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-10 flex flex-col items-center bg-slate-950 print:p-0 print:bg-white print:block shadow-inner scrollbar-hide">
-          {/* Print Guide for User */}
-          <div className="mb-6 w-full max-w-[850px] bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-start gap-4 print:hidden">
-            <div className="p-2 bg-amber-500/20 rounded-xl text-amber-500">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-                <h4 className="text-amber-400 font-bold text-sm">Panduan Cetak F4 (Folio)</h4>
-                <p className="text-white/60 text-xs leading-relaxed">
-                  Template ini dirancang untuk dicetak pada <span className="text-white font-bold">3 lembar kertas F4 terpisah.</span> 
-                  Pilih ukuran <span className="text-white font-bold">Folio / F4 (21.5 x 33 cm)</span>. 
-                  PENTING: Pastikan opsi <span className="text-white font-bold">Scale (Skala)</span> diatur ke <span className="text-white font-bold">"Custom: 100"</span> atau <span className="text-white font-bold">"Fit to Paper"</span>.
-                </p>
+        {activeTab === 'scan' && (
+          <div className="w-full max-w-5xl space-y-6">
+            <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 shadow-2xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-500/20 rounded-xl">
+                    <ImageIcon className="w-6 h-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Hasil Scan Survey</h3>
+                    <p className="text-slate-400 text-sm">Upload dan kelola berkas survey yang telah ditandatangani</p>
+                  </div>
+                </div>
+                
+                  <input type="file" multiple accept="application/pdf" className="hidden" id="scan-upload-input" onChange={handleScanUpload} />
+                  <button 
+                    onClick={() => document.getElementById('scan-upload-input')?.click()}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-500 shadow-lg transition-all"
+                  >
+                    <Upload className="w-4 h-4" /> Upload Hasil Scan (PDF)
+                  </button>
+              </div>
+
+              {surveyData.scanUrls && surveyData.scanUrls.length > 0 ? (
+                <div className="grid grid-cols-2 gap-6">
+                  {surveyData.scanUrls.map((url, idx) => (
+                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/20">
+                      <div className="aspect-[3/4] flex flex-col items-center justify-center bg-slate-900 gap-4">
+                        <FileText className="w-12 h-12 text-blue-400" />
+                        <p className="text-xs font-bold text-slate-300">DOKUMEN PDF</p>
+                        <p className="text-[10px] text-slate-500 font-mono">Scan_{idx + 1}.pdf</p>
+                      </div>
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                        <button 
+                          onClick={() => openPdf(url)}
+                          className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold text-white backdrop-blur-md"
+                        >
+                          Lihat Dokumen
+                        </button>
+                        <button 
+                          onClick={() => removeScan(idx)}
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg text-xs font-bold text-red-400 backdrop-blur-md"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                      <div className="absolute top-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-white/60">
+                        HALAMAN {idx + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div 
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.accept = 'application/pdf';
+                    input.onchange = (e) => handleScanUpload(e as any);
+                    input.click();
+                  }}
+                  className="h-80 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-slate-500"
+                >
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center">
+                    <Upload className="w-8 h-8" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-white">Belum ada hasil scan uploaded</p>
+                    <p className="text-sm">Klik di sini untuk upload berkas PDF hasil scan survey</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
-          {activeTab === 'survey' ? (
+        {activeTab !== 'config' && activeTab !== 'scan' && (
+          <div className="flex flex-col gap-8 items-center pb-20 print:gap-0 print:pb-0">
+            {activeTab === 'isi-data' && (
+          <div className="w-full max-w-5xl space-y-6 pb-20">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Isi Data Survey Lapangan</h3>
+                  <p className="text-emerald-100/70 text-sm">Input data keuangan dan hasil observasi mustahik</p>
+                </div>
+              </div>
+
+              <div className="p-8 grid grid-cols-2 gap-12">
+                {/* SECTION A */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h4 className="font-bold text-emerald-400 uppercase tracking-wider text-sm flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px]">A</div>
+                      Pendapatan Keluarga
+                    </h4>
+                    <span className="text-[10px] text-slate-500">RUPIAH / BULAN</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-[1fr_100px_100px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
+                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">SKMP & JML Keluarga</span>
+                      <input 
+                        type="text" 
+                        placeholder="SKMP"
+                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-center font-sans font-bold text-white focus:border-emerald-500 outline-none w-full" 
+                        value={surveyData.skmp} 
+                        onChange={e => setSurveyData(prev => ({...prev, skmp: e.target.value}))} 
+                      />
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="Jml Jiwa"
+                          className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-center font-sans font-bold text-white focus:border-emerald-500 outline-none w-full" 
+                          value={surveyData.jumlahKeluarga} 
+                          onChange={e => setSurveyData(prev => ({...prev, jumlahKeluarga: e.target.value.replace(/\D/g, '')}))} 
+                        />
+                        <span className="absolute -top-6 left-0 text-[8px] text-slate-500 whitespace-nowrap">JML JIWA</span>
+                      </div>
+                    </div>
+
+                    {[
+                      { id: 'usahaSuami', label: 'Usaha Pokok Suami' },
+                      { id: 'usahaIstri', label: 'Usaha Pokok Istri' },
+                      { id: 'usahaLain', label: 'Usaha Lainnya' },
+                      { id: 'dariOrtu', label: 'Bantuan Orang Tua' },
+                      { id: 'dariAnak', label: 'Bantuan Anak / Menantu' },
+                    ].map(item => (
+                      <div key={item.id} className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
+                        <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">{item.label}</span>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                          <input 
+                            type="text" 
+                            placeholder="0"
+                            className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-emerald-400 focus:border-emerald-500 outline-none w-full" 
+                            value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
+                            onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                      <span className="text-xs font-bold uppercase text-slate-400">Penghasilan Tambahan Lainnya</span>
+                      <div className="grid grid-cols-[1fr_160px] gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Keterangan sumber pendapatan..."
+                          className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500" 
+                          value={surveyData.penghasilanLainKet} 
+                          onChange={e => setSurveyData(prev => ({...prev, penghasilanLainKet: e.target.value}))} 
+                        />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                          <input 
+                            type="text" 
+                            placeholder="0"
+                            className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-emerald-400 focus:border-emerald-500 outline-none w-full" 
+                            value={formatCurrency(surveyData.penghasilanLain)} 
+                            onChange={e => handleCurrencyChange('penghasilanLain', e.target.value)} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION B */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h4 className="font-bold text-amber-400 uppercase tracking-wider text-sm flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px]">B</div>
+                      Pengeluaran Rutin
+                    </h4>
+                    <span className="text-[10px] text-slate-500">RUPIAH / BULAN</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      { id: 'kebutuhanDapur', label: 'Kebutuhan Dapur (Sembako)' },
+                      { id: 'pendidikan', label: 'Biaya Pendidikan' },
+                      { id: 'kesehatan', label: 'Biaya Kesehatan' },
+                      { id: 'biayaIuran', label: 'Iuran Listrik / Air' },
+                      { id: 'transportasi', label: 'Biaya Transportasi' },
+                      { id: 'pengeluaranLain', label: 'Sewa Rumah / Lainnya' },
+                    ].map(item => (
+                      <div key={item.id} className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-colors">
+                        <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-amber-400 transition-colors">{item.label}</span>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                          <input 
+                            type="text" 
+                            placeholder="0"
+                            className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-amber-400 focus:border-amber-500 outline-none w-full" 
+                            value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
+                            onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="space-y-2 pt-2">
+                      <label className="text-xs font-bold uppercase text-slate-400 flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Penjelasan Kondisi Keuangan
+                      </label>
+                      <textarea 
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:border-emerald-500 h-[100px] resize-none" 
+                        placeholder="Berikan gambaran singkat mengenai kondisi keuangan keluarga..."
+                        value={surveyData.penjelasanKeuangan} 
+                        onChange={e => setSurveyData(prev => ({...prev, penjelasanKeuangan: e.target.value}))} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-black/50 p-8 border-t border-white/5">
+                <div className="grid grid-cols-2 gap-12">
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-slate-300 uppercase tracking-widest text-[10px]">Verifikasi Identitas</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold ml-1">Petugas Survey</label>
+                        <input 
+                          type="text" 
+                          placeholder="Nama lengkap petugas"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white font-bold outline-none focus:border-emerald-500" 
+                          value={surveyData.namaPetugas} 
+                          onChange={e => setSurveyData(prev => ({...prev, namaPetugas: e.target.value}))} 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase text-slate-500 font-bold ml-1">Nama Mustahik</label>
+                        <input 
+                          type="text" 
+                          placeholder="Nama lengkap mustahik"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white font-bold outline-none focus:border-emerald-500" 
+                          value={surveyData.namaMustahik} 
+                          onChange={e => setSurveyData(prev => ({...prev, namaMustahik: e.target.value}))} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-end">
+                    <button 
+                      onClick={handleSaveSurvey} 
+                      disabled={isSaving}
+                      className="group px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                      {isSaving ? 'SEDANG MENYIMPAN...' : 'SIMPAN DATA & REVIEW TEMPLATE'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PAGE 1: Survey Utama */}
             <div 
-              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0 print:p-0 print:m-0 print:gap-0 print-no-transform print:block print:w-full"
-              style={{ transform: `scale(${scale})` }}
-            >
-            {/* PAGE 1: TEMPLATE 1 */}
-            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
-              <PageHeader />
-              
-              <h3 className="font-bold text-[11px] underline mb-4 uppercase tracking-wider text-center">TEMPLATE 1: BIODATA & PROFIL MUSTAHIK</h3>
-
-              <div className="grid grid-cols-[1.5fr_1fr] gap-x-8 mb-6 text-[10px] items-start">
-                <div className="space-y-1.5">
-                  <div className="grid grid-cols-[70px_10px_1fr]">
-                    <span>Nama</span><span>:</span><span className="font-bold uppercase border-b border-dotted border-black/30 min-h-[14px]">{recipient.name}</span>
-                  </div>
-                  <div className="grid grid-cols-[70px_10px_1fr]">
-                    <span>Alamat</span><span>:</span><span className="border-b border-dotted border-black/30 min-h-[14px]">{recipient.address}, {recipient.kampung}</span>
-                  </div>
-                  <div className="grid grid-cols-[70px_10px_1fr]">
-                    <span>Nomor Hp</span><span>:</span><span className="border-b border-dotted border-black/30 min-h-[14px]">{recipient.phone || '-'}</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5 pt-px">
-                  <div className="grid grid-cols-[90px_10px_1fr]">
-                    <span>SKMP KE -</span><span>:</span><span className="border-b border-dotted border-black/30 min-h-[14px] text-center font-bold">{skmpKe}</span>
-                  </div>
-                  <div className="grid grid-cols-[90px_10px_1fr]">
-                    <span>Tanggal Survey</span><span>:</span><span className="border-b border-dotted border-black/30 min-h-[14px] text-center">{surveyDate ? new Date(surveyDate).toLocaleDateString('id-ID') : '.../.../202...'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* TWO COLUMN GRID FOR INDEX RUMAH & HARTA */}
-              <div className="grid grid-cols-2 border border-black text-[9px]">
-                {/* Left Column: INDEKS RUMAH */}
-                <div className="border-r border-black">
-                  <div className="bg-slate-200 border-b border-black px-2 py-0.5 font-bold text-[10px] uppercase">INDEKS RUMAH</div>
-                  
-                  {/* Ukuran Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[60px]">
-                    <div className="p-1 border-r border-black flex flex-col">
-                      <span>Ukuran Rumah</span>
-                      <span className="text-[8px] italic">(m²/orang)</span>
-                    </div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Sangat Kecil ( < 4 m²)" />
-                      <Checkbox label="Kecil (4-6 m²)" />
-                      <Checkbox label="Sedang (6-8 m²)" />
-                      <Checkbox label="Besar ( >8 m² )" />
-                    </div>
-                  </div>
-
-                  {/* Dinding Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[50px]">
-                    <div className="p-1 border-r border-black">Dinding Rumah</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Bilik Bambu/Kayu" />
-                      <Checkbox label="Semi" />
-                      <Checkbox label="Tembok/Beton" />
-                    </div>
-                  </div>
-
-                  {/* Lantai */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
-                    <div className="p-1 border-r border-black">Lantai</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Tanah" />
-                      <Checkbox label="Panggung" />
-                      <Checkbox label="Semen" />
-                      <Checkbox label="Keramik" />
-                    </div>
-                  </div>
-
-                  {/* Atap */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
-                    <div className="p-1 border-r border-black">Atap</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Kirai/Ijuk" />
-                      <Checkbox label="Genteng/Seng" />
-                      <Checkbox label="Asbes/Berglazur" />
-                    </div>
-                  </div>
-
-                  {/* Kepemilikan Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
-                    <div className="p-1 border-r border-black">Kepemilikan Rumah</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Menumpang" />
-                      <Checkbox label="Kontrak" />
-                      <Checkbox label="Keluarga" />
-                      <Checkbox label="Sendiri" />
-                    </div>
-                  </div>
-
-                  {/* Dapur */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
-                    <div className="p-1 border-r border-black">Dapur</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Tungku" />
-                      <Checkbox label="Kompor Minyak" />
-                      <Checkbox label="Kompor Gas" />
-                      <Checkbox label="Kompor Listrik" />
-                    </div>
-                  </div>
-
-                  {/* Kursi */}
-                  <div className="grid grid-cols-[100px_1fr] min-h-[60px]">
-                    <div className="p-1 border-r border-black">Kursi</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Lesehan" />
-                      <Checkbox label="Balai Bambu" />
-                      <Checkbox label="Kayu" />
-                      <Checkbox label="Sofa" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: KEPEMILIKAN HARTA */}
-                <div>
-                  <div className="bg-slate-200 border-b border-black px-2 py-0.5 font-bold text-[10px] uppercase">KEPEMILIKAN HARTA</div>
-                  
-                  {/* Kebun / Sawah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[60px]">
-                    <div className="p-1 border-r border-black">Kebun / Sawah</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Tidak Ada" />
-                      <Checkbox label="< 1000 m²" />
-                      <Checkbox label="1000 - 5000 m²" />
-                      <Checkbox label="> 5000 m²" />
-                    </div>
-                  </div>
-
-                  {/* Elektronik */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[70px]">
-                    <div className="p-1 border-r border-black">Elektronik</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Radio" />
-                      <Checkbox label="Tape" />
-                      <Checkbox label="Televisi" />
-                      <Checkbox label="CD. Player" />
-                      <Checkbox label="Handphone" />
-                    </div>
-                  </div>
-
-                  {/* Kendaraan */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[60px]">
-                    <div className="p-1 border-r border-black">Kendaraan</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Tidak Ada" />
-                      <Checkbox label="Sepeda Kayuh" />
-                      <Checkbox label="Sepeda Motor" />
-                      <Checkbox label="Mobil" />
-                    </div>
-                  </div>
-
-                  {/* Ternak */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[75px]">
-                    <div className="p-1 border-r border-black">Ternak</div>
-                    <div className="p-1 text-[9px] space-y-0.5">
-                      <div className="flex justify-between border-b border-dotted border-black/20 pb-0.5">
-                        <span>Unggas : </span> <span className="font-bold">0 ekor</span>
-                      </div>
-                      <div className="flex justify-between border-b border-dotted border-black/20 pb-0.5">
-                        <span>Domba : </span> <span className="font-bold">0 ekor</span>
-                      </div>
-                      <div className="flex justify-between border-b border-dotted border-black/20 pb-0.5">
-                        <span>Kambing : </span> <span className="font-bold">0 ekor</span>
-                      </div>
-                      <div className="flex justify-between border-b border-dotted border-black/20 pb-0.5">
-                        <span>Sapi : </span> <span className="font-bold">0 ekor</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Kerbau : </span> <span className="font-bold">0 ekor</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Aset */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[60px]">
-                    <div className="p-1 border-r border-black">Aset</div>
-                    <div className="p-1 space-y-0.5">
-                      <Checkbox label="Tidak Ada" />
-                      <Checkbox label="Emas ( 0 )" />
-                      <Checkbox label="Bank ( 0 )" />
-                      <Checkbox label="Tabungan" />
-                    </div>
-                  </div>
-
-                  {/* Kepemilikan Lainnya */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[25px]">
-                    <div className="p-1 border-r border-black">Kepemilikan Lainnya</div>
-                    <div className="p-1"></div>
-                  </div>
-
-                  {/* Keterangan Lainnya */}
-                  <div className="grid grid-cols-[100px_1fr] min-h-[40px]">
-                    <div className="p-1 border-r border-black">Keterangan Lainnya :</div>
-                    <div className="p-1"></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* PROFIL KELUARGA TABLE */}
-              <div className="mt-8">
-                <h3 className="font-bold text-[11px] underline mb-1 uppercase tracking-tight">Profil Keluarga</h3>
-                <table className="w-full border-collapse border border-black text-center text-[9px]">
-                  <thead className="bg-slate-200">
-                    <tr className="uppercase font-bold">
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[30px]">No</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1">Nama</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[35px]">Usia</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[90px]">Hub Dalam Keluarga</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[70px]">Status</th>
-                      <th colSpan={2} className="border border-black px-1 py-1">Pekerjaan</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[80px]">Pendidikan</th>
-                      <th rowSpan={2} className="border border-black px-1 py-1 w-[40px]">Ket</th>
-                    </tr>
-                    <tr className="uppercase font-bold">
-                      <th className="border border-black px-1 py-0.5 w-[90px]">Utama</th>
-                      <th className="border border-black px-1 py-0.5 w-[90px]">Sampingan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...Array(7)].map((_, i) => (
-                      <tr key={i} className="h-6">
-                        <td className="border border-black font-mono">{(i+1).toString().padStart(2, '0')}</td>
-                        <td className="border border-black"></td>
-                        <td className="border border-black"></td>
-                        <td className="border border-black uppercase text-[8px]"></td>
-                        <td className="border border-black uppercase text-[8px]"></td>
-                        <td className="border border-black text-[8px]"></td>
-                        <td className="border border-black text-[8px]"></td>
-                        <td className="border border-black uppercase text-[8px]"></td>
-                        <td className="border border-black"></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* PAGE 2: TEMPLATE 2 - KEUANGAN KELUARGA */}
-            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
-              <PageHeader />
-              
-              <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 2: ANALISA KEUANGAN (ONLINE)</h3>
-
-              <div className="grid grid-cols-2 gap-4 border border-black mb-4">
-                {/* Income Table */}
-                <div className="border-r border-black">
-                  <div className="grid grid-cols-[1fr_90px]">
-                    <div className="p-1 border-b border-r border-black font-bold text-[9px] bg-slate-200 uppercase">A. Pendapatan Per Bulan</div>
-                    <div className="p-1 border-b border-black font-bold text-[9px] text-center bg-slate-200 uppercase">Jumlah (Rp)</div>
-                    
-                    {[
-                      { label: "Suami / Ayah", value: income.father },
-                      { label: "Istri / Ibu", value: income.mother },
-                      { label: "Anak ke-1", value: income.child1 },
-                      { label: "Anak ke-2", value: income.child2 },
-                      { label: "Anak ke-3", value: income.child3 }
-                    ].map((item, idx) => (
-                      <React.Fragment key={idx}>
-                        <div className="p-0.5 border-b border-r border-black text-[9px] pl-1">{idx + 1}. {item.label}</div>
-                        <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono font-bold">
-                          {item.value ? formatCurrency(Number(item.value)) : '-'}
-                        </div>
-                      </React.Fragment>
-                    ))}
-                    <div className="p-1 h-8 border-r border-black"></div>
-                    <div className="p-1 h-8"></div>
-                    
-                    <div className="p-1 border-t border-r border-black font-bold text-[9px] bg-slate-200 uppercase">TOTAL A</div>
-                    <div className="p-1 border-t border-black bg-slate-200 text-right text-[9px] font-bold pr-1 font-mono underline">
-                      {totalA > 0 ? formatCurrency(totalA) : ''}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expenses Table */}
-                <div>
-                  <div className="grid grid-cols-[1fr_90px]">
-                    <div className="p-1 border-b border-r border-black font-bold text-[9px] bg-slate-200 uppercase">B. Pengeluaran Per Bulan</div>
-                    <div className="p-1 border-b border-black font-bold text-[9px] text-center bg-slate-200 uppercase">Jumlah (Rp)</div>
-                    
-                    {[
-                      { label: "Kebutuhan Dapur :", value: expenses.kitchen },
-                      { label: "Pendidikan :", value: expenses.education },
-                      { label: "Kesehatan :", value: expenses.health },
-                      { label: "Biaya iuran rutin :", value: '' }
-                    ].map((item, idx) => (
-                      <React.Fragment key={idx}>
-                        <div className="p-0.5 border-b border-r border-black text-[9px] pl-1 font-medium">{idx + 1}. {item.label}</div>
-                        <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                          {item.value ? formatCurrency(Number(item.value)) : '-'}
-                        </div>
-                      </React.Fragment>
-                    ))}
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px] italic">a. Listrik</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                      {expenses.electricity ? formatCurrency(Number(expenses.electricity)) : '-'}
-                    </div>
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px] italic">b. Air Minum</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                      {expenses.water ? formatCurrency(Number(expenses.water)) : '-'}
-                    </div>
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px] italic">c. Siskamling</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                      {expenses.security ? formatCurrency(Number(expenses.security)) : '-'}
-                    </div>
-                    
-                    <div className="p-0.5 border-b border-r border-black text-[9px] pl-1 font-medium">5. Transportasi :</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                      {expenses.transport ? formatCurrency(Number(expenses.transport)) : '-'}
-                    </div>
-                    
-                    <div className="p-0.5 border-b border-r border-black text-[9px] pl-1 font-medium">6. Sewa Rumah :</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
-                      {expenses.rent ? formatCurrency(Number(expenses.rent)) : '-'}
-                    </div>
-
-                    <div className="p-1 border-r border-black h-2"></div>
-                    <div className="p-1 h-2"></div>
-                    
-                    <div className="p-1 border-t border-r border-black font-bold text-[9px] bg-slate-200 uppercase">TOTAL B</div>
-                    <div className="p-1 border-t border-black bg-slate-200 text-right text-[9px] font-bold pr-1 font-mono underline">
-                      {totalB > 0 ? formatCurrency(totalB) : ''}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border border-black mb-3 p-2 font-bold text-[10px] bg-slate-50 uppercase tracking-tight flex justify-between">
-                <span>SISA PENDAPATAN PER BULAN (A-B)</span>
-                <span className="font-mono">Rp {formatCurrency(balance)}</span>
-              </div>
-
-              <div className="border border-black mb-6 p-2 font-bold text-[10px] bg-slate-50 uppercase tracking-tight flex justify-between">
-                <span>RATA-RATA PENDAPATAN PER KAPITA (Total A / {familyCount} Jiwa)</span>
-                <span className="font-mono">Rp {formatCurrency(Math.round(perCapita))}</span>
-              </div>
-
-              <div className="flex-1 border border-black p-4 mt-2 min-h-[450px]">
-                <h4 className="font-bold text-[11px] mb-3 uppercase underline underline-offset-4 decoration-2">Penjelasan & Analisa Petugas :</h4>
-                <div className="text-[10px] whitespace-pre-wrap leading-relaxed text-slate-900 font-medium">
-                  {explanation || (
-                    <div className="space-y-5">
-                      {[...Array(10)].map((_, i) => (
-                        <div key={i} className="h-4 border-b border-dotted border-black/20"></div>
-                      ))}
-                    </div>
+              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+            style={{ 
+              fontSize: `${templateConfig.fontSize}pt`,
+              width: '210mm',
+              minHeight: '330mm',
+              height: '330mm'
+            }}
+          >
+             {/* Document Header */}
+             <div className="flex items-stretch border border-black mb-6">
+                <div className="w-[180px] p-2 flex flex-col items-center justify-center border-r border-black">
+                  {templateConfig.logo ? (
+                    <img src={templateConfig.logo} alt="Logo" className="object-contain mb-1" style={{ height: `${templateConfig.logoSize}px` }} />
+                  ) : (
+                    <div className="flex items-center justify-center font-bold text-emerald-600" style={{ height: `${templateConfig.logoSize}px`, fontSize: '10px' }}>BAZNAS</div>
                   )}
+                  <div className="text-center">
+                    <p className="font-bold text-gray-800 leading-tight" style={{ fontSize: `${templateConfig.fontSize - 2}pt` }}>{templateConfig.subText}</p>
+                    <p className="font-black text-emerald-600 leading-tight" style={{ fontSize: `${templateConfig.fontSize - 1}pt` }}>{templateConfig.region}</p>
+                  </div>
                 </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
+                <h1 className="font-bold tracking-wider leading-tight" style={{ fontSize: `${templateConfig.fontSize + 5}pt` }}>SURVEY MUSTAHIK (PERORANGAN)</h1>
+                <p className="font-bold" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>F-AZN / PDP /</p>
               </div>
-            </div>
-
-            {/* PAGE 3: TEMPLATE 3 - VERIFIKASI OFFLINE */}
-            <div className="flex flex-col bg-white overflow-hidden print:overflow-visible page-break mb-20 print:mb-0 print:p-8 print:block min-h-[1100px]">
-              <PageHeader />
-              
-              <h3 className="font-bold text-[11px] underline mb-4 uppercase text-center tracking-wider">TEMPLATE 3: VERIFIKASI LAPANGAN & REKOMENDASI</h3>
-              
-              <div className="border border-black mb-6">
-                <div className="bg-slate-800 text-white px-2 py-1 font-bold text-[10px] uppercase tracking-wide">Profil Bidang Usaha Mustahik</div>
-                
-                <div className="grid grid-cols-[30px_130px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold bg-slate-50 flex items-center justify-center">1</div>
-                  <div className="p-1 border-r border-black text-[9px] flex items-center pl-2">Usaha Mustahik</div>
-                  <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                    <Checkbox label="a. Kuliner" />
-                    <Checkbox label="b. Jasa" />
-                    <Checkbox label="c. Per/Ternakan" />
-                    <Checkbox label="d. Ekonomi Kreatif" />
-                    <Checkbox label="e. Perdagangan" />
-                    <Checkbox label="f. Industri & Pdg" />
-                    <Checkbox label="g. Pdg Eceran" />
-                    <Checkbox label="h. Kehutanan" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[30px_130px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold bg-slate-50 flex items-center justify-center">2</div>
-                  <div className="p-1 border-r border-black text-[9px] flex items-center pl-2">Lama Usaha</div>
-                  <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                    <Checkbox label="a. < 1 tahun" />
-                    <Checkbox label="b. 1 - 2 tahun" />
-                    <Checkbox label="c. 3 - 4 tahun" />
-                    <Checkbox label="d. > 5 tahun" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[30px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold bg-slate-50 flex items-center justify-center">3</div>
-                  <div className="p-0">
-                    <div className="grid grid-cols-[130px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.1. Sumber Modal</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. Sendiri" />
-                        <Checkbox label="b. Sendiri & Pjm" />
-                        <Checkbox label="c. Pinjam semua" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-[130px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.2. Jml tenaga terlibat</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. < 2 Orang" />
-                        <Checkbox label="b. 5-10 Orang" />
-                        <Checkbox label="c. > 10 Orang" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-[130px_1fr]">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.3. Status Usaha</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. Untung" />
-                        <Checkbox label="b. Impas" />
-                        <Checkbox label="c. Gulung tikar" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[30px_1fr]">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold bg-slate-50 flex items-center justify-center">4</div>
-                  <div className="p-0">
-                    <div className="grid grid-cols-[130px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.1. Keberlanjutan</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. Berlanjut" />
-                        <Checkbox label="b. Semi" />
-                        <Checkbox label="c. Tidak" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-[130px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.2. Aspek Legalitas</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. Ada" />
-                        <Checkbox label="b. Tidak Ada" />
-                        <Checkbox label="c. Progres" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-[130px_1fr]">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.3. Akses Teknologi</div>
-                      <div className="p-2 grid grid-cols-3 gap-x-2 gap-y-1">
-                        <Checkbox label="a. Ada" />
-                        <Checkbox label="b. Jarang" />
-                        <Checkbox label="c. Tidak ada" />
-                        <Checkbox label="d. Full Platform" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="w-[150px] flex items-center justify-center p-2 border-l border-black">
+                <p className="font-bold" style={{ fontSize: `${templateConfig.fontSize + 1}pt` }}>F-AZN / PDP /</p>
               </div>
+           </div>
 
-              <div className="mt-2">
-                <h3 className="font-bold text-[10px] underline mb-1 uppercase tracking-tight">REKAPITULASI KELAYAKAN</h3>
-                <table className="w-full border-collapse border border-black text-[10px]">
-                  <thead className="bg-slate-200 font-bold uppercase text-[9px]">
-                    <tr>
-                      <th className="border border-black p-1 text-left pl-3">PARAMETER</th>
-                      <th className="border border-black p-1 w-[160px]">STATUS</th>
-                      <th className="border border-black p-1">KETERANGAN</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      "1. Indeks Rumah",
-                      "2. Kepemilikan Harta",
-                      "3. Pendapatan Per Kapita",
-                      "4. Profil Usaha"
-                    ].map((param) => (
-                      <tr key={param} className="h-10">
-                        <td className="border border-black p-1.5 font-bold uppercase text-[9px] pl-3">{param}</td>
-                        <td className="border border-black p-2">
-                          <Checkbox label="Sesuai" />
-                          <Checkbox label="Tidak Sesuai" />
-                        </td>
-                        <td className="border border-black p-1"></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-6 text-[10px]">
-                <p className="font-bold italic mb-1 uppercase">Catatan Tambahan :</p>
-                <div className="border border-black h-24 bg-slate-50/50 p-2 text-slate-400 font-bold text-[8px] flex items-end justify-end italic opacity-20 uppercase tracking-widest">Lembar Catatan Petugas Survey Lapangan</div>
-              </div>
-
-              <div className="mt-6 border-2 border-black">
-                <div className="grid grid-cols-[160px_1fr_1fr]">
-                  <div className="bg-black text-white font-bold uppercase p-4 text-center text-[12px] flex items-center justify-center border-r-2 border-white leading-tight">REKOMENDASI FINAL</div>
-                  <div className="border-r border-black relative">
-                    <div className="p-1 border-b border-black text-[9px] font-bold bg-slate-200 uppercase text-center">Petugas Survey</div>
-                    <div className="p-4 space-y-2">
-                      <Checkbox label="a. Layak" />
-                      <Checkbox label="b. Tidak Layak" />
-                      <Checkbox label="c. Pertimbangan" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="p-1 border-b border-black text-[9px] font-bold bg-slate-200 uppercase text-center">Pejabat Berwenang</div>
-                    <div className="p-4 space-y-2">
-                      <Checkbox label="a. Setuju" />
-                      <Checkbox label="b. Tidak Setuju" />
-                      <Checkbox label="c. Tunda" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-[160px_1fr_1fr] border-t-2 border-black bg-white min-h-[140px]">
-                  <div className="border-r border-black flex items-center justify-center p-4">
-                     <p className="text-[10px] font-bold text-center uppercase tracking-normal leading-relaxed text-slate-300">Stempel<br/>Resmi<br/>Lembaga</p>
-                  </div>
-                  <div className="border-r border-black grid grid-rows-2 text-[9px] font-bold text-center uppercase">
-                    <div className="flex items-end justify-center pb-2 px-2">
-                      <div className="w-full border-b border-black border-dotted h-px mb-2"></div>
-                    </div>
-                    <div className="pt-1 flex flex-col items-center justify-start">
-                       <span className="text-[10px] font-black underline">SURVEYOR</span>
-                       <span className="text-[8px] font-normal leading-tight mt-1 opacity-60 italic normal-case">Ttd & Nama Terang</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-rows-2 text-[9px] font-bold text-center uppercase">
-                    <div className="flex items-end justify-center pb-2 px-2">
-                      <div className="w-full border-b border-black border-dotted h-px mb-2"></div>
-                    </div>
-                    <div className="pt-1 flex flex-col items-center justify-start">
-                       <span className="text-[10px] font-black underline">WAKA II / KABID</span>
-                       <span className="text-[8px] font-normal leading-tight mt-1 opacity-60 italic normal-case">Ttd & Nama Terang</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* DOCUMENTATION & ARCHIVE PAGES */}
-            {(photos.length > 0 || archivedFiles.length > 0) && (
-              <>
-                {photos.length > 0 && Array.from({ length: Math.ceil(photos.length / 4) }, (_, pageIdx) => {
-                  const chunk = photos.slice(pageIdx * 4, pageIdx * 4 + 4);
-                  return (
-                    <div key={`photo-page-${pageIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden print:overflow-visible p-8 gap-6 page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
-                      <div className="border-b-2 border-black pb-2 mb-4 flex justify-between items-end">
-                        <div>
-                          <h2 className="text-sm font-bold uppercase tracking-tight">Lampiran Dokumentasi Verifikasi Lapangan</h2>
-                          <div className="mt-1 space-y-0.5">
-                            <p className="text-[10px]"><span className="inline-block w-20 font-bold uppercase">Nama Mustahik</span>: <span className="font-bold">{recipient.name}</span></p>
-                            <p className="text-[10px]"><span className="inline-block w-20 font-bold uppercase">Alamat</span>: {recipient.address}, {recipient.kampung}</p>
-                            <p className="text-[10px]"><span className="inline-block w-20 font-bold uppercase">Tanggal Survey</span>: {surveyDate ? new Date(surveyDate).toLocaleDateString('id-ID') : '-'}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase">Dokumentasi Halaman {pageIdx + 1}</p>
-                          <p className="text-[8px] text-slate-500">Total Foto: {photos.length}</p>
-                          {archivedFiles.length > 0 && (
-                            <p className="text-[8px] text-emerald-600 font-bold mt-1 uppercase flex items-center justify-end gap-1">
-                              <CheckCircle2 className="w-2 h-2" /> Digital Archive Attached ({archivedFiles.length})
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1">
-                        {chunk.map((photo, idx) => (
-                          <div key={idx} className="border border-black p-1 flex flex-col items-center justify-between h-full bg-slate-50/30">
-                            <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
-                              <img src={photo} alt={`Dokumentasi ${pageIdx * 4 + idx + 1}`} className="max-w-full max-h-full object-contain" />
-                            </div>
-                            <p className="text-[8px] mt-2 py-1 w-full border-t border-black/10 text-center font-bold uppercase bg-white">
-                              Gbr {pageIdx * 4 + idx + 1} - Dokumentasi Lapangan
-                            </p>
-                          </div>
-                        ))}
-                        {/* Fill remaining slots to maintain grid if < 4 photos */}
-                        {chunk.length < 4 && Array.from({ length: 4 - chunk.length }).map((_, emptyIdx) => (
-                          <div key={`empty-${emptyIdx}`} className="border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center">
-                            <p className="text-[10px] text-slate-300 font-bold uppercase italic">Area Foto {chunk.length + emptyIdx + 1}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-auto border-t border-black pt-4 flex justify-between items-center text-[8px] uppercase font-medium">
-                        <span>BAZNAS Kabupaten Siak - Lembar Verifikasi Survey</span>
-                        <span>Dicetak pada: {new Date().toLocaleString('id-ID')}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* ARCHIVE PAGES */}
-                {archivedFiles.map((file, fIdx) => (
-                  <div key={`archive-page-${fIdx}`} className="min-h-[1100px] flex flex-col bg-white overflow-hidden print:overflow-visible page-break shadow-2xl print:shadow-none mt-10 print:mt-0 print:block print:p-8">
-                    <div className="flex-1 w-full h-full relative bg-slate-100 flex items-center justify-center overflow-hidden">
-                       {file.data.startsWith('data:application/pdf') ? (
-                         <iframe 
-                           src={file.data} 
-                           className="w-full h-full border-none"
-                           title={file.name}
-                         />
-                       ) : (
-                         <img src={file.data} className="max-w-full max-h-full object-contain" alt={file.name} />
-                       )}
-                    </div>
+           {/* Personal Info Grid - Expanded with requested fields */}
+           <div className="grid grid-cols-2 gap-x-8 mb-6 bg-slate-50/30 p-4 border border-black/5 rounded-sm" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+              <div className="space-y-1.5">
+                {[
+                  { label: "ID Registrasi", value: recipient.registrationId },
+                  { label: "Sumber Berkas", value: recipient.source },
+                  { label: "Tgl Masuk Berkas", value: recipient.submissionDate ? new Date(recipient.submissionDate).toLocaleDateString('id-ID') : '-' },
+                  { label: "Nama", value: recipient.name, bold: true, upper: true },
+                  { label: "NIK", value: recipient.nik },
+                  { label: "Alamat", value: `${recipient.address}, ${recipient.kampung}`, italic: true },
+                  { label: "Nomor Hp", value: recipient.contact || '-' },
+                  { label: "Rekening", value: `${recipient.bankName || '-'} / ${recipient.bankAccountNo || '-'} / ${recipient.bankAccountHolder || '-'}` },
+                ].map((item, idx) => (
+                  <div key={idx} className="grid grid-cols-[120px_10px_1fr] items-baseline">
+                    <span>{item.label}</span>
+                    <span>:</span>
+                    <span className={cn(
+                      "border-b border-dotted border-gray-400 min-h-[18px]",
+                      item.bold && "font-bold",
+                      item.upper && "uppercase",
+                      item.italic && "italic"
+                    )}>
+                      {item.value}
+                    </span>
                   </div>
                 ))}
-              </>
-            )}
-            </div>
-          ) : (
-            <div 
-              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0 print:p-0 print:m-0 print:gap-0 print-no-transform"
-              style={{ transform: `scale(${scale})` }}
-            >
-              <div className="flex items-center justify-between border-b pb-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="space-y-1.5">
+                {[
+                  { label: "Bidang", value: recipient.sector },
+                  { label: "Sub Bidang", value: recipient.subSector },
+                  { label: "Jenis Bantuan", value: recipient.aidType },
+                  { label: "Nama Program", value: recipient.programName },
+                  { label: "Untuk", value: recipient.purpose },
+                  { label: "Nama Sekolah", value: recipient.schoolName || '-' },
+                  { label: "No Hp Sekolah", value: recipient.schoolPhone || '-' },
+                  { label: "Tingkatan/Kelas", value: `${recipient.schoolLevel || '-'}${recipient.schoolClass ? ` / ${recipient.schoolClass}` : ''}` },
+                  { label: "SKMP / Tgl Survey", value: `${surveyData.skmp || recipient.skmp || '-'} / ${recipient.surveyDate ? new Date(recipient.surveyDate).toLocaleDateString('id-ID') : '-'}` },
+                ].map((item, idx) => (
+                  <div key={idx} className="grid grid-cols-[110px_10px_1fr] items-baseline">
+                    <span>{item.label}</span>
+                    <span>:</span>
+                    <span className="border-b border-dotted border-gray-400 min-h-[18px]">
+                      {item.value}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 uppercase tracking-tight">Preview Hasil Scan</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Lembar Verifikasi Terverifikasi (Signed)</p>
+                ))}
+              </div>
+           </div>
+
+           {/* Main Survey Matrix */}
+           <div className="grid grid-cols-2 border border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+              {/* INDEKS RUMAH */}
+              <div className="border-r border-black">
+                <div className="bg-gray-200 border-b border-black p-1 font-bold text-center uppercase tracking-wide">INDEKS RUMAH</div>
+                
+                {/* Rows */}
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[65px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Ukuran Rumah (m²/orang)</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Sangat Kecil ( < 4 m²)" />
+                    <Checkbox label="Kecil (4-6 m²)" />
+                    <Checkbox label="Sedang (6-8 m²)" />
+                    <Checkbox label="Besar ( >8 m² )" />
                   </div>
                 </div>
-                {signedSurveyPdfUrl && (
-                  <button 
-                    onClick={() => openInNewTab(signedSurveyPdfUrl)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-200 transition-all border border-blue-200 shadow-sm"
-                  >
-                    <ExternalLink className="w-4 h-4" /> BUKA FULL SCREEN
-                  </button>
-                )}
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[50px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Dinding Rumah</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Bilik Bambu/Kayu" />
+                    <Checkbox label="Semi" />
+                    <Checkbox label="Tembok/Beton" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Lantai</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Tanah" />
+                    <Checkbox label="Panggung" />
+                    <Checkbox label="Semen" />
+                    <Checkbox label="Keramik" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Atap</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Kirai/Ijuk" />
+                    <Checkbox label="Genteng/Seng" />
+                    <div className="h-0.5"></div>
+                    <Checkbox label="Asbes/Berglazur" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Kepemilikan Rumah</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Menumpang" />
+                    <Checkbox label="Kontrak" />
+                    <Checkbox label="Keluarga" />
+                    <Checkbox label="Sendiri" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[55px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Dapur</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Tungku" />
+                    <Checkbox label="Kompor Minyak" />
+                    <Checkbox label="Kompor Gas" />
+                    <Checkbox label="Kompor Listrik" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] min-h-[60px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Kursi</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Lesehan" />
+                    <Checkbox label="Balai Bambu" />
+                    <Checkbox label="Kayu" />
+                    <Checkbox label="Sofa" />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex-1 w-full bg-slate-100 min-h-[1000px] rounded-lg border border-slate-200 flex flex-col items-center justify-center overflow-hidden shadow-inner">
-                {signedSurveyPdfUrl ? (
-                  <embed src={signedSurveyPdfUrl} width="100%" height="1000px" type="application/pdf" className="w-full h-full min-h-[1000px]" />
-                ) : (
-                  <div className="text-center p-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-100">
-                      <ImageIcon className="w-12 h-12 text-slate-300" />
+              {/* KEPEMILIKAN HARTA */}
+              <div>
+                <div className="bg-gray-200 border-b border-black p-1 font-bold text-center uppercase tracking-wide">KEPEMILIKAN HARTA</div>
+                
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[65px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Kebun / Sawah</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Tidak Ada" />
+                    <Checkbox label="< 1000 m²" />
+                    <Checkbox label="1000 - 5000 m²" />
+                    <Checkbox label="> 5000 m²" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[75px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Elektronik</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <div className="grid grid-cols-2 gap-x-2">
+                      <Checkbox label="Radio" />
+                      <Checkbox label="Tape" />
                     </div>
-                    <h4 className="text-slate-600 font-black text-lg mb-2 uppercase tracking-wide">Belum Ada Scan Terunggah</h4>
-                    <p className="text-slate-400 text-sm max-w-xs mx-auto mb-8">Silakan gunakan panel editor di sebelah kiri untuk mengunggah scan lembar verifikasi yang sudah ditandatangani.</p>
-                    <div className="flex items-center justify-center gap-2 text-amber-500 font-bold text-xs uppercase tracking-widest animate-pulse">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      Menunggu Berkas
+                    <Checkbox label="Televisi" />
+                    <Checkbox label="CD. Player" />
+                    <Checkbox label="Handphone" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[65px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Kendaraan</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Tidak Ada" />
+                    <Checkbox label="Sepeda Kayuh" />
+                    <Checkbox label="Sepeda Motor" />
+                    <Checkbox label="Mobil" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[85px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Ternak</div>
+                  <div className="p-1 px-2 space-y-1">
+                    <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
+                       <span>Unggas :</span> <span className="font-bold">0 ekor</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
+                       <span>Domba :</span> <span className="font-bold">0 ekor</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
+                       <span>Kambing :</span> <span className="font-bold">0 ekor</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
+                       <span>Sapi :</span> <span className="font-bold">0 ekor</span>
+                    </div>
+                    <div className="flex justify-between">
+                       <span>Kerbau :</span> <span className="font-bold">0 ekor</span>
                     </div>
                   </div>
-                )}
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[65px]">
+                  <div className="p-1.5 border-r border-black flex items-center">Aset</div>
+                  <div className="p-1 px-2 space-y-0.5">
+                    <Checkbox label="Tidak Ada" />
+                    <Checkbox label="Emas ( 0 )" />
+                    <Checkbox label="Bank ( 0 )" />
+                    <Checkbox label="Tabungan" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] border-b border-black min-h-[25px]">
+                  <div className="p-1.5 border-r border-black flex items-center font-bold">Kepemilikan Lainnya</div>
+                  <div className="p-1"></div>
+                </div>
+
+                <div className="grid grid-cols-[100px_1fr] min-h-[40px]">
+                  <div className="p-1.5 border-r border-black flex items-start font-bold">Keterangan Lainnya :</div>
+                  <div className="p-1"></div>
+                </div>
               </div>
+           </div>
+
+
+
+           <div className="mt-auto pt-4 flex justify-between items-end border-t border-gray-100 italic">
+              <div className="text-[8px] text-gray-400 font-mono italic underline">F-AZN / PDP / 2024</div>
+              <div className="text-[10px] font-bold tracking-tight">Halaman 1 dari 4</div>
+           </div>
+          </div>
+
+            {/* PAGE 2: Keuangan & Bidang Usaha */}
+            <div 
+              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              style={{ 
+                fontSize: `${templateConfig.fontSize}pt`,
+                width: '210mm',
+                minHeight: '330mm',
+                height: '330mm'
+              }}
+            >
+               <div className="mb-6">
+                 <h3 className="font-bold underline mb-4 uppercase" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>Keuangan Keluarga</h3>
+                 
+                 {/* Table Pendapatan */}
+                 <div className="mb-4">
+                   <table className="w-full border-collapse border border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                     <thead>
+                       <tr className="bg-gray-50 uppercase font-bold text-center">
+                         <th className="border border-black p-2 w-[10%]">No</th>
+                         <th className="border border-black p-2 w-[60%] text-left">Pendapatan Keluarga (A), bersumber dari</th>
+                         <th className="border border-black p-2 w-[30%] text-center">Jumlah (Rp/bulan)</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">1</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Suami :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaSuami)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">2</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Istri :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaIstri)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">3</td>
+                         <td className="border border-black px-2 text-left">Usaha Lainnya :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaLain)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">4</td>
+                         <td className="border border-black px-2 text-left">Dari orang tua :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.dariOrtu)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">5</td>
+                         <td className="border border-black px-2 text-left">Dari anak/menantu :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.dariAnak)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">6</td>
+                         <td className="border border-black px-2 text-left">Penghasilan lainnya, sebutkan : {surveyData.penghasilanLainKet || '..................................'}</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.penghasilanLain)}</td>
+                       </tr>
+                       <tr className="h-8 bg-gray-50 font-bold uppercase">
+                         <td colSpan={2} className="border border-black px-2 text-right">TOTAL PENDAPATAN (A)</td>
+                         <td className="border border-black font-bold">
+                           {(() => {
+                             const total = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
+                               .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                             return total > 0 ? total.toLocaleString('id-ID') : '';
+                           })()}
+                         </td>
+                       </tr>
+                     </tbody>
+                   </table>
+                 </div>
+
+                 {/* Table Pengeluaran */}
+                 <div className="mb-4">
+                   <table className="w-full border-collapse border border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                     <thead>
+                       <tr className="bg-gray-50 uppercase font-bold text-center">
+                         <th className="border border-black p-2 w-[10%]">No</th>
+                         <th className="border border-black p-2 w-[60%] text-left">Pengeluaran Rutin (B), dialokasikan untuk</th>
+                         <th className="border border-black p-2 w-[30%] text-center">Jumlah (Rp/bulan)</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">1</td>
+                         <td className="border border-black px-2 text-left">Kebutuhan Dapur (Sembako, dll) :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.kebutuhanDapur)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">2</td>
+                         <td className="border border-black px-2 text-left">Pendidikan (SPP, Kursus, dll) :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.pendidikan)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">3</td>
+                         <td className="border border-black px-2 text-left">Kesehatan (Obat, Kontrol, BPJS, dll) :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.kesehatan)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">4</td>
+                         <td className="border border-black px-2 text-left font-bold">Biaya iuran rutin (Listrik, Air, Kebersihan-Siskamling) :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.biayaIuran)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">5</td>
+                         <td className="border border-black px-2 text-left">Transportasi (BBM, Ongkos, Maintenance) :</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.transportasi)}</td>
+                       </tr>
+                       <tr className="h-7 text-center">
+                         <td className="border border-black">6</td>
+                         <td className="border border-black px-2 text-left">Pengeluaran lainnya : Sewa Rumah / ............................</td>
+                         <td className="border border-black font-bold">{formatCurrency(surveyData.pengeluaranLain)}</td>
+                       </tr>
+                       <tr className="h-8 bg-gray-50 font-bold uppercase">
+                         <td colSpan={2} className="border border-black px-2 text-right">TOTAL PENGELUARAN (B)</td>
+                         <td className="border border-black font-bold">
+                           {(() => {
+                             const total = [surveyData.kebutuhanDapur, surveyData.pendidikan, surveyData.kesehatan, surveyData.biayaIuran, surveyData.transportasi, surveyData.pengeluaranLain]
+                               .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                             return total > 0 ? total.toLocaleString('id-ID') : '';
+                           })()}
+                         </td>
+                       </tr>
+                     </tbody>
+                   </table>
+                 </div>
+
+                 <div className="mt-4 space-y-3 border border-black p-4 font-bold">
+                    <div className="grid grid-cols-[300px_1fr]">
+                      <span>SISA PENDAPATAN PER BULAN (A-B)</span>
+                      <span className="font-bold">
+                        {(() => {
+                          const totalA = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
+                            .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                          const totalB = [surveyData.kebutuhanDapur, surveyData.pendidikan, surveyData.kesehatan, surveyData.biayaIuran, surveyData.transportasi, surveyData.pengeluaranLain]
+                            .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                          const sisa = totalA - totalB;
+                          return sisa !== 0 || totalA > 0 ? `= ( ${totalA.toLocaleString('id-ID')} ) - ( ${totalB.toLocaleString('id-ID')} ) = ( ${sisa.toLocaleString('id-ID')} )` : '= ( - ) - ( - ) = ( - )';
+                        })()}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-[300px_1fr]">
+                      <span>Jumlah Pendapatan (Total A) / Anggota Keluarga</span>
+                      <span className="font-bold">
+                        {(() => {
+                          const totalA = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
+                            .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                          const divisor = parseInt(surveyData.jumlahKeluarga) || 1;
+                          const perJiwa = Math.round(totalA / divisor);
+                          return totalA > 0 ? `= ( ${totalA.toLocaleString('id-ID')} ) / ( ${divisor} ) = ( ${perJiwa.toLocaleString('id-ID')} )` : '= ( - ) / ( - ) = ( - )';
+                        })()}
+                      </span>
+                    </div>
+                 </div>
+
+                 <div className="mt-4 border border-black p-2 min-h-[140px]">
+                    <p className="font-bold mb-2 uppercase underline text-[10px]">Penjelasan Keuangan :</p>
+                    <div className={cn(
+                      "text-[10px] break-words whitespace-pre-wrap",
+                      !surveyData.penjelasanKeuangan && "italic text-gray-400"
+                    )}>
+                      {surveyData.penjelasanKeuangan || 'Tuliskan keterangan tambahan mengenai kondisi keuangan keluarga jika ada...'}
+                    </div>
+                 </div>
+                 <div className="mt-4 border border-black p-3 flex-1">
+                    <p className="font-bold mb-2 uppercase underline text-[10px]">Catatan Survey Tambahan :</p>
+                    <div className="h-full italic text-gray-200">.................................................................................................................................................</div>
+                 </div>
+               </div>
+               
+               <div className="mt-auto pt-4 flex justify-between items-end border-t border-gray-100 italic">
+                  <div className="text-[8px] text-gray-400">F-AZN/PD-BAZ/02</div>
+                  <div className="text-[10px] font-bold">Halaman 2 dari 4</div>
+               </div>
             </div>
-          )}
-          {/* Spacer to ensure scrolling works with scale */}
-          <div style={{ height: `${Math.max(100, scale * 1200)}px` }} className="print:hidden h-20 shrink-0" />
-        </div>
+
+            <div 
+              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              style={{ 
+                fontSize: `${templateConfig.fontSize}pt`,
+                width: '210mm',
+                minHeight: '330mm',
+                height: '330mm'
+              }}
+            >
+               <h3 className="font-bold underline mb-4 uppercase" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>Profil Bidang Usaha Mustahik</h3>
+               <div className="border border-black overflow-hidden bg-slate-50 print:bg-white mb-6">
+                    <div className="grid grid-cols-[40px_1fr_2.5fr] border-b border-black min-h-[60px]">
+                      <div className="p-2 border-r border-black font-bold flex items-center justify-center">1</div>
+                      <div className="p-2 border-r border-black flex items-center" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Usaha Mustahik</div>
+                      <div className="p-2 grid grid-cols-2 gap-x-2">
+                        <Checkbox label="a. Kuliner" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="b. Jasa" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="c. Pertanian/Peternakan" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="d. Ekonomi Kreatif" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="e. Perdagangan" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="f. Industri & Perdagangan" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="g. Perdagangan Eceran" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="h. Kehutanan" fontSize={templateConfig.fontSize} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[40px_1fr_2.5fr] border-b border-black min-h-[40px]">
+                      <div className="p-2 border-r border-black font-bold flex items-center justify-center">2</div>
+                      <div className="p-2 border-r border-black flex items-center" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Lama Usaha</div>
+                      <div className="p-2 grid grid-cols-4 gap-2">
+                        <Checkbox label="< 1 Thn" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="1-2 Thn" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="3-4 Thn" fontSize={templateConfig.fontSize} />
+                        <Checkbox label="> 5 Thn" fontSize={templateConfig.fontSize} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[40px_1fr_2.5fr] border-b border-black">
+                      <div className="p-2 border-r border-black font-bold flex items-center justify-center">3</div>
+                      <div className="flex flex-col border-r border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] flex items-center">3.1. Sumber Modal</div>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] flex items-center">3.2. Jumlah Pekerja</div>
+                        <div className="p-1 px-2 min-h-[30px] flex items-center">3.3. Status Usaha</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] grid grid-cols-2">
+                          <Checkbox label="Sendiri" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Sdr & Pinjam" fontSize={templateConfig.fontSize} />
+                        </div>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] grid grid-cols-3">
+                          <Checkbox label="2 Org" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="5-10" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="> 10" fontSize={templateConfig.fontSize} />
+                        </div>
+                        <div className="p-1 px-2 min-h-[30px] grid grid-cols-3">
+                          <Checkbox label="Untung" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Impas" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="G. Tikar" fontSize={templateConfig.fontSize} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[40px_1fr_2.5fr]">
+                      <div className="p-2 border-r border-black font-bold flex items-center justify-center">4</div>
+                      <div className="flex flex-col border-r border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] flex items-center">4.1. Keberlanjutan</div>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] flex items-center">4.2. Aspek Legal</div>
+                        <div className="p-1 px-2 min-h-[30px] flex items-center">4.3. Akses Tekno</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] grid grid-cols-2">
+                          <Checkbox label="Berlanjut" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Tidak" fontSize={templateConfig.fontSize} />
+                        </div>
+                        <div className="p-1 px-2 border-b border-black min-h-[30px] grid grid-cols-2">
+                          <Checkbox label="Ada" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Tidak Ada" fontSize={templateConfig.fontSize} />
+                        </div>
+                        <div className="p-1 px-2 min-h-[30px] grid grid-cols-2">
+                          <Checkbox label="Ada" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Tidak Ada" fontSize={templateConfig.fontSize} />
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+
+               <h3 className="font-bold underline mb-4 uppercase text-center" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>REKAPITULASI KELAYAKAN & PENGESAHAN</h3>
+               
+               <div className="mb-4">
+                  <table className="w-full border-collapse border border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+
+                    <thead className="bg-gray-50 uppercase font-bold text-center">
+                      <tr>
+                        <th className="border border-black p-2 w-[22%]">Parameter</th>
+                        <th className="border border-black p-2 w-[23%]">Kelayakan</th>
+                        <th className="border border-black p-2 w-[55%]">Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="h-12 text-center" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        <td className="border border-black px-2 text-left uppercase">Indeks Rumah</td>
+                        <td className="border border-black px-4">
+                           <div className="flex gap-4 justify-center">
+                              <Checkbox label="Layak" fontSize={templateConfig.fontSize} />
+                              <Checkbox label="Tidak Layak" fontSize={templateConfig.fontSize} />
+                           </div>
+                        </td>
+                        <td className="border border-black"></td>
+                      </tr>
+                      <tr className="h-12 text-center" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        <td className="border border-black px-2 text-left uppercase">Kepemilikan Harta</td>
+                        <td className="border border-black px-4">
+                           <div className="flex gap-4 justify-center">
+                              <Checkbox label="Layak" fontSize={templateConfig.fontSize} />
+                              <Checkbox label="Tidak Layak" fontSize={templateConfig.fontSize} />
+                           </div>
+                        </td>
+                        <td className="border border-black"></td>
+                      </tr>
+                      <tr className="h-12 text-center" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        <td className="border border-black px-2 text-left uppercase">Pendapatan Keluarga</td>
+                        <td className="border border-black px-4">
+                           <div className="flex gap-4 justify-center">
+                              <Checkbox label="Layak" fontSize={templateConfig.fontSize} />
+                              <Checkbox label="Tidak Layak" fontSize={templateConfig.fontSize} />
+                           </div>
+                        </td>
+                        <td className="border border-black"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="mt-4 border border-black p-3 min-h-[80px]">
+                    <p className="font-bold uppercase underline mb-1" style={{ fontSize: `${templateConfig.fontSize + 1}pt` }}>Keterangan Lain :</p>
+                    <p className="italic text-gray-400" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Hal menarik yang berhubungan dengan program atau layak untuk dipublikasikan...</p>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-2 border border-black mb-8 overflow-hidden">
+                  <div className="border-r border-black flex flex-col">
+                    <div className="bg-gray-100 p-2 font-bold uppercase text-center border-b border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>REKOMENDASI (Surveyor)</div>
+                    <div className="p-4 flex-1 space-y-4">
+                       <div className="flex gap-4">
+                          <Checkbox label="Layak" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Tidak Layak" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Dipertimbangkan" fontSize={templateConfig.fontSize} />
+                       </div>
+                       <div className="flex-1 min-h-[60px] border-b border-dotted border-gray-300"></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="bg-gray-100 p-2 font-bold uppercase text-center border-b border-black" style={{ fontSize: `${templateConfig.fontSize}pt` }}>PENYALURAN (Approval)</div>
+                    <div className="p-4 flex-1 space-y-4">
+                       <div className="flex gap-4">
+                          <Checkbox label="Layak" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Tidak Layak" fontSize={templateConfig.fontSize} />
+                          <Checkbox label="Dipertimbangkan" fontSize={templateConfig.fontSize} />
+                       </div>
+                       <div className="flex-1 min-h-[60px] border-b border-dotted border-gray-300"></div>
+                    </div>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-2 border-x border-b border-black min-h-[160px] mb-8">
+                  <div className="border-r border-black flex flex-col items-center justify-between p-4">
+                     <span className="font-bold uppercase underline" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Petugas Survey</span>
+                     <div className="w-full flex flex-col items-center gap-1 pb-2">
+                        <div className="w-full text-center border-b border-black font-bold uppercase min-h-[1.2rem]" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                           {surveyData.namaPetugas}
+                        </div>
+                        <span style={{ fontSize: `${templateConfig.fontSize - 2}pt` }}>( Tanda Tangan & Nama Terang )</span>
+                     </div>
+                  </div>
+                  <div className="flex flex-col items-center justify-between p-4">
+                     <div className="w-full text-right pr-4 mb-2" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        ........................, .................................... 20....
+                     </div>
+                     <span className="font-bold uppercase underline" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Mustahik / Pemohon</span>
+                     <div className="w-full flex flex-col items-center gap-1 pb-2">
+                        <div className="w-full text-center border-b border-black font-bold uppercase min-h-[1.2rem]" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                           {surveyData.namaMustahik}
+                        </div>
+                        <span style={{ fontSize: `${templateConfig.fontSize - 2}pt` }}>( Tanda Tangan & Nama Terang )</span>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="mt-auto pt-4 flex justify-between items-end border-t border-gray-200">
+                  <div className="text-[8px] text-gray-400 italic">
+                    Scan via App: SIP-BAZNAS-02-2024
+                  </div>
+                  <div className="text-[10px] font-bold">
+                    Halaman 3 dari 4
+                  </div>
+               </div>
+            </div>
+
+            {/* PAGE 4: Dokumentasi Foto */}
+            <div 
+              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              style={{ 
+                fontSize: `${templateConfig.fontSize}pt`,
+                width: '210mm',
+                minHeight: '330mm',
+                height: '330mm'
+              }}
+            >
+               <h3 className="font-bold underline mb-8 uppercase text-center" style={{ fontSize: `${templateConfig.fontSize + 4}pt` }}>DOKUMENTASI FOTO SURVEY</h3>
+               
+               <div className="grid grid-cols-2 gap-6 flex-1 max-h-[850px]">
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
+                   <ImageIcon className="w-16 h-16 opacity-10" />
+                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Tampak Depan Rumah</p>
+                 </div>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
+                   <ImageIcon className="w-16 h-16 opacity-10" />
+                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Ruang Tamu / Kamar</p>
+                 </div>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
+                   <ImageIcon className="w-16 h-16 opacity-10" />
+                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Dapur / Kamar Mandi</p>
+                 </div>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
+                   <ImageIcon className="w-16 h-16 opacity-10" />
+                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Bersama Mustahik</p>
+                 </div>
+               </div>
+
+               <div className="mt-8 p-4 border border-black bg-gray-50">
+                  <p className="font-bold uppercase underline text-xs mb-2">Catatan Visual / Kondisi Rumah :</p>
+                  <p className="italic text-gray-300 text-xs text-justify">Berikan deskripsi singkat mengenai kondisi fisik bangunan, kebersihan, dan lingkungan sekitar rumah mustahik berdasarkan hasil pantauan mata saat survey dilakukan.</p>
+               </div>
+
+               <div className="mt-auto pt-4 flex justify-between items-end border-t border-gray-200">
+                  <div className="text-[8px] text-gray-400 italic">
+                    Dicetak secara sistem - {new Date().toLocaleString('id-ID')}
+                  </div>
+                  <div className="text-[10px] font-bold">
+                    Halaman 4 dari 4
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
