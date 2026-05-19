@@ -365,8 +365,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
     return new Intl.NumberFormat('id-ID').format(val);
   };
 
-  const PageHeader = () => (
-    <div className="flex items-stretch border border-black mb-4">
+  const PageHeader = ({ title = "SURVEY MUSTAHIK (PERORANGAN)" }: { title?: string }) => (
+    <div className="flex items-stretch border border-black mb-4 shrink-0">
       <div className="w-[150px] p-2 flex items-center justify-center border-r border-black">
         {logo ? (
           <img src={logo} alt="BAZNAS Logo" className="max-h-12 object-contain" />
@@ -379,24 +379,24 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
         )}
       </div>
       <div className="flex-1 p-2 flex flex-col items-center justify-center text-center">
-        <h1 className="text-base font-bold uppercase tracking-tight">SURVEY MUSTAHIK (PERORANGAN)</h1>
+        <h1 className="text-base font-bold uppercase tracking-tight">{title}</h1>
         <p className="text-[10px] font-medium">F-AZN / PDP /</p>
       </div>
-      <div className="w-[100px] p-2 flex items-center justify-center border-l border-black text-[10px] font-bold">
+      <div className="w-[110px] p-2 flex items-center justify-center border-l border-black text-[10px] font-bold">
         F-AZN / PDP /
       </div>
     </div>
   );
 
   const Checkbox = ({ label, checked }: { label: string; checked?: boolean }) => (
-    <div className="flex items-center gap-2 mb-0.5">
+    <div className="flex items-center gap-2 mb-0.5 shrink-0">
       <div className={cn(
-        "w-3 h-3 border border-black flex items-center justify-center text-[8px]",
+        "w-3.5 h-3.5 border border-black flex items-center justify-center text-[10px]",
         checked && "bg-black text-white"
       )}>
         {checked && "✓"}
       </div>
-      <span className="text-[9px] whitespace-nowrap">{label}</span>
+      <span className="text-[10px] whitespace-nowrap font-medium">{label}</span>
     </div>
   );
 
@@ -883,14 +883,14 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
         <div className="flex-1 overflow-y-auto p-4 md:p-10 flex flex-col items-center bg-slate-950 print:p-0 print:bg-white print:block shadow-inner scrollbar-hide">
           {activeTab === 'survey' ? (
             <div 
-              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0"
+              className="bg-white w-full max-w-[850px] shadow-2xl rounded-sm print:shadow-none print:rounded-none origin-top transition-all duration-300 p-8 flex flex-col gap-6 mb-40 print:mb-0 print:block print:p-0 print:gap-0"
               style={{ transform: `scale(${scale})` }}
             >
             {/* PAGE 1 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 min-h-[1050px] print:min-h-0">
               <PageHeader />
 
-              <div className="grid grid-cols-[1fr_1fr] gap-x-6 mb-2 text-[10px]">
+              <div className="grid grid-cols-[1fr_1fr] gap-x-6 mb-6 text-[11px] leading-relaxed">
                 <div className="space-y-0.5">
                   <div className="grid grid-cols-[70px_10px_1fr]">
                     <span>Nama</span><span>:</span><span className="font-bold uppercase">{recipient.name}</span>
@@ -957,8 +957,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                     </div>
                   )}
                   {recipient.amountProposed > 0 && (
-                     <div className="grid grid-cols-[100px_10px_1fr]">
-                        <span>Nominal Ajuan</span><span>:</span><span className="font-bold">Rp {formatCurrency(recipient.amountProposed)}</span>
+                     <div className="grid grid-cols-[100px_1fr]">
+                        <span className="w-[100px] shrink-0">Nominal Ajuan</span><span className="px-1">:</span><span className="font-bold">Rp {formatCurrency(recipient.amountProposed)}</span>
                      </div>
                   )}
                 </div>
@@ -967,12 +967,12 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
               <div className="grid grid-cols-2 border border-black">
                 {/* Left Column: INDEKS RUMAH */}
                 <div className="border-r border-black">
-                  <div className="bg-slate-100 border-b border-black px-2 py-0.5 font-bold text-[10px] uppercase">INDEKS RUMAH</div>
+                  <div className="bg-slate-100 border-b border-black px-2 py-1 font-bold text-[11px] uppercase underline decoration-2 underline-offset-2">INDEKS RUMAH</div>
                   
                   {/* Ukuran Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Ukuran Rumah<br/>(m²/orang)</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium leading-tight">Ukuran Rumah<br/>(m²/orang)</div>
+                    <div className="p-1.5">
                       <Checkbox label="Sangat Kecil ( < 4 m²)" />
                       <Checkbox label="Kecil (4-6 m²)" />
                       <Checkbox label="Sedang (6-8 m²)" />
@@ -981,20 +981,19 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Dinding Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Dinding Rumah</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Dinding Rumah</div>
+                    <div className="p-1.5">
                       <Checkbox label="Bilik Bambu/Kayu" />
                       <Checkbox label="Semi" />
                       <Checkbox label="Tembok/Beton" />
-                      <div className="h-4"></div>
                     </div>
                   </div>
 
                   {/* Lantai */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Lantai</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Lantai</div>
+                    <div className="p-1.5">
                       <Checkbox label="Tanah" />
                       <Checkbox label="Panggung" />
                       <Checkbox label="Semen" />
@@ -1003,20 +1002,19 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Atap */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Atap</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Atap</div>
+                    <div className="p-1.5">
                       <Checkbox label="Kirai/Ijuk" />
                       <Checkbox label="Genteng/Seng" />
-                      <div className="h-2"></div>
                       <Checkbox label="Asbes/Berglazur" />
                     </div>
                   </div>
 
                   {/* Kepemilikan Rumah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Kepemilikan Rumah</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Kepemilikan Rumah</div>
+                    <div className="p-1.5">
                       <Checkbox label="Menumpang" />
                       <Checkbox label="Kontrak" />
                       <Checkbox label="Keluarga" />
@@ -1025,9 +1023,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Dapur */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Dapur</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Dapur</div>
+                    <div className="p-1.5">
                       <Checkbox label="Tungku" />
                       <Checkbox label="Kompor Minyak" />
                       <Checkbox label="Kompor Gas" />
@@ -1036,9 +1034,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Kursi */}
-                  <div className="grid grid-cols-[100px_1fr]">
-                    <div className="p-1 border-r border-black text-[9px]">Kursi</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr]">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Kursi</div>
+                    <div className="p-1.5">
                       <Checkbox label="Lesehan" />
                       <Checkbox label="Balai Bambu" />
                       <Checkbox label="Kayu" />
@@ -1049,12 +1047,12 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
                 {/* Right Column: KEPEMILIKAN HARTA */}
                 <div>
-                  <div className="bg-slate-100 border-b border-black px-2 py-0.5 font-bold text-[10px] uppercase">KEPEMILIKAN HARTA</div>
+                  <div className="bg-slate-100 border-b border-black px-2 py-1 font-bold text-[11px] uppercase underline decoration-2 underline-offset-2">KEPEMILIKAN HARTA</div>
                   
                   {/* Kebun / Sawah */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Kebun / Sawah</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Kebun / Sawah</div>
+                    <div className="p-1.5">
                       <Checkbox label="Tidak Ada" />
                       <Checkbox label="< 1000 m²" />
                       <Checkbox label="1000 - 5000 m²" />
@@ -1063,9 +1061,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Elektronik */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Elektronik</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Elektronik</div>
+                    <div className="p-1.5">
                       <Checkbox label="Radio" />
                       <Checkbox label="Tape" />
                       <Checkbox label="Televisi" />
@@ -1075,9 +1073,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Kendaraan */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Kendaraan</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Kendaraan</div>
+                    <div className="p-1.5">
                       <Checkbox label="Tidak Ada" />
                       <Checkbox label="Sepeda Kayuh" />
                       <Checkbox label="Sepeda Motor" />
@@ -1086,9 +1084,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Ternak */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Ternak</div>
-                    <div className="p-1 text-[8px] space-y-0 text-slate-800">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Ternak</div>
+                    <div className="p-1.5 text-[9px] space-y-0.5 text-slate-800">
                       <p>Unggas : 0 ekor</p>
                       <p>Domba : 0 ekor</p>
                       <p>Kambing : 0 ekor</p>
@@ -1098,9 +1096,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Aset */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Aset</div>
-                    <div className="p-1">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium">Aset</div>
+                    <div className="p-1.5">
                       <Checkbox label="Tidak Ada" />
                       <Checkbox label="Emas ( 0 )" />
                       <Checkbox label="Bank ( 0 )" />
@@ -1109,49 +1107,49 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   {/* Kepemilikan Lainnya */}
-                  <div className="grid grid-cols-[100px_1fr] border-b border-black">
-                    <div className="p-1 border-r border-black text-[9px]">Kepemilikan Lainnya</div>
-                    <div className="p-1 h-6"></div>
+                  <div className="grid grid-cols-[120px_1fr] border-b border-black">
+                    <div className="p-1 border-r border-black text-[10px] font-medium italic">Kepemilikan Lainnya</div>
+                    <div className="p-1 h-8"></div>
                   </div>
 
                   {/* Keterangan Lainnya */}
-                  <div className="grid grid-cols-[100px_1fr]">
-                    <div className="p-1 border-r border-black text-[9px]">Keterangan Lainnya :</div>
-                    <div className="p-1 h-8"></div>
+                  <div className="grid grid-cols-[120px_1fr]">
+                    <div className="p-1 border-r border-black text-[10px] font-medium italic">Keterangan Lainnya :</div>
+                    <div className="p-1 h-10"></div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4">
-                <h3 className="font-bold text-[10px] underline mb-1 uppercase">Profil Keluarga</h3>
+              <div className="mt-6">
+                <h3 className="font-bold text-[11px] underline decoration-2 underline-offset-4 mb-2 uppercase">Profil Keluarga</h3>
                 <table className="w-full border-collapse border border-black text-center">
-                  <thead className="bg-slate-100 font-bold text-[9px] uppercase">
+                  <thead className="bg-slate-100 font-bold text-[10px] uppercase">
                     <tr>
-                      <th rowSpan={2} className="border border-black p-0.5 w-6">No</th>
-                      <th rowSpan={2} className="border border-black p-0.5 w-[150px]">Nama</th>
-                      <th rowSpan={2} className="border border-black p-0.5 w-8">Usia</th>
-                      <th rowSpan={2} className="border border-black p-0.5">Hub Keluarga</th>
-                      <th rowSpan={2} className="border border-black p-0.5">Status</th>
-                      <th colSpan={2} className="border border-black p-0.5">Pekerjaan</th>
-                      <th rowSpan={2} className="border border-black p-0.5">Pendidikan</th>
-                      <th rowSpan={2} className="border border-black p-0.5 w-8">Ket</th>
+                      <th rowSpan={2} className="border border-black p-1 w-8">No</th>
+                      <th rowSpan={2} className="border border-black p-1 w-[200px]">Nama</th>
+                      <th rowSpan={2} className="border border-black p-1 w-10">Usia</th>
+                      <th rowSpan={2} className="border border-black p-1">Hub Keluarga</th>
+                      <th rowSpan={2} className="border border-black p-1">Status</th>
+                      <th colSpan={2} className="border border-black p-1">Pekerjaan</th>
+                      <th rowSpan={2} className="border border-black p-1">Pendidikan</th>
+                      <th rowSpan={2} className="border border-black p-1 w-10">Ket</th>
                     </tr>
                     <tr>
-                      <th className="border border-black p-0.5">Utama</th>
-                      <th className="border border-black p-0.5">Sampingan</th>
+                      <th className="border border-black p-1">Utama</th>
+                      <th className="border border-black p-1">Sampingan</th>
                     </tr>
                   </thead>
-                  <tbody className="text-[9px]">
-                    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                      <tr key={i} className="h-5">
-                        <td className="border border-black text-center font-mono">{(i+1).toString().padStart(2, '0')}</td>
-                        <td className="border border-black text-left px-1"></td>
+                  <tbody className="text-[10px]">
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                      <tr key={i} className="h-6">
+                        <td className="border border-black text-center font-mono font-bold">{(i+1).toString().padStart(2, '0')}</td>
+                        <td className="border border-black text-left px-2"></td>
                         <td className="border border-black"></td>
-                        <td className="border border-black uppercase"></td>
-                        <td className="border border-black uppercase"></td>
+                        <td className="border border-black uppercase text-[9px]"></td>
+                        <td className="border border-black uppercase text-[9px]"></td>
                         <td className="border border-black"></td>
                         <td className="border border-black"></td>
-                        <td className="border border-black uppercase"></td>
+                        <td className="border border-black uppercase text-[9px]"></td>
                         <td className="border border-black"></td>
                       </tr>
                     ))}
@@ -1161,16 +1159,20 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 2 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
-              <h3 className="font-bold text-[10px] underline mb-4 uppercase">Online (Di isi dari aplikasi)</h3>
-              <h3 className="font-bold text-[10px] underline mb-2 uppercase">Keuangan Keluarga</h3>
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 min-h-[1050px] print:min-h-0">
+              <PageHeader title="SURVEY MUSTAHIK (ONLINE)" />
+              <div className="bg-black/5 p-2 border border-black mb-4">
+                <h3 className="font-bold text-[11px] underline decoration-2 underline-offset-4 uppercase">Lembar Ke 2: Online (Di isi dari aplikasi)</h3>
+              </div>
               
-              <div className="grid grid-cols-2 border border-black mb-4">
+              <h3 className="font-bold text-[11px] underline underline-offset-4 mb-3 uppercase">Keuangan Keluarga</h3>
+              
+              <div className="grid grid-cols-2 border border-black mb-6">
                 {/* Pendapatan Table */}
                 <div className="border-r border-black">
-                  <div className="grid grid-cols-[1fr_80px]">
-                    <div className="p-1 border-b border-r border-black font-bold text-[8px] bg-slate-100 uppercase">Pendapatan Keluarga (A), bersumber dari</div>
-                    <div className="p-1 border-b border-black font-bold text-[8px] text-center bg-slate-100 uppercase">Jumlah (Rp)</div>
+                  <div className="grid grid-cols-[1fr_100px]">
+                    <div className="p-1.5 border-b border-r border-black font-bold text-[9px] bg-slate-100 uppercase">Pendapatan Keluarga (A), bersumber dari</div>
+                    <div className="p-1.5 border-b border-black font-bold text-[9px] text-center bg-slate-100 uppercase">Jumlah (Rp)</div>
                     
                     {[
                       { label: "Usaha Pokok Suami :", value: income.husband },
@@ -1181,27 +1183,27 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                       { label: `Pgh. Lainnya${income.additional ? ` (${income.additional})` : ''} :`, value: income.additionalNominal }
                     ].map((item, idx) => (
                       <React.Fragment key={idx}>
-                        <div className="p-0.5 border-b border-r border-black text-[9px] pl-1">{idx + 1}. {item.label}</div>
-                        <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                        <div className="p-1.5 border-b border-r border-black text-[10px] pl-2 font-medium">{idx + 1}. {item.label}</div>
+                        <div className="p-1.5 border-b border-black text-right text-[10px] pr-2 font-mono font-bold">
                           {item.value ? formatCurrency(Number(item.value)) : '-'}
                         </div>
                       </React.Fragment>
                     ))}
-                    <div className="p-1 h-8 border-r border-black"></div>
-                    <div className="p-1 h-8"></div>
+                    <div className="p-1.5 h-16 border-r border-black"></div>
+                    <div className="p-1.5 h-16"></div>
                     
-                    <div className="p-1 border-t border-r border-black font-bold text-[9px] bg-slate-100 uppercase">TOTAL A</div>
-                    <div className="p-1 border-t border-black bg-slate-100 text-right text-[9px] font-bold pr-1 font-mono">
-                      {totalA > 0 ? formatCurrency(totalA) : ''}
+                    <div className="p-2 border-t border-r border-black font-bold text-[10px] bg-slate-100 uppercase">TOTAL PENDAPATAN (A)</div>
+                    <div className="p-2 border-t border-black bg-slate-100 text-right text-[11px] font-black pr-2 font-mono">
+                      {totalA > 0 ? `Rp ${formatCurrency(totalA)}` : ''}
                     </div>
                   </div>
                 </div>
 
                 {/* Expenses Table */}
                 <div>
-                  <div className="grid grid-cols-[1fr_80px]">
-                    <div className="p-1 border-b border-r border-black font-bold text-[8px] bg-slate-100 uppercase">Pengeluaran Rutin (B), dialokasikan untuk</div>
-                    <div className="p-1 border-b border-black font-bold text-[8px] text-center bg-slate-100 uppercase">Jumlah (Rp)</div>
+                  <div className="grid grid-cols-[1fr_100px]">
+                    <div className="p-1.5 border-b border-r border-black font-bold text-[9px] bg-slate-100 uppercase">Pengeluaran Rutin (B), dialokasikan untuk</div>
+                    <div className="p-1.5 border-b border-black font-bold text-[9px] text-center bg-slate-100 uppercase">Jumlah (Rp)</div>
                     
                     {[
                       { label: "Kebutuhan Dapur :", value: expenses.kitchen },
@@ -1210,64 +1212,64 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                       { label: "Biaya iuran rutin :", value: '' }
                     ].map((item, idx) => (
                       <React.Fragment key={idx}>
-                        <div className="p-0.5 border-b border-r border-black text-[9px] pl-1">{idx + 1}. {item.label}</div>
-                        <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                        <div className="p-1.5 border-b border-r border-black text-[10px] pl-2 font-medium">{idx + 1}. {item.label}</div>
+                        <div className="p-1.5 border-b border-black text-right text-[10px] pr-2 font-mono font-bold">
                           {item.value ? formatCurrency(Number(item.value)) : '-'}
                         </div>
                       </React.Fragment>
                     ))}
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px]">a. Listrik</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                    <div className="pl-6 pr-2 border-b border-r border-black text-[9px] font-medium py-1">a. Listrik</div>
+                    <div className="p-1 border-b border-black text-right text-[10px] pr-2 font-mono">
                       {expenses.electricity ? formatCurrency(Number(expenses.electricity)) : '-'}
                     </div>
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px]">b. Air Minum</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                    <div className="pl-6 pr-2 border-b border-r border-black text-[9px] font-medium py-1">b. Air Minum</div>
+                    <div className="p-1 border-b border-black text-right text-[10px] pr-2 font-mono">
                       {expenses.water ? formatCurrency(Number(expenses.water)) : '-'}
                     </div>
-                    <div className="pl-4 pr-1 border-b border-r border-black text-[8px]">c. Siskamling</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                    <div className="pl-6 pr-2 border-b border-r border-black text-[9px] font-medium py-1">c. Siskamling</div>
+                    <div className="p-1 border-b border-black text-right text-[10px] pr-2 font-mono">
                       {expenses.security ? formatCurrency(Number(expenses.security)) : '-'}
                     </div>
                     
-                    <div className="p-0.5 border-b border-r border-black text-[9px] pl-1">5. Transportasi :</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                    <div className="p-1.5 border-b border-r border-black text-[10px] pl-2 font-medium">5. Transportasi :</div>
+                    <div className="p-1.5 border-b border-black text-right text-[10px] pr-2 font-mono">
                       {expenses.transport ? formatCurrency(Number(expenses.transport)) : '-'}
                     </div>
                     
-                    <div className="p-0.5 border-b border-r border-black text-[9px] pl-1">6. Pglr Lain: Sewa Rumah</div>
-                    <div className="p-0.5 border-b border-black text-right text-[9px] pr-1 font-mono">
+                    <div className="p-1.5 border-b border-r border-black text-[10px] pl-2 font-medium">6. Sewa Rumah :</div>
+                    <div className="p-1.5 border-b border-black text-right text-[10px] pr-2 font-mono">
                       {expenses.rent ? formatCurrency(Number(expenses.rent)) : '-'}
                     </div>
 
-                    <div className="p-1 border-r border-black h-2"></div>
-                    <div className="p-1 h-2"></div>
+                    <div className="p-2 border-r border-black h-4"></div>
+                    <div className="p-2 h-4"></div>
                     
-                    <div className="p-1 border-t border-r border-black font-bold text-[9px] bg-slate-100 uppercase">TOTAL B</div>
-                    <div className="p-1 border-t border-black bg-slate-100 text-right text-[9px] font-bold pr-1 font-mono">
-                      {totalB > 0 ? formatCurrency(totalB) : ''}
+                    <div className="p-2 border-t border-r border-black font-bold text-[10px] bg-slate-100 uppercase">TOTAL PENGELUARAN (B)</div>
+                    <div className="p-2 border-t border-black bg-slate-100 text-right text-[11px] font-black pr-2 font-mono">
+                      {totalB > 0 ? `Rp ${formatCurrency(totalB)}` : ''}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="border border-black mb-4 p-1.5 font-bold text-[9px] bg-slate-50 uppercase tracking-tight">
-                SISA PENDAPATAN PER BULAN (A-B) = ( {formatCurrency(totalA)} ) - ( {formatCurrency(totalB)} ) = Rp {formatCurrency(balance)}
+              <div className="border-2 border-black mb-4 p-2.5 font-bold text-[10px] bg-slate-50 uppercase tracking-tight flex justify-between items-center">
+                <span>SISA PENDAPATAN PER BULAN (A-B)</span>
+                <span className="text-[12px] font-black">Rp {formatCurrency(balance)}</span>
               </div>
 
-              <div className="border border-black mb-6 p-1.5 font-bold text-[9px] bg-slate-50 uppercase tracking-tight">
-                Jumlah Pendapatan (Total A) / Jumlah Anggota Keluarga = ( {formatCurrency(totalA)} ) / ( {familyCount} ) = Rp {formatCurrency(Math.round(perCapita))} 
+              <div className="border-2 border-black mb-6 p-2.5 font-bold text-[10px] bg-slate-50 uppercase tracking-tight flex justify-between items-center">
+                <span>Jumlah Pendapatan (Total A) / Anggota Keluarga</span>
+                <span className="text-[12px] font-black">Rp {formatCurrency(Math.round(perCapita))}</span>
               </div>
 
-              <div className="flex-1 border border-black p-3 mt-2 min-h-[400px]">
-                <h4 className="font-bold text-[10px] mb-2 uppercase underline underline-offset-2">Penjelasan :</h4>
-                <div className="text-[10px] whitespace-pre-wrap leading-relaxed text-slate-800">
+              <div className="flex-1 border border-black p-4 mt-2 min-h-[450px]">
+                <h4 className="font-bold text-[11px] mb-3 uppercase underline decoration-2 underline-offset-4">Penjelasan / Catatan Survey :</h4>
+                <div className="text-[11px] whitespace-pre-wrap leading-relaxed text-black font-medium">
                   {explanation || (
-                    <div className="space-y-4">
-                      <div className="h-4 border-b border-slate-200"></div>
-                      <div className="h-4 border-b border-slate-200"></div>
-                      <div className="h-4 border-b border-slate-200"></div>
-                      <div className="h-4 border-b border-slate-200"></div>
-                      <div className="h-4 border-b border-slate-200"></div>
+                    <div className="space-y-6">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div key={i} className="h-6 border-b border-slate-200"></div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1275,181 +1277,198 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             {/* PAGE 3 */}
-            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0">
-              <h3 className="font-bold text-[10px] underline mb-4 uppercase underline-offset-2">Offline (Di isi Manual)</h3>
+            <div className="flex flex-col bg-white overflow-hidden page-break mb-20 print:mb-0 print:p-8 min-h-[1050px] print:min-h-0">
+              <PageHeader title="SURVEY MUSTAHIK (OFFLINE)" />
+              <div className="bg-black text-white p-2 border border-black mb-4">
+                <h3 className="font-bold text-[11px] uppercase tracking-wider">Lembar Ke 3: Offline (Di isi Manual oleh Petugas)</h3>
+              </div>
               
               <div className="border border-black mb-6">
-                <div className="bg-black text-white px-2 py-1 font-bold text-[10px] uppercase tracking-wide">Profil Bidang Usaha Mustahik</div>
+                <div className="bg-slate-200 text-black border-b border-black px-2 py-1 font-bold text-[10px] uppercase tracking-wide">Profil Bidang Usaha Mustahik</div>
                 
-                <div className="grid grid-cols-[30px_120px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold">1</div>
-                  <div className="p-1 border-r border-black text-[9px]">Usaha Mustahik</div>
-                  <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
+                <div className="grid grid-cols-[40px_140px_1fr] border-b border-black">
+                  <div className="p-2 border-r border-black text-center text-[10px] font-bold flex items-center justify-center">1</div>
+                  <div className="p-2 border-r border-black text-[10px] font-bold uppercase flex items-center">Usaha Mustahik</div>
+                  <div className="p-2 grid grid-cols-2 gap-x-2 gap-y-1">
                     <Checkbox label="a. Kuliner" />
-                    <Checkbox label="b. Jasa" />
-                    <Checkbox label="c. Pertanian/Peternakan" />
-                    <Checkbox label="d. Ekonomi Kreatif" />
                     <Checkbox label="e. Perdagangan" />
+                    <Checkbox label="b. Jasa" />
                     <Checkbox label="f. Industri & Pdg" />
+                    <Checkbox label="c. Pertanian/Peternakan" />
                     <Checkbox label="g. Pdg Eceran" />
+                    <Checkbox label="d. Ekonomi Kreatif" />
                     <Checkbox label="h. Kehutanan" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[30px_120px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold">2</div>
-                  <div className="p-1 border-r border-black text-[9px]">Lama Usaha</div>
-                  <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
-                    <Checkbox label="a. 1 < tahun" />
-                    <Checkbox label="b. 1-2 tahun" />
-                    <Checkbox label="c. 3-4 tahun" />
-                    <Checkbox label="d. > 5 tahun" />
+                <div className="grid grid-cols-[40px_140px_1fr] border-b border-black">
+                  <div className="p-2 border-r border-black text-center text-[10px] font-bold flex items-center justify-center">2</div>
+                  <div className="p-2 border-r border-black text-[10px] font-bold uppercase flex items-center">Lama Usaha</div>
+                  <div className="p-2 grid grid-cols-4 gap-2">
+                    <Checkbox label="a. 1 < thn" />
+                    <Checkbox label="b. 1-2 thn" />
+                    <Checkbox label="c. 3-4 thn" />
+                    <Checkbox label="d. > 5 thn" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[30px_1fr] border-b border-black">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold">3</div>
+                <div className="grid grid-cols-[40px_1fr] border-b border-black">
+                  <div className="p-2 border-r border-black text-center text-[10px] font-bold flex items-center justify-center">3</div>
                   <div className="p-0">
-                    <div className="grid grid-cols-[120px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.1. Sumber Modal</div>
-                      <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
+                    <div className="grid grid-cols-[140px_1fr] border-b border-black">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">3.1. Sumber Modal</div>
+                      <div className="p-2 px-3 grid grid-cols-4 gap-1">
                         <Checkbox label="a. Sendiri" />
-                        <Checkbox label="b. Sendiri & Pinjam" />
-                        <Checkbox label="c. Pinjam semua" />
-                        <Checkbox label="d. Lain-lain" />
+                        <Checkbox label="b. Mix" />
+                        <Checkbox label="c. Pinjam" />
+                        <Checkbox label="d. Lainnya" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[120px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.2. Jml pekerja terlibat</div>
-                      <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
-                        <Checkbox label="a. 2 Orang" />
+                    <div className="grid grid-cols-[140px_1fr] border-b border-black">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">3.2. Jml pekerja</div>
+                      <div className="p-2 px-3 grid grid-cols-3 gap-1">
+                        <Checkbox label="a. 1-2 Orang" />
                         <Checkbox label="b. 5-10 Orang" />
                         <Checkbox label="c. > 10 Orang" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[120px_1fr]">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">3.3. Status Usaha</div>
-                      <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
+                    <div className="grid grid-cols-[140px_1fr]">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">3.3. Status Usaha</div>
+                      <div className="p-2 px-3 grid grid-cols-3 gap-1">
                         <Checkbox label="a. Untung" />
                         <Checkbox label="b. Impas" />
-                        <Checkbox label="c. Gulung tikar" />
+                        <Checkbox label="c. Rugi" />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[30px_1fr]">
-                  <div className="p-1 border-r border-black text-center text-[9px] font-bold">4</div>
+                <div className="grid grid-cols-[40px_1fr]">
+                  <div className="p-2 border-r border-black text-center text-[10px] font-bold flex items-center justify-center">4</div>
                   <div className="p-0">
-                    <div className="grid grid-cols-[120px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.1. Keberlanjutan</div>
-                      <div className="p-1.5 grid grid-cols-3 gap-x-1 gap-y-0.5">
+                    <div className="grid grid-cols-[140px_1fr] border-b border-black">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">4.1. Keberlanjutan</div>
+                      <div className="p-2 px-3 grid grid-cols-3 gap-1">
                         <Checkbox label="a. Berlanjut" />
-                        <Checkbox label="b. Semi Berlanjut" />
-                        <Checkbox label="c. Tdk Berlanjut" />
+                        <Checkbox label="b. Ragu-ragu" />
+                        <Checkbox label="c. Berhenti" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[120px_1fr] border-b border-black">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.2. Aspek Legalitas</div>
-                      <div className="p-1.5 grid grid-cols-4 gap-x-1 gap-y-0.5">
+                    <div className="grid grid-cols-[140px_1fr] border-b border-black">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">4.2. Aspek Legalitas</div>
+                      <div className="p-2 px-3 grid grid-cols-4 gap-1">
                         <Checkbox label="a. Ada" />
-                        <Checkbox label="b. Tidak Ada" />
+                        <Checkbox label="b. Tdk Ada" />
                         <Checkbox label="c. Lengkap" />
-                        <Checkbox label="d. Tak Lengkap" />
+                        <Checkbox label="d. Belum" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[120px_1fr]">
-                      <div className="p-1 border-r border-black text-[9px] pl-2 font-medium">4.3. Akses Teknologi</div>
-                      <div className="p-1 outline-none grid grid-cols-2 gap-x-2 gap-y-0.5">
-                        <Checkbox label="a. Ada" />
-                        <Checkbox label="b. Tidak Ada" />
-                        <Checkbox label="c. Jarang" />
-                        <Checkbox label="d. Semua Platform" />
-                        <Checkbox label="e. Offline" />
-                        <Checkbox label="f. Sosmed Tertentu" />
+                    <div className="grid grid-cols-[140px_1fr]">
+                      <div className="p-2 border-r border-black text-[10px] pl-2 font-bold uppercase">4.3. Teknologi</div>
+                      <div className="p-2 px-3 grid grid-cols-3 gap-x-2 gap-y-1">
+                        <Checkbox label="a. Online" />
+                        <Checkbox label="b. Offline" />
+                        <Checkbox label="c. Mix" />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-2">
-                <h3 className="font-bold text-[9px] underline mb-1 uppercase tracking-wider">REKAPITULASI KELAYAKAN</h3>
-                <table className="w-full border-collapse border border-black text-[9px]">
-                  <thead className="bg-black text-white font-bold uppercase text-[8px]">
+              <div className="mt-4">
+                <h3 className="font-bold text-[11px] underline decoration-2 underline-offset-4 mb-2 uppercase tracking-wider">REKAPITULASI KELAYAKAN</h3>
+                <table className="w-full border-2 border-black text-[10px]">
+                  <thead className="bg-black text-white font-bold uppercase text-[9px]">
                     <tr>
-                      <th className="border border-black p-0.5 text-left pl-2">PARAMETER</th>
-                      <th className="border border-black p-0.5 w-[140px]">KELAYAKAN</th>
-                      <th className="border border-black p-0.5">KETERANGAN</th>
+                      <th className="border border-white p-1.5 text-left pl-3">PARAMETER PENILAIAN</th>
+                      <th className="border border-white p-1.5 w-[180px]">KELAYAKAN</th>
+                      <th className="border border-white p-1.5">KETERANGAN ALASAN</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      "Indeks Rumah",
-                      "Kepemilikan Harta",
-                      "Pendapatan"
+                      "1. Indeks Rumah",
+                      "2. Kepemilikan Harta",
+                      "3. Tingkat Pendapatan",
+                      "4. Syariat (Fiqih Zakat)"
                     ].map((param) => (
-                      <tr key={param}>
-                        <td className="border border-black p-1 font-bold uppercase">{param}</td>
-                        <td className="border border-black p-1.5">
-                          <Checkbox label="a. Layak" />
-                          <Checkbox label="b. Tidak Layak" />
+                      <tr key={param} className="h-10">
+                        <td className="border border-black p-2 font-bold uppercase leading-tight">{param}</td>
+                        <td className="border border-black p-2 bg-slate-50/30">
+                          <div className="flex gap-4">
+                            <Checkbox label="Layak" />
+                            <Checkbox label="Tdk Layak" />
+                          </div>
                         </td>
-                        <td className="border border-black p-1"></td>
+                        <td className="border border-black p-2"></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="mt-4 text-[9px]">
-                <p className="font-bold italic mb-1 uppercase tracking-tighter">Ket. Lain : <span className="font-normal not-italic normal-case">Hal menarik program / publikasi</span></p>
-                <div className="border border-black h-16"></div>
-              </div>
-
-              <div className="mt-4 border border-black">
-                <div className="grid grid-cols-[140px_1fr_1fr]">
-                  <div className="bg-black text-white font-bold uppercase p-2 text-center text-[10px] flex items-center justify-center border-r border-white">REKOMENDASI</div>
-                  <div className="border-r border-black">
-                    <div className="p-0.5 border-b border-black text-[8px] font-bold bg-slate-50 uppercase text-center">Petugas Survey</div>
-                    <div className="p-3 space-y-1.5">
-                      <Checkbox label="a. Layak" />
-                      <Checkbox label="b. Tidak Layak" />
-                      <Checkbox label="c. Dipertimbangkan" />
+              <div className="mt-6 border border-black overflow-hidden rounded-sm">
+                <div className="grid grid-cols-[160px_1fr_1fr]">
+                  <div className="bg-black text-white font-black uppercase p-4 text-center text-[12px] flex flex-col items-center justify-center border-r border-white italic">
+                    <Scissors className="w-6 h-6 mb-2 opacity-50" />
+                    REKOMENDASI
+                  </div>
+                  <div className="border-r border-black flex flex-col">
+                    <div className="p-1 border-b border-black text-[9px] font-black bg-slate-100 uppercase text-center tracking-widest">Petugas Survey</div>
+                    <div className="p-4 space-y-2 flex-1 flex flex-col justify-center">
+                      <Checkbox label="a. LAYAK DIBANTU" />
+                      <Checkbox label="b. TIDAK LAYAK" />
+                      <Checkbox label="c. DIPERTIMBANGKAN" />
                     </div>
                   </div>
-                  <div>
-                    <div className="p-0.5 border-b border-black text-[8px] font-bold bg-slate-50 uppercase text-center">Bagian Penyaluran</div>
-                    <div className="p-3 space-y-1.5">
-                      <Checkbox label="a. Layak" />
-                      <Checkbox label="b. Tidak Layak" />
-                      <Checkbox label="c. Dipertimbangkan" />
+                  <div className="flex flex-col">
+                    <div className="p-1 border-b border-black text-[9px] font-black bg-slate-100 uppercase text-center tracking-widest">Bagian Penyaluran</div>
+                    <div className="p-4 space-y-2 flex-1 flex flex-col justify-center">
+                      <Checkbox label="a. DISETUJUI" />
+                      <Checkbox label="b. DITOLAK" />
+                      <Checkbox label="c. TUNDA / SURVEY ULANG" />
                     </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-[140px_1fr_1fr] border-t border-black bg-slate-50 min-h-[90px]">
-                  <div className="border-r border-black"></div>
-                  <div className="border-r border-black grid grid-cols-3 text-[8px] font-bold text-center uppercase tracking-tight">
-                    <div className="p-0.5 border-r border-black border-b">Nama</div>
-                    <div className="p-0.5 border-r border-black border-b">Ttd</div>
-                    <div className="p-0.5 border-b">Tgl</div>
-                    <div className="p-0.5 border-r border-black"></div>
-                    <div className="p-0.5 border-r border-black"></div>
-                    <div className="p-0.5"></div>
+                <div className="grid grid-cols-[160px_1fr_1fr] border-t-2 border-black bg-white min-h-[140px]">
+                  <div className="border-r border-black flex flex-col items-center justify-center p-2">
+                    <p className="text-[10px] font-bold text-center italic text-slate-400">Verifikasi Terintegrasi<br/>BAZNAS SIAK</p>
                   </div>
-                  <div className="grid grid-cols-3 text-[8px] font-bold text-center uppercase tracking-tight">
-                    <div className="p-0.5 border-r border-black border-b">Nama</div>
-                    <div className="p-0.5 border-r border-black border-b">Ttd</div>
-                    <div className="p-0.5 border-b">Tgl</div>
-                    <div className="p-0.5 border-r border-black"></div>
-                    <div className="p-0.5 border-r border-black"></div>
-                    <div className="p-0.5"></div>
+                  <div className="border-r border-black grid grid-cols-1">
+                    <div className="grid grid-cols-3 text-[9px] font-bold text-center uppercase border-b border-black bg-slate-50">
+                      <div className="p-1 border-r border-black">Nama</div>
+                      <div className="p-1 border-r border-black">Ttd</div>
+                      <div className="p-1">Tgl</div>
+                    </div>
+                    <div className="grid grid-cols-3 h-full">
+                      <div className="border-r border-black"></div>
+                      <div className="border-r border-black"></div>
+                      <div></div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1">
+                    <div className="grid grid-cols-3 text-[9px] font-bold text-center uppercase border-b border-black bg-slate-50">
+                      <div className="p-1 border-r border-black">Nama</div>
+                      <div className="p-1 border-r border-black">Ttd</div>
+                      <div className="p-1">Tgl</div>
+                    </div>
+                    <div className="grid grid-cols-3 h-full">
+                      <div className="border-r border-black"></div>
+                      <div className="border-r border-black"></div>
+                      <div></div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <p className="mt-4 text-[8px] italic tracking-tighter">• (Coret yang tidak perlu)</p>
+              <div className="mt-auto pt-6 flex justify-between items-end border-t border-slate-100 italic text-[9px] text-slate-400">
+                <p>• (Coret yang tidak perlu)</p>
+                <div className="text-right">
+                  <p className="font-bold text-slate-500 uppercase not-italic">Halaman Terakhir Survey</p>
+                  <p>Sistem Si-PANDAI Ver 1.2</p>
+                </div>
+              </div>
             </div>
 
             {/* DOCUMENTATION & ARCHIVE PAGES */}
