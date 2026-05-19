@@ -272,20 +272,20 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       </div>
 
       {/* Title */}
-      <div className="text-center mb-2 relative">
-        <h2 className="text-xl font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
-        <p className="text-sm mt-1 font-bold">Nomor: {recipient.id.substring(0, 8).toUpperCase()}/TT/BAZ-SIAK/{new Date().getFullYear()}</p>
-        <div className="absolute top-0 right-0 px-3 py-1 bg-slate-100 rounded text-[10px] font-bold tracking-widest text-black border border-slate-200 uppercase print:border-black print:bg-white shadow-sm">
+      <div className="text-center mb-1 relative">
+        <h2 className="text-lg font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
+        <p className="text-[11px] mt-0.5 font-bold">Nomor: {recipient.id.substring(0, 8).toUpperCase()}/TT/BAZ-SIAK/{new Date().getFullYear()}</p>
+        <div className="absolute top-0 right-0 px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold tracking-widest text-black border border-slate-200 uppercase print:border-black print:bg-white">
           {type} COPY
         </div>
       </div>
 
-      <p className="mb-2 text-base">
+      <p className="mb-1 text-sm">
         Telah di terima berkas permohonan bantuan atas nama :
       </p>
 
       {/* Data Body */}
-      <div className="space-y-1 mb-3 text-base">
+      <div className="space-y-0.5 mb-2 text-sm">
         {[
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
@@ -294,20 +294,20 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
           { label: 'Alamat Lengkap', value: receiptData.address, key: 'address', multiline: true }
         ].map((item) => (
-          <div key={item.key} className="grid grid-cols-[180px_20px_1fr] items-start">
+          <div key={item.key} className="grid grid-cols-[160px_20px_1fr] items-start">
             <span className="text-black font-bold">{item.label}</span>
             <span className="text-black font-bold">:</span>
             {isEditing ? (
               item.multiline ? (
                 <textarea 
-                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 resize-none font-sans text-base"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 resize-none font-sans text-sm"
                   rows={2}
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
               ) : (
                 <input 
-                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 font-sans text-base"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 font-sans text-sm"
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
@@ -319,21 +319,21 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         ))}
       </div>
 
-      <h4 className="border-b border-black pb-0.5 mb-2 text-sm font-bold tracking-wider uppercase">Berkas Lampiran :</h4>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-0.5 mb-4 text-xs min-h-[30px]">
+      <h4 className="border-b border-black pb-0.5 mb-1.5 text-xs font-bold tracking-wider uppercase">Berkas Lampiran :</h4>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 mb-3 text-[11px] min-h-[30px]">
 
 
         {receiptData.documents.map((doc, idx) => {
           const isPredefined = DOCUMENT_OPTIONS.slice(0, -1).includes(doc);
 
           return (
-            <div key={idx} className="flex items-start gap-1.5">
+            <div key={idx} className="flex items-start gap-1">
               <span className="text-black font-medium">[{idx + 1}]</span>
               {isEditing ? (
                 <div className="flex flex-col flex-1 gap-1">
                   <div className="flex items-center gap-1">
                     <select 
-                      className="border-b border-indigo-200 focus:border-indigo-500 outline-none flex-1 bg-indigo-50/30 font-sans py-0"
+                      className="border-b border-indigo-200 focus:border-indigo-500 outline-none flex-1 bg-indigo-50/30 font-sans py-0 text-[11px]"
                       value={isPredefined ? doc : (doc === "" ? "" : "Lainnya")}
                       onChange={e => {
                         const val = e.target.value;
@@ -365,7 +365,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         {isEditing && receiptData.documents.length < 12 && (
           <button 
             onClick={() => setReceiptData({...receiptData, documents: [...receiptData.documents, '']})}
-            className="col-span-2 mt-2 flex items-center justify-center gap-2 py-1.5 border-2 border-dashed border-indigo-100 text-indigo-400 hover:border-indigo-300 hover:text-indigo-600 rounded-lg text-[10px] font-bold uppercase transition-all"
+            className="col-span-2 mt-1 flex items-center justify-center gap-1.5 py-1 border-2 border-dashed border-indigo-100 text-indigo-400 hover:border-indigo-300 hover:text-indigo-600 rounded text-[9px] font-bold uppercase transition-all"
           >
             + Tambah Berkas Lampiran
           </button>
@@ -373,49 +373,49 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       </div>
 
       {/* Signatures */}
-      <div className="flex justify-between items-start pt-2">
-        <div className="text-center w-48">
+      <div className="flex justify-between items-start pt-1">
+        <div className="text-center w-44">
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-12 text-xs uppercase font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-8 text-[10px] uppercase font-bold"
               value={receiptData.receiverLabel}
               onChange={e => setReceiptData({...receiptData, receiverLabel: e.target.value})}
             />
           ) : (
-            <p className="mb-12 text-sm font-bold underline">{receiptData.receiverLabel},</p>
+            <p className="mb-8 text-xs font-bold underline">{receiptData.receiverLabel},</p>
           )}
           
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-sm font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
               value={receiptData.receiverName}
               onChange={e => setReceiptData({...receiptData, receiverName: e.target.value})}
             />
           ) : (
-            <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-sm font-bold">{receiptData.receiverName}</p>
+            <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-xs font-bold">{receiptData.receiverName}</p>
           )}
         </div>
-        <div className="text-center w-52">
-          <p className="text-sm mb-12 text-black font-bold">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-          <div className="mb-1">
+        <div className="text-center w-48">
+          <p className="text-xs mb-8 text-black font-bold">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <div className="mb-0.5">
             {isEditing ? (
               <input 
-                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-sm font-bold"
+                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
                 value={receiptData.giverName}
                 onChange={e => setReceiptData({...receiptData, giverName: e.target.value})}
               />
             ) : (
-              <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-sm font-bold">{receiptData.giverName || '(....................................)'}</p>
+              <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-xs font-bold">{receiptData.giverName || '(....................................)'}</p>
             )}
           </div>
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-[10px] font-bold"
               value={receiptData.giverLabel}
               onChange={e => setReceiptData({...receiptData, giverLabel: e.target.value})}
             />
           ) : (
-            <p className="text-xs text-black font-bold uppercase">{receiptData.giverLabel}</p>
+            <p className="text-[10px] text-black font-bold uppercase">{receiptData.giverLabel}</p>
           )}
         </div>
       </div>
@@ -575,6 +575,21 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         `}} />
         {/* Document Area */}
         <div className="flex-1 p-4 md:p-10 overflow-y-auto bg-slate-950/20 flex flex-col items-center print:p-0 print:bg-white print:block scroll-smooth">
+          {viewMode === 'template' && (
+            <div className="mb-6 w-full max-w-[800px] bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-start gap-4 print:hidden">
+              <div className="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-indigo-300 font-bold text-sm">Panduan Cetak Tanda Terima</h4>
+                <p className="text-white/60 text-xs leading-relaxed">
+                  Tanda terima ini dicetak <span className="text-white font-bold">2 rangkap (Atas & Bawah) dalam 1 lembar F4</span>. 
+                  Potong kertas di garis putus-putus setelah dicetak. Gunakan ukuran kertas <span className="text-white font-bold">F4/Folio</span> atau <span className="text-white font-bold">Legal</span> pada setting printer.
+                </p>
+              </div>
+            </div>
+          )}
+          
           {viewMode === 'template' ? (
             <div className="flex flex-col items-center w-full">
               <div 
