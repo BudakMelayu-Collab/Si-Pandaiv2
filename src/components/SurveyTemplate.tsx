@@ -282,16 +282,73 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:bg-white overflow-hidden">
+    <div className="survey-template-overlay fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:relative print:overflow-visible print:bg-white print:h-auto overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
             size: 210mm 330mm;
             margin: 0;
           }
+          
+          body, html, #root {
+            background-color: white !important;
+            overflow: visible !important;
+            height: auto !important;
+            position: static !important;
+          }
+          
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+          }
+          
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          /* Force survey template overlay to expand naturally when printing */
+          .survey-template-overlay {
+            position: relative !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            background-color: white !important;
+            z-index: auto !important;
+            display: block !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
+          
+          /* Force the scrollable container to stretch completely */
+          .survey-scrollable-container {
+            overflow: visible !important;
+            height: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            padding: 0 !important;
+            background-color: white !important;
+          }
+          
+          .survey-print-page {
+            page-break-after: always !important;
+            break-after: page !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            width: 210mm !important;
+            height: 330mm !important;
+            min-height: 330mm !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+          }
+          
+          .survey-print-page:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         }
       `}} />
@@ -385,7 +442,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-10 flex flex-col items-center bg-slate-900 print:bg-white print:p-0">
+      <div className="survey-scrollable-container flex-1 overflow-y-auto p-10 flex flex-col items-center bg-slate-900 print:bg-white print:p-0">
         {activeTab === 'config' && (
           <div className="w-full max-w-2xl space-y-6">
             <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 shadow-2xl">
@@ -783,7 +840,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
         {/* PAGE 1: Survey Utama */}
             <div 
-              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              className="survey-print-page bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
             style={{ 
               fontSize: `${templateConfig.fontSize}pt`,
               width: '210mm',
@@ -1030,7 +1087,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
             {/* PAGE 2: Keuangan & Bidang Usaha */}
             <div 
-              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              className="survey-print-page bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
@@ -1201,7 +1258,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             </div>
 
             <div 
-              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              className="survey-print-page bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
@@ -1398,7 +1455,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
 
             {/* PAGE 4: Dokumentasi Foto */}
             <div 
-              className="bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
+              className="survey-print-page bg-white shadow-2xl rounded-sm p-12 print:shadow-none print:p-10 flex flex-col font-sans overflow-hidden shrink-0" 
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
