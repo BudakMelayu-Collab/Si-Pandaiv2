@@ -428,7 +428,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   );
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
       {/* Toolbar */}
       <div className="bg-[#111827] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -550,6 +550,22 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             @page {
               size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
               margin: 10mm 10mm;
+            }
+            #root > div > *:not(.receipt-template-overlay) {
+              display: none !important;
+            }
+            #root > div {
+              display: block !important;
+              height: auto !important;
+              min-height: auto !important;
+              overflow: visible !important;
+              background-color: white !important;
+            }
+            body, html, #root {
+              background-color: white !important;
+              overflow: visible !important;
+              height: auto !important;
+              position: static !important;
             }
             body { 
               background: white !important;

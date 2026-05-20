@@ -297,6 +297,18 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             position: static !important;
           }
           
+          #root > div > *:not(.survey-template-overlay) {
+            display: none !important;
+          }
+          
+          #root > div {
+            display: block !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            background-color: white !important;
+          }
+          
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;

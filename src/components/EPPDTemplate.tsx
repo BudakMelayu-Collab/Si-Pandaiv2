@@ -403,7 +403,7 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className="eppd-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
       {/* Toolbar */}
       <div className="bg-[#1a1c2c] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -887,6 +887,22 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
               @page {
                 size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
                 margin: 3mm;
+              }
+              #root > div > *:not(.eppd-template-overlay) {
+                display: none !important;
+              }
+              #root > div {
+                display: block !important;
+                height: auto !important;
+                min-height: auto !important;
+                overflow: visible !important;
+                background-color: white !important;
+              }
+              body, html, #root {
+                background-color: white !important;
+                overflow: visible !important;
+                height: auto !important;
+                position: static !important;
               }
               body { 
                 background: white !important;

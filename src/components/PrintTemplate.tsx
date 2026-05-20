@@ -13,7 +13,27 @@ export default function PrintTemplate({ recipient, onClose }: PrintTemplateProps
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:block">
+    <div className="print-template-overlay fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:block">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          #root > div > *:not(.print-template-overlay) {
+            display: none !important;
+          }
+          #root > div {
+            display: block !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            background-color: white !important;
+          }
+          body, html, #root {
+            background-color: white !important;
+            overflow: visible !important;
+            height: auto !important;
+            position: static !important;
+          }
+        }
+      `}} />
       <div className="bg-white w-full max-w-[800px] min-h-[1000px] shadow-2xl rounded-xl relative flex flex-col print:shadow-none print:rounded-none">
         {/* Toolbar */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between print:hidden">
