@@ -3,10 +3,12 @@ import { Recipient } from '../types';
 import { 
   Printer, X, FileCheck, Edit3, Upload, Image as ImageIcon, 
   Trash2, Eye, FileText, AlertCircle, ChevronRight, Loader2,
-  Download
+  Download, Settings, Save
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
+import { db } from '../firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface ReceiptTemplateProps {
   recipient: Recipient;
@@ -36,7 +38,7 @@ const DOCUMENT_OPTIONS = [
 export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [viewMode, setViewMode] = useState<'template' | 'scan'>('template');
+  const [viewMode, setViewMode] = useState<'template' | 'scan' | 'config'>('template');
   
   const [signedReceiptPdfUrl, setSignedReceiptPdfUrl] = useState<string | null>(null);
   const [signedPdfBlobUrl, setSignedPdfBlobUrl] = useState<string | null>(null);
@@ -47,6 +49,17 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedRecipientId, setLoadedRecipientId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+
+  const [templateConfig, setTemplateConfig] = useState({
+    logo: '',
+    institution: 'BAZNAS',
+    region: 'KABUPATEN SIAK',
+    subText: 'Badan Amil Zakat Nasional',
+    fontSize: 9,
+    logoSize: 48
+  });
+
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Local state for template-specific edits
   const [receiptData, setReceiptData] = useState({
@@ -121,6 +134,79 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     const timer = setTimeout(saveData, 1500);
     return () => clearTimeout(timer);
   }, [receiptData, recipient.id, isLoaded, loadedRecipientId]);
+
+  // Listen to real-time updates for global configuration
+  useEffect(() => {
+    const configDoc = doc(db, 'settings', 'survey_template');
+    const unsubscribe = onSnapshot(configDoc, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setTemplateConfig(prev => ({
+          ...prev,
+          ...data,
+          fontSize: data.fontSize || 9,
+          logoSize: data.logoSize || 48
+        }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogoUploadConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_DIM = 400;
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/png');
+          setTemplateConfig(prev => ({ ...prev, logo: dataUrl }));
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const saveConfig = async () => {
+    try {
+      setIsSavingConfig(true);
+      const configDoc = doc(db, 'settings', 'survey_template');
+      await setDoc(configDoc, {
+        ...templateConfig,
+        updatedAt: new Date().toISOString()
+      });
+      alert('Konfigurasi template berhasil disimpan secara global!');
+      setViewMode('template');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      alert('Gagal menyimpan konfigurasi. Pastikan Anda memiliki izin.');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
 
   // Fetch scan from subcollection
   useEffect(() => {
@@ -242,15 +328,23 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   };
 
   const renderReceiptContent = (type: 'PEMOHON' | 'ARSIP') => (
-    <div className={cn(
-      "w-full px-8 py-4 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
-      type === 'PEMOHON' ? "border-b border-dashed pb-4 mb-2 print:mb-0 print:pb-2" : "pt-1"
-    )}>
+    <div 
+      className={cn(
+        "w-full px-8 py-4 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
+        type === 'PEMOHON' ? "border-b border-dashed pb-4 mb-2 print:mb-0 print:pb-2" : "pt-1"
+      )}
+      style={{ fontSize: `${templateConfig.fontSize}pt` }}
+    >
       {/* Header */}
       <div className="flex items-center gap-4 mb-2 border-b border-black pb-1">
-        <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-slate-200 relative group overflow-hidden rounded bg-white print:border-none print:bg-transparent">
-          {logo ? (
-            <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+        <div 
+          className="flex-shrink-0 flex items-center justify-center border-2 border-dashed border-slate-200 relative group overflow-hidden rounded bg-white print:border-none print:bg-transparent"
+          style={{ width: `${templateConfig.logoSize + 16}px`, height: `${templateConfig.logoSize + 16}px` }}
+        >
+          {templateConfig.logo ? (
+            <img src={templateConfig.logo} alt="Logo" className="max-w-full max-h-full object-contain" style={{ height: `${templateConfig.logoSize}px` }} />
+          ) : logo ? (
+            <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain" style={{ height: `${templateConfig.logoSize}px` }} />
           ) : (
             <div className="text-center p-1">
               <ImageIcon className="w-6 h-6 text-slate-300 mx-auto group-hover:text-indigo-400 transition-colors" />
@@ -262,10 +356,18 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           </label>
         </div>
         <div className="flex-1 text-center pr-16">
-          <h1 className="text-lg font-bold uppercase tracking-tight mb-0">BADAN AMIL ZAKAT NASIONAL</h1>
-          <p className="text-base font-bold uppercase tracking-tight mb-0">KABUPATEN SIAK</p>
-          <p className="text-[10px] leading-tight">Gedung Graha Baznas Kabupaten Siak, Jl Sultan Syarif Ali</p>
-          <p className="text-[10px] leading-tight font-medium">Kecamatan Siak, Kabupaten Siak, Riau</p>
+          <h1 className="font-bold uppercase tracking-tight mb-0" style={{ fontSize: `${templateConfig.fontSize + 4}pt` }}>
+            {templateConfig.subText || "BADAN AMIL ZAKAT NASIONAL"}
+          </h1>
+          <p className="font-bold uppercase tracking-tight mb-0" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>
+            {templateConfig.institution} {templateConfig.region}
+          </p>
+          <p className="leading-tight mb-0" style={{ fontSize: `${templateConfig.fontSize - 1}pt` }}>
+            Gedung Graha Baznas Kabupaten Siak, Jl Sultan Syarif Ali
+          </p>
+          <p className="leading-tight font-medium" style={{ fontSize: `${templateConfig.fontSize - 1}pt` }}>
+            Kecamatan Siak, Kabupaten Siak, Riau
+          </p>
         </div>
       </div>
 
@@ -481,6 +583,16 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#111827]" />
             )}
           </button>
+          <button 
+            onClick={() => setViewMode('config')}
+            className={cn(
+              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+              viewMode === 'config' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+            )}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -603,8 +715,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               </div>
             </div>
           )}
-          
-          {viewMode === 'template' ? (
+               {viewMode === 'template' ? (
             <div className="flex flex-col items-center w-full">
               <div 
                 className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container origin-top transition-transform duration-200 p-0"
@@ -618,7 +729,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               </div>
               <div style={{ height: `${Math.max(100, scale * 1200)}px` }} className="print:hidden h-20" />
             </div>
-          ) : (
+          ) : viewMode === 'scan' ? (
             <div className="w-full h-full max-w-4xl flex flex-col gap-4">
               {!signedReceiptPdfUrl ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 border-2 border-dashed border-white/10 rounded-3xl text-center">
@@ -697,6 +808,137 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                   </object>
                 </div>
               )}
+            </div>
+          ) : (
+            /* CONFIG PANEL VIEW */
+            <div className="w-full max-w-2xl space-y-6 my-4">
+              <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 shadow-2xl">
+                <div className="flex items-center gap-4 mb-8 border-b border-white/5 pb-4">
+                  <div className="p-3 bg-amber-500/20 rounded-xl">
+                    <Settings className="w-6 h-6 text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Konfigurasi Template</h3>
+                    <p className="text-slate-400 text-sm">Sesuaikan branding dan logo lembaga Anda secara global</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Logo Upload Section */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-slate-300">Logo Lembaga</label>
+                    <div 
+                      onClick={() => {
+                        const fileInput = document.getElementById('config-logo-input-receipt');
+                        fileInput?.click();
+                      }}
+                      className="group relative h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/5 transition-all overflow-hidden"
+                    >
+                      {templateConfig.logo ? (
+                        <>
+                          <img src={templateConfig.logo} alt="Logo Preview" className="h-full object-contain p-4" />
+                          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Upload className="w-8 h-8 text-white mb-2" />
+                            <span className="text-white text-xs font-bold">Ganti Logo</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-slate-500 mb-2 group-hover:text-amber-500 transition-colors" />
+                          <span className="text-slate-400 text-sm group-hover:text-amber-400">Klik untuk upload logo</span>
+                        </>
+                      )}
+                      <input 
+                        type="file" 
+                        id="config-logo-input-receipt" 
+                        onChange={handleLogoUploadConfig} 
+                        className="hidden" 
+                        accept="image/*"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Lembaga (Utama)</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                        value={templateConfig.institution}
+                        onChange={(e) => setTemplateConfig(p => ({ ...p, institution: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Region / Wilayah</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                        value={templateConfig.region}
+                        onChange={(e) => setTemplateConfig(p => ({ ...p, region: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lembaga (Bottom)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      value={templateConfig.subText}
+                      onChange={(e) => setTemplateConfig(p => ({ ...p, subText: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="range" 
+                          min="20" 
+                          max="120" 
+                          className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                          value={templateConfig.logoSize}
+                          onChange={(e) => setTemplateConfig(p => ({ ...p, logoSize: Number(e.target.value) }))}
+                        />
+                        <span className="text-white font-mono text-sm w-12 text-right">{templateConfig.logoSize}px</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.max(6, p.fontSize - 1) }))}
+                          className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                        >-</button>
+                        <span className="text-white font-mono text-sm w-8 text-center">{templateConfig.fontSize}</span>
+                        <button 
+                          onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.min(14, p.fontSize + 1) }))}
+                          className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex gap-3 border-t border-white/5">
+                    <button 
+                      onClick={saveConfig}
+                      disabled={isSavingConfig}
+                      className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      {isSavingConfig ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      {isSavingConfig ? 'Menyimpan...' : 'Simpan Konfigurasi Secara Global'}
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('template')}
+                      disabled={isSavingConfig}
+                      className="px-6 bg-white/5 hover:bg-white/10 text-slate-400 font-bold py-3 rounded-xl transition-all"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           

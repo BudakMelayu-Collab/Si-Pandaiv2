@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Recipient } from '../types';
 import { 
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
-  FileCheck, ExternalLink, Download, Loader2, ChevronRight
+  FileCheck, ExternalLink, Download, Loader2, ChevronRight,
+  Settings, Save
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
+import { db } from '../firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface MPZISTemplateProps {
   recipient: Recipient;
@@ -17,8 +20,19 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'template' | 'scan'>('template');
+  const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config'>('template');
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
+
+  const [templateConfig, setTemplateConfig] = useState({
+    logo: '',
+    institution: 'BAZNAS',
+    region: 'KABUPATEN SIAK',
+    subText: 'Badan Amil Zakat Nasional',
+    fontSize: 9,
+    logoSize: 48
+  });
+
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [mpzisFiles, setMpzisFiles] = useState<{ name: string; data: string }[]>([]);
   const [ isLoadingFile, setIsLoadingFile] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -102,6 +116,79 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
     };
     loadData();
   }, [recipient.id, recipient.nik, recipient.hasSignedMPZISPdf]);
+
+  // Listen to real-time updates for global configuration
+  useEffect(() => {
+    const configDoc = doc(db, 'settings', 'survey_template');
+    const unsubscribe = onSnapshot(configDoc, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setTemplateConfig(prev => ({
+          ...prev,
+          ...data,
+          fontSize: data.fontSize || 9,
+          logoSize: data.logoSize || 48
+        }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogoUploadConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_DIM = 400;
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/png');
+          setTemplateConfig(prev => ({ ...prev, logo: dataUrl }));
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const saveConfig = async () => {
+    try {
+      setIsSavingConfig(true);
+      const configDoc = doc(db, 'settings', 'survey_template');
+      await setDoc(configDoc, {
+        ...templateConfig,
+        updatedAt: new Date().toISOString()
+      });
+      alert('Konfigurasi template berhasil disimpan secara global!');
+      setActiveTab('template');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      alert('Gagal menyimpan konfigurasi. Pastikan Anda memiliki izin.');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
 
   const handleSaveArchives = async (updatedFiles: { name: string; data: string }[]) => {
     // Current behavior: saves array of files to storage
@@ -417,6 +504,18 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   {mpzisFiles.length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setActiveTab('config')}
+              className={cn(
+                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
+                activeTab === 'config' 
+                  ? "bg-amber-600 text-white shadow-lg" 
+                  : "text-white/40 hover:text-white/60"
+              )}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Config
             </button>
           </div>
 
@@ -905,7 +1004,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             <h1 className="text-9xl font-black whitespace-nowrap">BAZNAS SIAK</h1>
           </div>
           </div>
-        ) : (
+        ) : activeTab === 'scan' ? (
           /* Scan Results Tab */
           <div className="w-full max-w-4xl space-y-6 pb-20">
             {mpzisFiles.length === 0 ? (
@@ -995,6 +1094,137 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 </label>
               </div>
             )}
+          </div>
+        ) : (
+          /* CONFIG PANEL VIEW */
+          <div className="w-full max-w-2xl space-y-6 my-4 pb-20">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 shadow-2xl">
+              <div className="flex items-center gap-4 mb-8 border-b border-white/5 pb-4">
+                <div className="p-3 bg-amber-500/20 rounded-xl">
+                  <Settings className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Konfigurasi Template</h3>
+                  <p className="text-slate-400 text-sm">Sesuaikan branding dan logo lembaga Anda secara global</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* Logo Upload Section */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-300">Logo Lembaga</label>
+                  <div 
+                    onClick={() => {
+                      const fileInput = document.getElementById('config-logo-input-mpzis');
+                      fileInput?.click();
+                    }}
+                    className="group relative h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/5 transition-all overflow-hidden"
+                  >
+                    {templateConfig.logo ? (
+                      <>
+                        <img src={templateConfig.logo} alt="Logo Preview" className="h-full object-contain p-4" />
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Upload className="w-8 h-8 text-white mb-2" />
+                          <span className="text-white text-xs font-bold">Ganti Logo</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-slate-500 mb-2 group-hover:text-amber-500 transition-colors" />
+                        <span className="text-slate-400 text-sm group-hover:text-amber-400">Klik untuk upload logo</span>
+                      </>
+                    )}
+                    <input 
+                      type="file" 
+                      id="config-logo-input-mpzis" 
+                      onChange={handleLogoUploadConfig} 
+                      className="hidden" 
+                      accept="image/*"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Lembaga (Utama)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
+                      value={templateConfig.institution}
+                      onChange={(e) => setTemplateConfig(p => ({ ...p, institution: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Region / Wilayah</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
+                      value={templateConfig.region}
+                      onChange={(e) => setTemplateConfig(p => ({ ...p, region: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lembaga (Bottom)</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
+                    value={templateConfig.subText}
+                    onChange={(e) => setTemplateConfig(p => ({ ...p, subText: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="range" 
+                        min="20" 
+                        max="120" 
+                        className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        value={templateConfig.logoSize}
+                        onChange={(e) => setTemplateConfig(p => ({ ...p, logoSize: Number(e.target.value) }))}
+                      />
+                      <span className="text-white font-mono text-sm w-12 text-right">{templateConfig.logoSize}px</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.max(6, p.fontSize - 1) }))}
+                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                      >-</button>
+                      <span className="text-white font-mono text-sm w-8 text-center">{templateConfig.fontSize}</span>
+                      <button 
+                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.min(14, p.fontSize + 1) }))}
+                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
+                      >+</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3 border-t border-white/5">
+                  <button 
+                    onClick={saveConfig}
+                    disabled={isSavingConfig}
+                    className="flex-1 bg-amber-600 hover:bg-amber-550 disabled:bg-amber-800 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSavingConfig ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {isSavingConfig ? 'Menyimpan...' : 'Simpan Konfigurasi Secara Global'}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('template')}
+                    disabled={isSavingConfig}
+                    className="px-6 bg-white/5 hover:bg-white/10 text-slate-400 font-bold py-3 rounded-xl transition-all"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
