@@ -27,7 +27,10 @@ import {
   getDocFromServer,
   onSnapshot,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  getDoc,
+  DocumentReference,
+  DocumentSnapshot
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { Recipient, AidStatus, PPDRecord, MonthlyPayment, AppSettings, Announcement, Assessment } from './types';
@@ -280,6 +283,27 @@ const sanitizeData = (data: any) => {
   return sanitized;
 };
 
+export const safeGetDoc = async (ref: DocumentReference): Promise<DocumentSnapshot> => {
+  try {
+    return await getDocFromServer(ref);
+  } catch (err: any) {
+    console.warn(`getDocFromServer failed, falling back to standard getDoc:`, err);
+    try {
+      return await getDoc(ref);
+    } catch (fallbackErr: any) {
+      console.error(`Both getDocFromServer and getDoc failed:`, fallbackErr);
+      // Return a simulated non-existent document snapshot instead of crashing the app
+      return {
+        exists: () => false,
+        data: () => undefined,
+        id: ref.id,
+        ref: ref,
+        metadata: { fromCache: true, hasPendingWrites: false }
+      } as unknown as DocumentSnapshot;
+    }
+  }
+};
+
 export const saveRecipient = async (recipientData: any) => {
   const path = 'recipients';
   try {
@@ -330,13 +354,14 @@ export const getRecipientFile = async (recipientId: string, fileType: string) =>
   const path = `recipients/${recipientId}/scans/${fileType}`;
   try {
     const ref = doc(db, 'recipients', recipientId, 'scans', fileType);
-    const snap = await getDocFromServer(ref);
+    const snap = await safeGetDoc(ref);
     if (snap.exists()) {
       return snap.data().base64 as string;
     }
     return null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error loading recipient file for ${path}. Returning null.`, error);
+    return null;
   }
 };
 
@@ -344,13 +369,14 @@ export const getRecipientTemplateData = async (recipientId: string, templateType
   const path = `recipients/${recipientId}/templates/${templateType}`;
   try {
     const ref = doc(db, 'recipients', recipientId, 'templates', templateType);
-    const snap = await getDocFromServer(ref);
+    const snap = await safeGetDoc(ref);
     if (snap.exists()) {
       return snap.data().data;
     }
     return null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error loading recipient template data for ${path}. Returning null.`, error);
+    return null;
   }
 };
 
@@ -370,7 +396,6 @@ export const saveRecipientTemplateData = async (recipientId: string, templateTyp
 export const updateRecipientReceiptPdf = async (id: string, pdfBase64: string | null) => {
   const path = `recipients/${id}`;
   try {
-    const { getDoc } = await import('firebase/firestore');
     const ref = doc(db, 'recipients', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Recipient not found');
@@ -386,7 +411,7 @@ export const updateRecipientReceiptPdf = async (id: string, pdfBase64: string | 
         updatedAt: serverTimestamp()
       });
     } else {
-      const snapScan = await getDocFromServer(scanRef);
+      const snapScan = await safeGetDoc(scanRef);
       if (snapScan.exists()) {
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(scanRef);
@@ -409,7 +434,6 @@ export const updateRecipientReceiptPdf = async (id: string, pdfBase64: string | 
 export const updateRecipientPdf = async (id: string, pdfBase64: string | null) => {
   const path = `recipients/${id}`;
   try {
-    const { getDoc } = await import('firebase/firestore');
     const ref = doc(db, 'recipients', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Recipient not found');
@@ -425,7 +449,7 @@ export const updateRecipientPdf = async (id: string, pdfBase64: string | null) =
         updatedAt: serverTimestamp()
       });
     } else {
-      const snapScan = await getDocFromServer(scanRef);
+      const snapScan = await safeGetDoc(scanRef);
       if (snapScan.exists()) {
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(scanRef);
@@ -448,7 +472,6 @@ export const updateRecipientPdf = async (id: string, pdfBase64: string | null) =
 export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | null) => {
   const path = `recipients/${id}`;
   try {
-    const { getDoc } = await import('firebase/firestore');
     const ref = doc(db, 'recipients', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Recipient not found');
@@ -464,7 +487,7 @@ export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | nu
         updatedAt: serverTimestamp()
       });
     } else {
-      const snapScan = await getDocFromServer(scanRef);
+      const snapScan = await safeGetDoc(scanRef);
       if (snapScan.exists()) {
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(scanRef);
@@ -487,7 +510,6 @@ export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | nu
 export const updateRecipientSurveyPdf = async (id: string, pdfBase64: string | null) => {
   const path = `recipients/${id}`;
   try {
-    const { getDoc } = await import('firebase/firestore');
     const ref = doc(db, 'recipients', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Recipient not found');
@@ -503,7 +525,7 @@ export const updateRecipientSurveyPdf = async (id: string, pdfBase64: string | n
         updatedAt: serverTimestamp()
       });
     } else {
-      const snapScan = await getDocFromServer(scanRef);
+      const snapScan = await safeGetDoc(scanRef);
       if (snapScan.exists()) {
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(scanRef);

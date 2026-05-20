@@ -23,24 +23,41 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
   const [isSaving, setIsSaving] = useState(false);
   const [surveyData, setSurveyData] = useState({
     skmp: recipient.skmp || '',
+    tanggalSurvei: recipient.surveyDate || '',
     jumlahKeluarga: '1',
     usahaSuami: '',
+    usahaSuamiKet: '',
     usahaIstri: '',
+    usahaIstriKet: '',
     usahaLain: '',
+    usahaLainKet: '',
     dariOrtu: '',
+    dariOrtuKet: '',
     dariAnak: '',
+    dariAnakKet: '',
     penghasilanLain: '',
     penghasilanLainKet: '',
     kebutuhanDapur: '',
+    kebutuhanDapurKet: '',
     pendidikan: '',
+    pendidikanKet: '',
     kesehatan: '',
+    kesehatanKet: '',
     biayaIuran: '',
+    biayaIuranKet: '',
     transportasi: '',
+    transportasiKet: '',
     pengeluaranLain: '',
+    pengeluaranLainKet: '',
     penjelasanKeuangan: '',
     namaPetugas: '',
     namaMustahik: recipient.name || '',
     scanUrls: [] as string[],
+    fotoDepan: '',
+    fotoInterior: '',
+    fotoDapur: '',
+    fotoBersama: '',
+    catatanVisual: '',
   });
 
   const formatCurrency = (val: string | number) => {
@@ -73,7 +90,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
           const loadedData = snap.data().data;
           setSurveyData(prev => ({
             ...prev,
-            ...loadedData
+            ...loadedData,
+            tanggalSurvei: loadedData.tanggalSurvei || loadedData.surveyDate || prev.tanggalSurvei || ''
           }));
         }
       } catch (error) {
@@ -98,6 +116,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
       const recipientRef = doc(db, 'recipients', recipient.id);
       await updateDoc(recipientRef, {
         skmp: surveyData.skmp,
+        surveyDate: surveyData.tanggalSurvei || null,
         name: surveyData.namaMustahik,
         hasSignedSurveyPdf: surveyData.scanUrls && surveyData.scanUrls.length > 0,
         updatedAt: serverTimestamp()
@@ -214,6 +233,62 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
         reader.readAsDataURL(file);
       });
     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'fotoDepan' | 'fotoInterior' | 'fotoDapur' | 'fotoBersama') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Hanya diperbolehkan mengupload file gambar (format JPG, PNG, dsb).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+        setSurveyData(prev => {
+          const nextState = { ...prev, [field]: dataUrl };
+          const totalSize = JSON.stringify(nextState).length * 0.75;
+          if (totalSize > 1000000) {
+            alert('Menambahkan foto ini akan melampaui batas database (1MB). Silakan kurangi file scan terlebih dahulu.');
+            return prev;
+          }
+          return nextState;
+        });
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = (field: 'fotoDepan' | 'fotoInterior' | 'fotoDapur' | 'fotoBersama') => {
+    setSurveyData(prev => ({ ...prev, [field]: '' }));
   };
 
   const openPdf = (dataUrl: string) => {
@@ -688,8 +763,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   <div className="space-y-3">
-                    <div className="grid grid-cols-[1fr_100px_100px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
-                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">SKMP & JML Keluarga</span>
+                    <div className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
+                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">SKMP</span>
                       <input 
                         type="text" 
                         placeholder="SKMP"
@@ -697,36 +772,45 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                         value={surveyData.skmp} 
                         onChange={e => setSurveyData(prev => ({...prev, skmp: e.target.value}))} 
                       />
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="Jml Jiwa"
-                          className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-center font-sans font-bold text-white focus:border-emerald-500 outline-none w-full" 
-                          value={surveyData.jumlahKeluarga} 
-                          onChange={e => setSurveyData(prev => ({...prev, jumlahKeluarga: e.target.value.replace(/\D/g, '')}))} 
-                        />
-                        <span className="absolute -top-6 left-0 text-[8px] text-slate-500 whitespace-nowrap">JML JIWA</span>
-                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
+                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">Tanggal Survei</span>
+                      <input 
+                        type="date" 
+                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-center font-sans font-bold text-white focus:border-emerald-500 outline-none w-full" 
+                        value={surveyData.tanggalSurvei} 
+                        onChange={e => setSurveyData(prev => ({...prev, tanggalSurvei: e.target.value}))} 
+                      />
                     </div>
 
                     {[
-                      { id: 'usahaSuami', label: 'Usaha Pokok Suami' },
-                      { id: 'usahaIstri', label: 'Usaha Pokok Istri' },
-                      { id: 'usahaLain', label: 'Usaha Lainnya' },
-                      { id: 'dariOrtu', label: 'Bantuan Orang Tua' },
-                      { id: 'dariAnak', label: 'Bantuan Anak / Menantu' },
+                      { id: 'usahaSuami', label: 'Usaha Pokok Suami', idKet: 'usahaSuamiKet', placeholder: 'Keterangan jenis usaha / pekerjaan suami...' },
+                      { id: 'usahaIstri', label: 'Usaha Pokok Istri', idKet: 'usahaIstriKet', placeholder: 'Keterangan jenis usaha / pekerjaan istri...' },
+                      { id: 'usahaLain', label: 'Usaha Lainnya', idKet: 'usahaLainKet', placeholder: 'Keterangan jenis usaha lainnya...' },
+                      { id: 'dariOrtu', label: 'Bantuan Orang Tua', idKet: 'dariOrtuKet', placeholder: 'Keterangan atau info bantuan orang tua...' },
+                      { id: 'dariAnak', label: 'Bantuan Anak / Menantu', idKet: 'dariAnakKet', placeholder: 'Keterangan atau info bantuan anak / menantu...' },
                     ].map(item => (
-                      <div key={item.id} className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
+                      <div key={item.id} className="space-y-2 bg-white/5 p-3.5 rounded-xl border border-white/5 group hover:border-emerald-500/30 transition-colors">
                         <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-emerald-400 transition-colors">{item.label}</span>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                        <div className="grid grid-cols-[1fr_160px] gap-3">
                           <input 
                             type="text" 
-                            placeholder="0"
-                            className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-emerald-400 focus:border-emerald-500 outline-none w-full" 
-                            value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
-                            onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                            placeholder={item.placeholder}
+                            className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500" 
+                            value={(surveyData as any)[item.idKet]} 
+                            onChange={e => setSurveyData(prev => ({...prev, [item.idKet]: e.target.value}))} 
                           />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                            <input 
+                              type="text" 
+                              placeholder="0"
+                              className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-emerald-400 focus:border-emerald-500 outline-none w-full" 
+                              value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
+                              onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -767,25 +851,69 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
 
                   <div className="space-y-3">
-                    {[
-                      { id: 'kebutuhanDapur', label: 'Kebutuhan Dapur (Sembako)' },
-                      { id: 'pendidikan', label: 'Biaya Pendidikan' },
-                      { id: 'kesehatan', label: 'Biaya Kesehatan' },
-                      { id: 'biayaIuran', label: 'Iuran Listrik / Air' },
-                      { id: 'transportasi', label: 'Biaya Transportasi' },
-                      { id: 'pengeluaranLain', label: 'Sewa Rumah / Lainnya' },
-                    ].map(item => (
-                      <div key={item.id} className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-colors">
-                        <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-amber-400 transition-colors">{item.label}</span>
+                    {/* Kebutuhan Dapur (Sembako) */}
+                    <div className="space-y-2 bg-white/5 p-3.5 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-colors">
+                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-amber-400 transition-colors">Kebutuhan Dapur (Sembako)</span>
+                      <div className="grid grid-cols-[1fr_160px] gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Keterangan kebutuhan dapur / sembako..."
+                          className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500" 
+                          value={surveyData.kebutuhanDapurKet || ''} 
+                          onChange={e => setSurveyData(prev => ({...prev, kebutuhanDapurKet: e.target.value}))} 
+                        />
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
                           <input 
                             type="text" 
                             placeholder="0"
                             className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-amber-400 focus:border-amber-500 outline-none w-full" 
-                            value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
-                            onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                            value={formatCurrency(surveyData.kebutuhanDapur)} 
+                            onChange={e => handleCurrencyChange('kebutuhanDapur', e.target.value)} 
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Jumlah Keluarga */}
+                    <div className="grid grid-cols-[1fr_160px] items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-colors">
+                      <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-amber-400 transition-colors">Jumlah Anggota Keluarga (Jiwa)</span>
+                      <input 
+                        type="text" 
+                        placeholder="Jml Jiwa"
+                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-center font-sans font-bold text-white focus:border-amber-500 outline-none w-full" 
+                        value={surveyData.jumlahKeluarga} 
+                        onChange={e => setSurveyData(prev => ({...prev, jumlahKeluarga: e.target.value.replace(/\D/g, '')}))} 
+                      />
+                    </div>
+
+                    {[
+                      { id: 'pendidikan', label: 'Biaya Pendidikan', idKet: 'pendidikanKet', placeholder: 'Rincian biaya pendidikan / sekolah anak...' },
+                      { id: 'kesehatan', label: 'Biaya Kesehatan', idKet: 'kesehatanKet', placeholder: 'Rincian biaya berobat / suplemen...' },
+                      { id: 'biayaIuran', label: 'Iuran Listrik / Air', idKet: 'biayaIuranKet', placeholder: 'Rincian iuran listrik / air / iuran wajib...' },
+                      { id: 'transportasi', label: 'Biaya Transportasi', idKet: 'transportasiKet', placeholder: 'Rincian biaya bbm / ongkos...' },
+                      { id: 'pengeluaranLain', label: 'Sewa Rumah / Lainnya', idKet: 'pengeluaranLainKet', placeholder: 'Rincian sewa rumah / pengeluaran lainnya...' },
+                    ].map(item => (
+                      <div key={item.id} className="space-y-2 bg-white/5 p-3.5 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-colors">
+                        <span className="text-xs font-bold uppercase text-slate-400 group-hover:text-amber-400 transition-colors">{item.label}</span>
+                        <div className="grid grid-cols-[1fr_160px] gap-3">
+                          <input 
+                            type="text" 
+                            placeholder={item.placeholder}
+                            className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500" 
+                            value={(surveyData as any)[item.idKet] || ''} 
+                            onChange={e => setSurveyData(prev => ({...prev, [item.idKet]: e.target.value}))} 
+                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 italic">Rp</span>
+                            <input 
+                              type="text" 
+                              placeholder="0"
+                              className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-right font-sans font-bold text-amber-400 focus:border-amber-500 outline-none w-full" 
+                              value={formatCurrency(surveyData[item.id as keyof typeof surveyData])} 
+                              onChange={e => handleCurrencyChange(item.id as keyof typeof surveyData, e.target.value)} 
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -793,16 +921,85 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                     <div className="space-y-2 pt-2">
                       <label className="text-xs font-bold uppercase text-slate-400 flex items-center gap-2">
                         <MessageSquare className="w-3.5 h-3.5" />
-                        Penjelasan Kondisi Keuangan
+                        Catatan Hasil Survei
                       </label>
                       <textarea 
                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:border-emerald-500 h-[100px] resize-none" 
-                        placeholder="Berikan gambaran singkat mengenai kondisi keuangan keluarga..."
+                        placeholder="Berikan catatan atau keterangan hasil survei singkat..."
                         value={surveyData.penjelasanKeuangan} 
                         onChange={e => setSurveyData(prev => ({...prev, penjelasanKeuangan: e.target.value}))} 
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* SECTION C: DOKUMENTASI FOTO SURVEI */}
+              <div className="px-8 pb-8 pt-6 border-t border-white/5 space-y-6">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <h4 className="font-bold text-sky-400 uppercase tracking-wider text-sm flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-sky-500/20 flex items-center justify-center text-[10px]">C</div>
+                    Dokumentasi Foto Survei
+                  </h4>
+                  <span className="text-[10px] text-slate-500">FORMAT GAMBAR (.JPG, .PNG) - KOMPRESI OTOMATIS</span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  {[
+                    { field: 'fotoDepan' as const, label: 'Tampak Depan Rumah' },
+                    { field: 'fotoInterior' as const, label: 'Ruang Tamu / Kamar' },
+                    { field: 'fotoDapur' as const, label: 'Dapur / Kamar Mandi' },
+                    { field: 'fotoBersama' as const, label: 'Bersama Mustahik' },
+                  ].map((item) => {
+                    const hasPhoto = !!surveyData[item.field];
+                    return (
+                      <div key={item.field} className="relative group border border-white/10 bg-white/5 hover:border-sky-500/30 rounded-xl p-4 flex flex-col items-center justify-between min-h-[220px] transition-all">
+                        {hasPhoto ? (
+                          <div className="w-full flex-1 flex flex-col items-center justify-center relative">
+                            <img 
+                              src={surveyData[item.field]} 
+                              alt={item.label} 
+                              className="max-h-[140px] max-w-full rounded-lg object-contain border border-white/10 mb-2"
+                              referrerPolicy="no-referrer"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePhoto(item.field)}
+                              className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-500 text-white rounded-md text-xs cursor-pointer shadow-lg opacity-90 transition-opacity animate-fade-in"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="w-full flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-sky-500/40 rounded-lg cursor-pointer p-4 group transition-all text-center">
+                            <Upload className="w-8 h-8 text-slate-500 group-hover:text-sky-400 mb-2 transition-colors" />
+                            <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-200 transition-colors uppercase">Upload Foto</span>
+                            <span className="text-[10px] text-slate-500 mt-1">Pilih File...</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => handlePhotoUpload(e, item.field)} 
+                            />
+                          </label>
+                        )}
+                        <span className="text-[11px] font-bold uppercase text-slate-400 mt-2 text-center select-none group-hover:text-sky-400 transition-colors">{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <label className="text-xs font-bold uppercase text-slate-400 flex items-center gap-2">
+                    <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                    Catatan Visual / Kondisi Rumah
+                  </label>
+                  <textarea 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:border-sky-500 h-[80px] resize-none" 
+                    placeholder="Berikan deskripsi singkat mengenai kondisi fisik bangunan, kebersihan, dan lingkungan sekitar rumah..."
+                    value={surveyData.catatanVisual || ''} 
+                    onChange={e => setSurveyData(prev => ({...prev, catatanVisual: e.target.value}))} 
+                  />
                 </div>
               </div>
 
@@ -919,7 +1116,14 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   { label: "Nama Sekolah", value: recipient.schoolName || '-' },
                   { label: "No Hp Sekolah", value: recipient.schoolPhone || '-' },
                   { label: "Tingkatan/Kelas", value: `${recipient.schoolLevel || '-'}${recipient.schoolClass ? ` / ${recipient.schoolClass}` : ''}` },
-                  { label: "SKMP / Tgl Survey", value: `${surveyData.skmp || recipient.skmp || '-'} / ${recipient.surveyDate ? new Date(recipient.surveyDate).toLocaleDateString('id-ID') : '-'}` },
+                  { label: "SKMP / Tgl Survey", value: `${surveyData.skmp || recipient.skmp || '-'} / ${surveyData.tanggalSurvei ? (() => {
+                    try {
+                      const d = new Date(surveyData.tanggalSurvei);
+                      return !isNaN(d.getTime()) ? d.toLocaleDateString('id-ID') : surveyData.tanggalSurvei;
+                    } catch {
+                      return surveyData.tanggalSurvei;
+                    }
+                  })() : '-'}` },
                 ].map((item, idx) => (
                   <div key={idx} className="grid grid-cols-[110px_10px_1fr] items-baseline">
                     <span>{item.label}</span>
@@ -1050,19 +1254,19 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   <div className="p-1.5 border-r border-black flex items-center">Ternak</div>
                   <div className="p-1 px-2 space-y-1">
                     <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
-                       <span>Unggas :</span> <span className="font-bold">0 ekor</span>
+                       <span>Unggas :</span> <span className="font-bold">ekor</span>
                     </div>
                     <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
-                       <span>Domba :</span> <span className="font-bold">0 ekor</span>
+                       <span>Domba :</span> <span className="font-bold">ekor</span>
                     </div>
                     <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
-                       <span>Kambing :</span> <span className="font-bold">0 ekor</span>
+                       <span>Kambing :</span> <span className="font-bold">ekor</span>
                     </div>
                     <div className="flex justify-between border-b border-dotted border-gray-300 pb-0.5">
-                       <span>Sapi :</span> <span className="font-bold">0 ekor</span>
+                       <span>Sapi :</span> <span className="font-bold">ekor</span>
                     </div>
                     <div className="flex justify-between">
-                       <span>Kerbau :</span> <span className="font-bold">0 ekor</span>
+                       <span>Kerbau :</span> <span className="font-bold">ekor</span>
                     </div>
                   </div>
                 </div>
@@ -1071,8 +1275,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   <div className="p-1.5 border-r border-black flex items-center">Aset</div>
                   <div className="p-1 px-2 space-y-0.5">
                     <Checkbox label="Tidak Ada" />
-                    <Checkbox label="Emas ( 0 )" />
-                    <Checkbox label="Bank ( 0 )" />
+                    <Checkbox label="Emas" />
+                    <Checkbox label="Bank" />
                     <Checkbox label="Tabungan" />
                   </div>
                 </div>
@@ -1123,27 +1327,27 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                      <tbody>
                        <tr className="h-7 text-center">
                          <td className="border border-black">1</td>
-                         <td className="border border-black px-2 text-left">Usaha Pokok Suami :</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Suami : {(surveyData as any).usahaSuamiKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.usahaSuami)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">2</td>
-                         <td className="border border-black px-2 text-left">Usaha Pokok Istri :</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Istri : {(surveyData as any).usahaIstriKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.usahaIstri)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">3</td>
-                         <td className="border border-black px-2 text-left">Usaha Lainnya :</td>
+                         <td className="border border-black px-2 text-left">Usaha Lainnya : {(surveyData as any).usahaLainKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.usahaLain)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">4</td>
-                         <td className="border border-black px-2 text-left">Dari orang tua :</td>
+                         <td className="border border-black px-2 text-left">Dari orang tua : {(surveyData as any).dariOrtuKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.dariOrtu)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">5</td>
-                         <td className="border border-black px-2 text-left">Dari anak/menantu :</td>
+                         <td className="border border-black px-2 text-left">Dari anak/menantu : {(surveyData as any).dariAnakKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.dariAnak)}</td>
                        </tr>
                        <tr className="h-7 text-center">
@@ -1178,32 +1382,32 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                      <tbody>
                        <tr className="h-7 text-center">
                          <td className="border border-black">1</td>
-                         <td className="border border-black px-2 text-left">Kebutuhan Dapur (Sembako, dll) :</td>
+                         <td className="border border-black px-2 text-left">Kebutuhan Dapur (Sembako, dll) : {surveyData.kebutuhanDapurKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.kebutuhanDapur)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">2</td>
-                         <td className="border border-black px-2 text-left">Pendidikan (SPP, Kursus, dll) :</td>
+                         <td className="border border-black px-2 text-left">Pendidikan (SPP, Kursus, dll) : {surveyData.pendidikanKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.pendidikan)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">3</td>
-                         <td className="border border-black px-2 text-left">Kesehatan (Obat, Kontrol, BPJS, dll) :</td>
+                         <td className="border border-black px-2 text-left">Kesehatan (Obat, Kontrol, BPJS, dll) : {surveyData.kesehatanKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.kesehatan)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">4</td>
-                         <td className="border border-black px-2 text-left font-bold">Biaya iuran rutin (Listrik, Air, Kebersihan-Siskamling) :</td>
+                         <td className="border border-black px-2 text-left font-bold">Biaya iuran rutin (Listrik, Air, Kebersihan-Siskamling) : {surveyData.biayaIuranKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.biayaIuran)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">5</td>
-                         <td className="border border-black px-2 text-left">Transportasi (BBM, Ongkos, Maintenance) :</td>
+                         <td className="border border-black px-2 text-left">Transportasi (BBM, Ongkos, Maintenance) : {surveyData.transportasiKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.transportasi)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">6</td>
-                         <td className="border border-black px-2 text-left">Pengeluaran lainnya : Sewa Rumah / ............................</td>
+                         <td className="border border-black px-2 text-left">Pengeluaran lainnya : Sewa Rumah / {surveyData.pengeluaranLainKet || '..................................'}</td>
                          <td className="border border-black font-bold">{formatCurrency(surveyData.pengeluaranLain)}</td>
                        </tr>
                        <tr className="h-8 bg-gray-50 font-bold uppercase">
@@ -1249,12 +1453,12 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                  </div>
 
                  <div className="mt-4 border border-black p-2 min-h-[140px]">
-                    <p className="font-bold mb-2 uppercase underline text-[10px]">Penjelasan Keuangan :</p>
+                    <p className="font-bold mb-2 uppercase underline text-[10px]">Catatan Hasil Survei :</p>
                     <div className={cn(
                       "text-[10px] break-words whitespace-pre-wrap",
                       !surveyData.penjelasanKeuangan && "italic text-gray-400"
                     )}>
-                      {surveyData.penjelasanKeuangan || 'Tuliskan keterangan tambahan mengenai kondisi keuangan keluarga jika ada...'}
+                      {surveyData.penjelasanKeuangan || 'Tuliskan catatan hasil survei jika ada...'}
                     </div>
                  </div>
                  <div className="mt-4 border border-black p-3 flex-1">
@@ -1431,8 +1635,11 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                   </div>
                </div>
 
-               <div className="grid grid-cols-2 border-x border-b border-black min-h-[160px] mb-8">
+               <div className="grid grid-cols-2 border-x border-b border-black min-h-[200px] mb-8">
                   <div className="border-r border-black flex flex-col items-center justify-between p-4">
+                     <div className="w-full text-right pr-4 mb-2 select-none opacity-0" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
+                        &nbsp;
+                     </div>
                      <span className="font-bold uppercase underline" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Petugas Survey</span>
                      <div className="w-full flex flex-col items-center gap-1 pb-2">
                         <div className="w-full text-center border-b border-black font-bold uppercase min-h-[1.2rem]" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
@@ -1478,27 +1685,68 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                <h3 className="font-bold underline mb-8 uppercase text-center" style={{ fontSize: `${templateConfig.fontSize + 4}pt` }}>DOKUMENTASI FOTO SURVEY</h3>
                
                <div className="grid grid-cols-2 gap-6 flex-1 max-h-[850px]">
-                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
-                   <ImageIcon className="w-16 h-16 opacity-10" />
-                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Tampak Depan Rumah</p>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4 overflow-hidden relative">
+                   {surveyData.fotoDepan ? (
+                     <>
+                       <img src={surveyData.fotoDepan} alt="Tampak Depan" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                       <div className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[8px] px-2 py-0.5 rounded uppercase">Tampak Depan Rumah</div>
+                     </>
+                   ) : (
+                     <>
+                       <ImageIcon className="w-12 h-12 opacity-10 text-gray-400" />
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Tampak Depan Rumah</p>
+                     </>
+                   )}
                  </div>
-                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
-                   <ImageIcon className="w-16 h-16 opacity-10" />
-                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Ruang Tamu / Kamar</p>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4 overflow-hidden relative">
+                   {surveyData.fotoInterior ? (
+                     <>
+                       <img src={surveyData.fotoInterior} alt="Ruang Tamu" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                       <div className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[8px] px-2 py-0.5 rounded uppercase">Ruang Tamu / Kamar</div>
+                     </>
+                   ) : (
+                     <>
+                       <ImageIcon className="w-12 h-12 opacity-10 text-gray-400" />
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ruang Tamu / Kamar</p>
+                     </>
+                   )}
                  </div>
-                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
-                   <ImageIcon className="w-16 h-16 opacity-10" />
-                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Dapur / Kamar Mandi</p>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4 overflow-hidden relative">
+                   {surveyData.fotoDapur ? (
+                     <>
+                       <img src={surveyData.fotoDapur} alt="Dapur / Kamar Mandi" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                       <div className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[8px] px-2 py-0.5 rounded uppercase">Dapur / Kamar Mandi</div>
+                     </>
+                   ) : (
+                     <>
+                       <ImageIcon className="w-12 h-12 opacity-10 text-gray-400" />
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Dapur / Kamar Mandi</p>
+                     </>
+                   )}
                  </div>
-                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4">
-                   <ImageIcon className="w-16 h-16 opacity-10" />
-                   <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Bersama Mustahik</p>
+                 <div className="border border-black rounded-sm flex flex-col items-center justify-center bg-gray-50 text-gray-300 gap-4 overflow-hidden relative">
+                   {surveyData.fotoBersama ? (
+                     <>
+                       <img src={surveyData.fotoBersama} alt="Bersama Mustahik" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                       <div className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[8px] px-2 py-0.5 rounded uppercase">Bersama Mustahik</div>
+                     </>
+                   ) : (
+                     <>
+                       <ImageIcon className="w-12 h-12 opacity-10 text-gray-400" />
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Bersama Mustahik</p>
+                     </>
+                   )}
                  </div>
                </div>
 
                <div className="mt-8 p-4 border border-black bg-gray-50">
                   <p className="font-bold uppercase underline text-xs mb-2">Catatan Visual / Kondisi Rumah :</p>
-                  <p className="italic text-gray-300 text-xs text-justify">Berikan deskripsi singkat mengenai kondisi fisik bangunan, kebersihan, dan lingkungan sekitar rumah mustahik berdasarkan hasil pantauan mata saat survey dilakukan.</p>
+                  <p className={cn(
+                    "text-xs text-justify leading-relaxed text-black/85",
+                    !surveyData.catatanVisual && "italic text-gray-400"
+                  )}>
+                    {surveyData.catatanVisual || 'Berikan deskripsi singkat mengenai kondisi fisik bangunan, kebersihan, dan lingkungan sekitar rumah mustahik berdasarkan hasil pantauan mata saat survey dilakukan.'}
+                  </p>
                </div>
 
                <div className="mt-auto pt-4 flex justify-between items-end border-t border-gray-200">
