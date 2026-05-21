@@ -19,6 +19,7 @@ import SurveyTemplate from './components/SurveyTemplate';
 import CompanionCatalog from './components/CompanionCatalog';
 import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
+import GeminiAssistant from './components/GeminiAssistant';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X } from 'lucide-react';
@@ -508,6 +509,8 @@ export default function App() {
             onClose={() => setActiveTab('dashboard')}
           />
         );
+      case 'gemini-ai':
+        return <GeminiAssistant recipients={recipients} />;
       default:
         if (activeTab.startsWith('companion-')) {
           const slug = activeTab.replace('companion-', '');
@@ -547,6 +550,7 @@ export default function App() {
       case 'profile': return 'Profil Pengguna';
       case 'settings': return 'Pengaturan Aplikasi';
       case 'assessment': return 'Asessment dan Prensentasi';
+      case 'gemini-ai': return 'Asisten AI Gemini - Konsultasi & Analisis Data';
       default: return 'Antrean Layanan';
     }
   };
@@ -572,7 +576,7 @@ export default function App() {
         />
         
         <div className="p-8 pt-24 max-w-7xl mx-auto">
-          {activeTab !== 'input' && activeTab !== 'assessment' && (
+          {activeTab !== 'input' && activeTab !== 'assessment' && activeTab !== 'gemini-ai' && (
             <div className="flex items-center justify-between mb-8">
               <div>
                 <p className="text-slate-500 font-medium">Selamat datang, {user.displayName}</p>

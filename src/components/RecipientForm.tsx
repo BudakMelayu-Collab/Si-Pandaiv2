@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Save, X, Upload, FileText, Image as ImageIcon, 
   MapPin, User, Hash, Phone, Calendar, DollarSign, CheckCircle2,
-  Plus, Trash2, Layers, AlertCircle
+  Plus, Trash2, Layers, AlertCircle, BrainCircuit, Sparkles, Loader2
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS, AID_TYPES } from '../constants';
 import { cn } from '../lib/utils';
@@ -62,7 +62,7 @@ const INITIAL_FORM_STATE = {
   bankAccountHolder: '',
   
   notes: '',
-  isTermsAccepted: false,
+  isTermsAccepted: true,
 };
 
 export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps) {
@@ -76,6 +76,61 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   const [files, setFiles] = useState<any[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
 
+  // Gemini AI Auto-Classification & Analysis state
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
+
+  const handleAiClassify = async () => {
+    if (!aiDescription.trim()) {
+      alert("Silakan isi deskripsi kondisi atau permohonan mustahik terlebih dahulu.");
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    setAiSuccessMessage(null);
+
+    try {
+      const response = await fetch("/api/gemini/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: aiDescription })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Gagal melakukan klasifikasi otomatis.");
+      }
+
+      const result = await response.json();
+      
+      // Update form data state
+      setFormData(prev => ({
+        ...prev,
+        sector: result.sector || prev.sector,
+        subSector: result.subSector || prev.subSector,
+        aidType: result.aidType || prev.aidType,
+        programName: result.programName || prev.programName,
+        amountProposed: result.amountProposed ? String(result.amountProposed) : prev.amountProposed,
+        purpose: result.purpose || prev.purpose,
+        notes: result.notes 
+          ? `${result.notes}\n\n(Dianalisis secara objektif oleh AI Gemini)` 
+          : prev.notes
+      }));
+
+      setAiSuccessMessage(
+        `Berhasil diklasifikasikan ke Bidang "${result.sector || '-'}" -> Program "${result.programName || '-'}" dengan nominal usulan Rp ${(result.amountProposed || 0).toLocaleString('id-ID')}`
+      );
+    } catch (err: any) {
+      setAiError(err.message || "Terjadi kegagalan koneksi atau model AI.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files).map((file: File) => ({
@@ -88,8 +143,8 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   };
 
   const validateForm = () => {
-    if (!formData.name || !formData.nik || !formData.kk || !formData.address || !formData.district || !formData.aidType || !formData.amountProposed) {
-      alert('Mohon lengkapi semua field yang diberi tanda bintang (*)');
+    if (!formData.name || !formData.nik || !formData.kk || !formData.address || !formData.district || !formData.sector || !formData.aidType || !formData.amountProposed) {
+      alert('Mohon lengkapi semua field yang diberi tanda bintang (*). Terutama Bidang, Jenis Bantuan dan Nominal mustahik.');
       return false;
     }
     if (formData.nik.length !== 16 || formData.kk.length !== 16) {
@@ -128,11 +183,19 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   const handleSubmitAll = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (queue.length === 0) {
-      // If queue is empty, try to submit the current form
+    // Check if the current form has any entered data to decide if we should include/submit it
+    const isCurrentFormFilled = !!(
+      formData.name.trim() || 
+      formData.nik.trim() || 
+      formData.kk.trim() || 
+      formData.address.trim() ||
+      formData.aidType
+    );
+
+    if (isCurrentFormFilled) {
       if (!validateForm()) return;
       if (!formData.isTermsAccepted) {
-        alert('Anda harus menyetujui syarat dan ketentuan.');
+        alert('Anda harus mengonfirmasi kebenaran fakta integritas data.');
         return;
       }
       const submissionData = {
@@ -141,10 +204,22 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
         amountDisbursed: formData.amountDisbursed ? Number(formData.amountDisbursed) : 0,
         documents: files 
       };
-      onSubmit(submissionData);
+
+      if (queue.length === 0) {
+        // Save only the single form input directly
+        onSubmit(submissionData);
+      } else {
+        // Save everything in queue plus the current active form input
+        onSubmit([...queue, submissionData]);
+      }
     } else {
-      // Submit everything in queue
-      onSubmit(queue);
+      // The current form is totally empty, check if we have queued elements
+      if (queue.length > 0) {
+        onSubmit(queue);
+      } else {
+        // Both form and queue are empty, trigger standard validation to alert user
+        validateForm();
+      }
     }
   };
 
@@ -195,12 +270,12 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">NIK *</label>
-              <input required type="text" maxLength={16} className="form-input-custom" value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value})} placeholder="16 Digit NIK" />
+              <input required type="text" maxLength={16} className="form-input-custom" value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit NIK" />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Nomor KK *</label>
-              <input required type="text" maxLength={16} className="form-input-custom" value={formData.kk} onChange={e => setFormData({...formData, kk: e.target.value})} placeholder="16 Digit No KK" />
+              <input required type="text" maxLength={16} className="form-input-custom" value={formData.kk} onChange={e => setFormData({...formData, kk: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit No KK" />
             </div>
 
             <div className="space-y-2">
@@ -333,6 +408,86 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
             </div>
             <h3 className="font-bold text-slate-800 text-lg">Administrasi Rencana Bantuan</h3>
           </div>
+
+          {/* AI Gemini Auto-Classification Assistant Panel */}
+          <div className="mb-8 p-6 bg-indigo-50/20 border border-indigo-100/50 rounded-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-md shrink-0">
+                <BrainCircuit className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  Auto-Klasifikasikan & Analisis AI Gemini
+                  <span className="text-[9px] bg-indigo-100 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Asisten Cerdas
+                  </span>
+                </h4>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Tuliskan cerita kondisi ekonomi / kebutuhan mendesak pendaftar dalam kalimat biasa, asisten AI Gemini akan menganalisis kelayakan, merumuskan tujuan bantuan secara formal, memperkirakan nominal logis, dan secara otomatis mengisi menu dropdown Bidang, Program, dan Bantuan di bawah.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <textarea
+                value={aiDescription}
+                onChange={e => setAiDescription(e.target.value)}
+                placeholder="Contoh: Seorang pendaftar mualaf yang tinggal di Dayun membutuhkan tambahan modal 2,5 juta rupiah untuk usaha gerobak bakso keliling miliknya agar bisa mandiri dhuafa..."
+                className="w-full form-input-custom min-h-[90px] bg-white text-sm font-semibold placeholder:font-medium placeholder:text-slate-400"
+                disabled={aiLoading}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <div className="flex-1 min-w-0">
+                {aiSuccessMessage && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{aiSuccessMessage}</span>
+                  </div>
+                )}
+                {aiError && (
+                  <div className="p-3 bg-rose-50 border border-rose-100 text-rose-800 text-xs font-bold rounded-xl flex items-start gap-2 animate-in fade-in duration-300">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{aiError}</span>
+                  </div>
+                )}
+              </div>
+              
+              <button
+                type="button"
+                onClick={handleAiClassify}
+                disabled={aiLoading || !aiDescription.trim()}
+                className={cn(
+                  "px-5 py-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm shrink-0 select-none cursor-pointer",
+                  aiDescription.trim() && !aiLoading
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 active:scale-95"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                )}
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Menganalisis Kategori...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Klasifikasikan & Isi Form</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="relative mb-8 text-center">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-slate-100"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-[10px] font-bold text-slate-300 uppercase tracking-widest">Atau Isi Form Secara Manual</span>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
@@ -350,9 +505,10 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                 <option value="Lembaga">Lembaga</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Bidang</label>
+             <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Bidang *</label>
               <select 
+                required
                 className="form-input-custom" 
                 value={formData.sector} 
                 onChange={e => setFormData({...formData, sector: e.target.value, subSector: ''})}

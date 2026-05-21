@@ -19,7 +19,8 @@ import {
   Home,
   FileText,
   ClipboardList,
-  ClipboardCheck
+  ClipboardCheck,
+  BrainCircuit
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SIAK_COMPANIONS } from '../constants';
@@ -50,6 +51,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
     { id: 'assessment', label: 'Asessment', icon: ClipboardCheck },
     { id: 'e-ppd', label: 'E-PPD', icon: FileText },
     { id: 'payout-recap', label: 'Rekap Pencairan', icon: ClipboardList },
+    { id: 'gemini-ai', label: 'Asisten AI Gemini', icon: BrainCircuit },
   ];
 
   return (
