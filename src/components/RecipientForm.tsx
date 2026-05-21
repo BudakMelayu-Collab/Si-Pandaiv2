@@ -73,6 +73,23 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
     registrationId: generateRegId()
   });
 
+  // Auto-synchronize "Siak Dakwah" -> Sub Bidang "Muallaf", Jenis Bantuan "Santunan Tunai", Nama Program "Santunan Mualaf" (tidak pisah)
+  useEffect(() => {
+    if (formData.sector === 'Siak Dakwah') {
+      setFormData(prev => {
+        if (prev.subSector !== 'Muallaf' || prev.aidType !== 'Santunan Tunai' || prev.programName !== 'Santunan Mualaf') {
+          return {
+            ...prev,
+            subSector: 'Muallaf',
+            aidType: 'Santunan Tunai' as any,
+            programName: 'Santunan Mualaf'
+          };
+        }
+        return prev;
+      });
+    }
+  }, [formData.sector]);
+
   const [files, setFiles] = useState<any[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
 
@@ -489,116 +506,152 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">ID Registrasi</label>
-              <input type="text" className="form-input-custom bg-slate-100 !cursor-not-allowed" value={formData.registrationId} readOnly />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Column 1: Metadata & Administrasi Berkas */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">ID Registrasi</label>
+                <input type="text" className="form-input-custom bg-slate-100 !cursor-not-allowed" value={formData.registrationId} readOnly />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Sumber Berkas</label>
+                <select className="form-input-custom" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})}>
+                  <option value="">Pilih Sumber</option>
+                  <option value="KLM">KLM</option>
+                  <option value="UPZ">UPZ</option>
+                  <option value="Online">Online</option>
+                  <option value="Instansi">Instansi</option>
+                  <option value="Lembaga">Lembaga</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">No Handphone</label>
+                <input 
+                  type="tel" 
+                  maxLength={13}
+                  className="form-input-custom" 
+                  value={formData.contact} 
+                  onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tgl Masuk Berkas (dd/mm/yyyy)</label>
+                <input type="date" className="form-input-custom" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Pendamping Program</label>
+                <select className="form-input-custom" value={formData.companion} onChange={e => setFormData({...formData, companion: e.target.value})}>
+                  <option value="">Pilih Pendamping</option>
+                  {SIAK_COMPANIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Sumber Berkas</label>
-              <select className="form-input-custom" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})}>
-                <option value="">Pilih Sumber</option>
-                <option value="KLM">KLM</option>
-                <option value="UPZ">UPZ</option>
-                <option value="Online">Online</option>
-                <option value="Instansi">Instansi</option>
-                <option value="Lembaga">Lembaga</option>
-              </select>
-            </div>
-             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Bidang *</label>
-              <select 
-                required
-                className="form-input-custom" 
-                value={formData.sector} 
-                onChange={e => setFormData({...formData, sector: e.target.value, subSector: ''})}
-              >
-                <option value="">Pilih Bidang</option>
-                {Object.keys(SIAK_SECTORS).map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Sub Bidang</label>
-              <select 
-                className="form-input-custom" 
-                value={formData.subSector} 
-                onChange={e => setFormData({...formData, subSector: e.target.value})}
-                disabled={!formData.sector}
-              >
-                <option value="">Pilih Sub Bidang</option>
-                {formData.sector && SIAK_SECTORS[formData.sector]?.map(ss => (
-                  <option key={ss} value={ss}>{ss}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Jenis Bantuan *</label>
-              <select 
-                required 
-                className="form-input-custom" 
-                value={formData.aidType} 
-                onChange={e => setFormData({...formData, aidType: e.target.value as any})}
-                disabled={!formData.sector}
-              >
-                <option value="">Pilih Jenis</option>
-                {formData.sector && SIAK_AID_TYPES[formData.sector]?.map(ss => (
-                  <option key={ss} value={ss}>{ss}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Nama Program</label>
-              <select 
-                className="form-input-custom" 
-                value={formData.programName} 
-                onChange={e => setFormData({...formData, programName: e.target.value})}
-                disabled={!formData.sector}
-              >
-                <option value="">Pilih Program</option>
-                {formData.sector && SIAK_PROGRAM_NAMES[formData.sector]?.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2 lg:col-span-3">
-              <label className="text-sm font-semibold text-slate-700">Mengajukan Bantuan Untuk</label>
-              <input type="text" className="form-input-custom" value={formData.purpose} onChange={e => setFormData({...formData, purpose: e.target.value})} placeholder="Tujuan pengajuan bantuan" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Nominal diajukan (IDR) *</label>
-              <input 
-                required 
-                type="text" 
-                className="form-input-custom" 
-                value={formData.amountProposed ? new Intl.NumberFormat('id-ID').format(Number(formData.amountProposed)) : ''} 
-                onChange={e => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  setFormData({...formData, amountProposed: val});
-                }} 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">No Handphone</label>
-              <input 
-                type="tel" 
-                maxLength={13}
-                className="form-input-custom" 
-                value={formData.contact} 
-                onChange={e => setFormData({...formData, contact: e.target.value.replace(/\D/g, '')})} 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Pendamping Program</label>
-              <select className="form-input-custom" value={formData.companion} onChange={e => setFormData({...formData, companion: e.target.value})}>
-                <option value="">Pilih Pendamping</option>
-                {SIAK_COMPANIONS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Tgl Masuk Berkas (dd/mm/yyyy)</label>
-              <input type="date" className="form-input-custom" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} />
+
+            {/* Column 2 & 3: Parameter Utama Pengajuan (Bidang -> Sub -> Jenis -> Program -> Nominal - TIDAK PISAH) */}
+            <div className="lg:col-span-2 bg-slate-50/50 rounded-2xl p-5 border border-slate-200/60 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5 pb-2 border-b border-slate-200/50">
+                <Layers className="w-4 h-4 text-indigo-500" />
+                Parameter Pengajuan & Usulan Anggaran
+              </h4>
+
+              {formData.sector === 'Siak Dakwah' && (
+                <div className="bg-emerald-50/80 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-800 font-bold flex items-start gap-2.5 animate-in slide-in-from-top-2 duration-300 shadow-sm">
+                  <span className="flex h-2 w-2 relative mt-1.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <div>
+                    <p className="text-emerald-900 font-black">Paket Terpadu Siak Dakwah Aktif (Tidak Pisah)</p>
+                    <p className="font-semibold text-[11px] text-emerald-800/95 mt-0.5">
+                      Sub-Bidang <span className="underline decoration-emerald-500">Muallaf</span>, Jenis Maslahat <span className="underline decoration-emerald-500">Santunan Tunai</span>, dan Program <span className="underline decoration-emerald-500">Santunan Mualaf</span> disatukan secara otomatis demi presisi anggaran & data usulan nominal.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Bidang *</label>
+                  <select 
+                    required
+                    className="form-input-custom" 
+                    value={formData.sector} 
+                    onChange={e => setFormData({...formData, sector: e.target.value, subSector: ''})}
+                  >
+                    <option value="">Pilih Bidang</option>
+                    {Object.keys(SIAK_SECTORS).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Sub Bidang</label>
+                  <select 
+                    className="form-input-custom" 
+                    value={formData.subSector} 
+                    onChange={e => setFormData({...formData, subSector: e.target.value})}
+                    disabled={!formData.sector}
+                  >
+                    <option value="">Pilih Sub Bidang</option>
+                    {formData.sector && SIAK_SECTORS[formData.sector]?.map(ss => (
+                      <option key={ss} value={ss}>{ss}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Jenis Bantuan *</label>
+                  <select 
+                    required 
+                    className="form-input-custom" 
+                    value={formData.aidType} 
+                    onChange={e => setFormData({...formData, aidType: e.target.value as any})}
+                    disabled={!formData.sector}
+                  >
+                    <option value="">Pilih Jenis</option>
+                    {formData.sector && SIAK_AID_TYPES[formData.sector]?.map(ss => (
+                      <option key={ss} value={ss}>{ss}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Nama Program</label>
+                  <select 
+                    className="form-input-custom" 
+                    value={formData.programName} 
+                    onChange={e => setFormData({...formData, programName: e.target.value})}
+                    disabled={!formData.sector}
+                  >
+                    <option value="">Pilih Program</option>
+                    {formData.sector && SIAK_PROGRAM_NAMES[formData.sector]?.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-semibold text-gradient bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-700 font-extrabold flex items-center gap-1">
+                    Nominal Diajukan (IDR) *
+                  </label>
+                  <input 
+                    required 
+                    type="text" 
+                    className="form-input-custom bg-emerald-50/20 border-emerald-300 focus:border-emerald-500 font-bold text-emerald-800" 
+                    value={formData.amountProposed ? new Intl.NumberFormat('id-ID').format(Number(formData.amountProposed)) : ''} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormData({...formData, amountProposed: val});
+                    }} 
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-semibold text-slate-700">Mengajukan Bantuan Untuk</label>
+                  <input type="text" className="form-input-custom" value={formData.purpose} onChange={e => setFormData({...formData, purpose: e.target.value})} placeholder="Tujuan pengajuan bantuan secara detail" />
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { Sidebar, Header } from './components/Layout';
 import Dashboard from './components/Dashboard';
 import RecipientForm from './components/RecipientForm';
 import RecipientList from './components/RecipientList';
+import BNBARecapTable from './components/BNBARecapTable';
 import SectorReportTable from './components/SectorReportTable';
 import MonthlyPaymentTable from './components/MonthlyPaymentTable';
 import PrintTemplate from './components/PrintTemplate';
@@ -22,7 +23,7 @@ import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
-import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X } from 'lucide-react';
+import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   auth, 
@@ -53,6 +54,11 @@ export default function App() {
   const [isShowingEPPD, setIsShowingEPPD] = useState(false);
   const [isShowingSurvey, setIsShowingSurvey] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [toastConfig, setToastConfig] = useState<{ title: string; description: string; type: 'success' | 'delete' }>({
+    title: 'Berhasil Disimpan!',
+    description: 'Data penerima bantuan telah masuk ke sistem.',
+    type: 'success'
+  });
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
@@ -61,6 +67,11 @@ export default function App() {
     try {
       const { savePPDRecord } = await import('./firebase');
       await savePPDRecord(record);
+      setToastConfig({
+        title: 'Berhasil Disimpan!',
+        description: 'Rekapitulasi pencairan dana berhasil diperbarui.',
+        type: 'success'
+      });
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     } catch (error) {
@@ -199,9 +210,29 @@ export default function App() {
         await saveRecipient(data);
       }
       setActiveTab('recipients');
+      setToastConfig({
+        title: 'Berhasil Disimpan!',
+        description: 'Data penerima bantuan telah masuk ke sistem.',
+        type: 'success'
+      });
       setShowSuccessToast(true);
     } catch (error) {
       alert('Gagal menyimpan data. Pastikan Anda memiliki akses.');
+    }
+  };
+
+  const handleDeleteRecipient = async (recipient: Recipient) => {
+    try {
+      const { deleteRecipientServer } = await import('./firebase');
+      await deleteRecipientServer(recipient.id);
+      setToastConfig({
+        title: 'Berhasil Dihapus!',
+        description: `Berkas penerima atas nama "${recipient.name}" telah dihapus secara permanen.`,
+        type: 'delete'
+      });
+      setShowSuccessToast(true);
+    } catch (error) {
+      alert('Gagal menghapus data penerima. Pastikan Anda memiliki akses.');
     }
   };
 
@@ -401,25 +432,49 @@ export default function App() {
           <div className="space-y-12">
             <div className="space-y-4">
               {isSectorTab && <h2 className="text-lg font-bold text-slate-800">Layanan Konter - {currentSector}</h2>}
-              <RecipientList 
-                data={filteredData} 
-                onReceipt={(rec) => {
-                  setSelectedRecipient(rec);
-                  setIsShowingReceipt(true);
-                }}
-                onMPZIS={(rec) => {
-                  setSelectedRecipient(rec);
-                  setIsShowingMPZIS(true);
-                }}
-                onEPPD={(rec) => {
-                  setSelectedRecipient(rec);
-                  setIsShowingEPPD(true);
-                }}
-                onSurvey={(rec) => {
-                  setSelectedRecipient(rec);
-                  setIsShowingSurvey(true);
-                }}
-              />
+              {activeTab === 'bnba-recap' ? (
+                <BNBARecapTable 
+                  data={filteredData} 
+                  onReceipt={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingReceipt(true);
+                  }}
+                  onMPZIS={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingMPZIS(true);
+                  }}
+                  onEPPD={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingEPPD(true);
+                  }}
+                  onSurvey={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingSurvey(true);
+                  }}
+                  onDeleteRecipient={handleDeleteRecipient}
+                />
+              ) : (
+                <RecipientList 
+                  data={filteredData} 
+                  onReceipt={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingReceipt(true);
+                  }}
+                  onMPZIS={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingMPZIS(true);
+                  }}
+                  onEPPD={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingEPPD(true);
+                  }}
+                  onSurvey={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingSurvey(true);
+                  }}
+                  onDeleteRecipient={handleDeleteRecipient}
+                />
+              )}
             </div>
             
             {isMonthlySector ? (
@@ -498,6 +553,7 @@ export default function App() {
                 setSelectedRecipient(rec);
                 setIsShowingSurvey(true);
               }}
+              onDeleteRecipient={handleDeleteRecipient}
             />
           </div>
         );
@@ -744,12 +800,24 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.9, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 50 }}
-            className="fixed bottom-8 right-8 bg-green-600 text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 backdrop-blur-md"
+            className={cn(
+              "fixed bottom-8 right-8 text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 backdrop-blur-md border border-white/10",
+              toastConfig.type === 'delete' ? "bg-rose-600/95" : "bg-green-600/95"
+            )}
           >
-            <CheckCircle2 className="w-6 h-6" />
+            {toastConfig.type === 'delete' ? (
+              <Trash2 className="w-6 h-6 text-rose-100" />
+            ) : (
+              <CheckCircle2 className="w-6 h-6 text-green-100" />
+            )}
             <div>
-              <p className="font-bold">Berhasil Disimpan!</p>
-              <p className="text-xs text-green-100">Data penerima bantuan telah masuk ke sistem.</p>
+              <p className="font-bold">{toastConfig.title}</p>
+              <p className={cn(
+                "text-xs font-semibold",
+                toastConfig.type === 'delete' ? "text-rose-100" : "text-green-100"
+              )}>
+                {toastConfig.description}
+              </p>
             </div>
           </motion.div>
         )}

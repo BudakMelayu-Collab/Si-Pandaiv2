@@ -350,6 +350,16 @@ export const deletePPDRecordServer = async (id: string) => {
   }
 };
 
+export const deleteRecipientServer = async (id: string) => {
+  const path = `recipients/${id}`;
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'recipients', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
 export const getRecipientFile = async (recipientId: string, fileType: string) => {
   const path = `recipients/${recipientId}/scans/${fileType}`;
   try {
