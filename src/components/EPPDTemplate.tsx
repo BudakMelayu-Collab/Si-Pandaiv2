@@ -254,13 +254,50 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
       let savedLogo = null;
       try {
         const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+        
+        // 1. Try global settings
         const snap = await getDoc(fsDoc(db, 'settings', 'app'));
         if (snap.exists() && snap.data().logoUrl) {
           savedLogo = snap.data().logoUrl;
+        }
+
+        // 2. Try Survey template (which has stable cloud logo uploads)
+        if (!savedLogo) {
+          const surveySnap = await getDoc(fsDoc(db, 'settings', 'survey_template'));
+          if (surveySnap.exists() && surveySnap.data().logo) {
+            savedLogo = surveySnap.data().logo;
+          }
+        }
+
+        // 3. Try E-PPD template config itself
+        if (!savedLogo) {
+          const eppdSnap = await getDoc(fsDoc(db, 'settings', 'eppd_template'));
+          if (eppdSnap.exists() && eppdSnap.data().logo) {
+            savedLogo = eppdSnap.data().logo;
+          }
+        }
+
+        // 4. Try MPZIS template config
+        if (!savedLogo) {
+          const mpzisSnap = await getDoc(fsDoc(db, 'settings', 'mpzis_template'));
+          if (mpzisSnap.exists() && mpzisSnap.data().logo) {
+            savedLogo = mpzisSnap.data().logo;
+          }
+        }
+
+        // 5. Try Receipt template config
+        if (!savedLogo) {
+          const receiptSnap = await getDoc(fsDoc(db, 'settings', 'receipt_template'));
+          if (receiptSnap.exists() && receiptSnap.data().logo) {
+            savedLogo = receiptSnap.data().logo;
+          }
+        }
+
+        if (savedLogo) {
           await storage.setItem('baznas_logo', savedLogo);
         }
       } catch (err) {
-        console.error("Failed to load global logo from Cloud Firestore in EPPDTemplate:", err);
+        console.error("Failed to load global logo dynamically from Cloud Firestore in EPPDTemplate:", err);
       }
 
       if (!savedLogo) {
@@ -441,6 +478,12 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
         try {
           const { updateAppSettings } = await import('../firebase');
           await updateAppSettings({ logoUrl: base64 });
+
+          // Sync directly to config document as well so it updates templateConfig in real-time
+          const { setDoc, doc: fsDoc } = await import('firebase/firestore');
+          await setDoc(fsDoc(db, 'settings', 'eppd_template'), {
+            logo: base64
+          }, { merge: true });
         } catch (err) {
           console.error("Failed to sync logo inside EPPDTemplate:", err);
         }

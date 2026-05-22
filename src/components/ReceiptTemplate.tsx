@@ -90,13 +90,50 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       let savedLogo = null;
       try {
         const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+        
+        // 1. Try global settings
         const snap = await getDoc(fsDoc(db, 'settings', 'app'));
         if (snap.exists() && snap.data().logoUrl) {
           savedLogo = snap.data().logoUrl;
+        }
+
+        // 2. Try Survey template (which is the most reliable cloud logo)
+        if (!savedLogo) {
+          const surveySnap = await getDoc(fsDoc(db, 'settings', 'survey_template'));
+          if (surveySnap.exists() && surveySnap.data().logo) {
+            savedLogo = surveySnap.data().logo;
+          }
+        }
+
+        // 3. Try Receipt template config itself
+        if (!savedLogo) {
+          const receiptSnap = await getDoc(fsDoc(db, 'settings', 'receipt_template'));
+          if (receiptSnap.exists() && receiptSnap.data().logo) {
+            savedLogo = receiptSnap.data().logo;
+          }
+        }
+
+        // 4. Try MPZIS template config
+        if (!savedLogo) {
+          const mpzisSnap = await getDoc(fsDoc(db, 'settings', 'mpzis_template'));
+          if (mpzisSnap.exists() && mpzisSnap.data().logo) {
+            savedLogo = mpzisSnap.data().logo;
+          }
+        }
+
+        // 5. Try E-PPD template config
+        if (!savedLogo) {
+          const eppdSnap = await getDoc(fsDoc(db, 'settings', 'eppd_template'));
+          if (eppdSnap.exists() && eppdSnap.data().logo) {
+            savedLogo = eppdSnap.data().logo;
+          }
+        }
+
+        if (savedLogo) {
           await storage.setItem('baznas_logo', savedLogo);
         }
       } catch (err) {
-        console.error("Failed to load global logo from Cloud Firestore in ReceiptTemplate:", err);
+        console.error("Failed to load global logo dynamically from Cloud Firestore in ReceiptTemplate:", err);
       }
 
       if (!savedLogo) {
@@ -296,6 +333,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         try {
           const { updateAppSettings } = await import('../firebase');
           await updateAppSettings({ logoUrl: base64 });
+
+          // Sync directly to config document as well so it updates templateConfig in real-time
+          const { setDoc, doc: fsDoc } = await import('firebase/firestore');
+          await setDoc(fsDoc(db, 'settings', 'receipt_template'), {
+            logo: base64
+          }, { merge: true });
         } catch (err) {
           console.error("Failed to sync logo inside ReceiptTemplate:", err);
         }
