@@ -250,7 +250,23 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
   useEffect(() => {
     const loadSaved = async () => {
       setIsLoaded(false); // Reset loaded state while fetching
-      setLogo(await storage.getItem('baznas_logo'));
+      
+      let savedLogo = null;
+      try {
+        const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+        const snap = await getDoc(fsDoc(db, 'settings', 'app'));
+        if (snap.exists() && snap.data().logoUrl) {
+          savedLogo = snap.data().logoUrl;
+          await storage.setItem('baznas_logo', savedLogo);
+        }
+      } catch (err) {
+        console.error("Failed to load global logo from Cloud Firestore in EPPDTemplate:", err);
+      }
+
+      if (!savedLogo) {
+        savedLogo = await storage.getItem('baznas_logo');
+      }
+      setLogo(savedLogo);
 
       // Try local storage first
       let savedData = await storage.getItem(`ppd_data_${recipient.id}`);
@@ -413,11 +429,21 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1024 * 500) {
+        alert('File logo terlalu besar. Maksimal 500KB.');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         setLogo(base64);
         await storage.setItem('baznas_logo', base64);
+        try {
+          const { updateAppSettings } = await import('../firebase');
+          await updateAppSettings({ logoUrl: base64 });
+        } catch (err) {
+          console.error("Failed to sync logo inside EPPDTemplate:", err);
+        }
       };
       reader.readAsDataURL(file);
     }

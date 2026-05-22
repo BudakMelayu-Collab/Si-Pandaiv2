@@ -86,7 +86,23 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   useEffect(() => {
     const loadData = async () => {
       setIsLoaded(false);
-      setLogo(await storage.getItem('baznas_logo'));
+      
+      let savedLogo = null;
+      try {
+        const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+        const snap = await getDoc(fsDoc(db, 'settings', 'app'));
+        if (snap.exists() && snap.data().logoUrl) {
+          savedLogo = snap.data().logoUrl;
+          await storage.setItem('baznas_logo', savedLogo);
+        }
+      } catch (err) {
+        console.error("Failed to load global logo from Cloud Firestore in ReceiptTemplate:", err);
+      }
+
+      if (!savedLogo) {
+        savedLogo = await storage.getItem('baznas_logo');
+      }
+      setLogo(savedLogo);
 
       // Try local storage first
       let savedData = await storage.getItem(`receipt_data_${recipient.id}`);
@@ -268,11 +284,21 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1024 * 500) {
+        alert('File logo terlalu besar. Maksimal 500KB.');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         setLogo(base64);
         await storage.setItem('baznas_logo', base64);
+        try {
+          const { updateAppSettings } = await import('../firebase');
+          await updateAppSettings({ logoUrl: base64 });
+        } catch (err) {
+          console.error("Failed to sync logo inside ReceiptTemplate:", err);
+        }
       };
       reader.readAsDataURL(file);
     }
