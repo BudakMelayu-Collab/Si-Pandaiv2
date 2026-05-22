@@ -135,7 +135,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
   // Listen to real-time updates for global configuration
   useEffect(() => {
-    const configDoc = doc(db, 'settings', 'survey_template');
+    const configDoc = doc(db, 'settings', 'mpzis_template');
     const unsubscribe = onSnapshot(configDoc, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -191,7 +191,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
   const saveConfig = async () => {
     try {
       setIsSavingConfig(true);
-      const configDoc = doc(db, 'settings', 'survey_template');
+      const configDoc = doc(db, 'settings', 'mpzis_template');
       await setDoc(configDoc, {
         ...templateConfig,
         updatedAt: new Date().toISOString()
@@ -675,7 +675,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           {/* Header Area - Simplified to match EPPD style */}
           <div className="grid grid-cols-[150px_1fr_170px] gap-2 mb-6">
             <div className="border border-black p-2 flex items-center justify-center relative group">
-              {logo ? (
+              {templateConfig.logo ? (
+                <img src={templateConfig.logo} alt="Logo" className="max-h-20 object-contain" />
+              ) : logo ? (
                 <img src={logo} alt="Logo" className="max-h-20 object-contain" />
               ) : (
                 <div className="text-center p-2">

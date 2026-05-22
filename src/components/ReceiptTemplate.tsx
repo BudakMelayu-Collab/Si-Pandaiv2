@@ -153,7 +153,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
   // Listen to real-time updates for global configuration
   useEffect(() => {
-    const configDoc = doc(db, 'settings', 'survey_template');
+    const configDoc = doc(db, 'settings', 'receipt_template');
     const unsubscribe = onSnapshot(configDoc, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -209,7 +209,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   const saveConfig = async () => {
     try {
       setIsSavingConfig(true);
-      const configDoc = doc(db, 'settings', 'survey_template');
+      const configDoc = doc(db, 'settings', 'receipt_template');
       await setDoc(configDoc, {
         ...templateConfig,
         updatedAt: new Date().toISOString()

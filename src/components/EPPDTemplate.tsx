@@ -97,7 +97,7 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
 
   // Listen to real-time updates for global configuration
   useEffect(() => {
-    const configDoc = doc(db, 'settings', 'survey_template');
+    const configDoc = doc(db, 'settings', 'eppd_template');
     const unsubscribe = onSnapshot(configDoc, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -153,7 +153,7 @@ export default function EPPDTemplate({ recipient, records, onSaveRecord, onDelet
   const saveConfig = async () => {
     try {
       setIsSavingConfig(true);
-      const configDoc = doc(db, 'settings', 'survey_template');
+      const configDoc = doc(db, 'settings', 'eppd_template');
       await setDoc(configDoc, {
         ...templateConfig,
         updatedAt: new Date().toISOString()
