@@ -123,6 +123,59 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   const [mergingIdx, setMergingIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // States for adding custom dropdown options
+  const [customSubSectors, setCustomSubSectors] = useState<Record<string, string[]>>({});
+  const [customAidTypes, setCustomAidTypes] = useState<Record<string, string[]>>({});
+  const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
+
+  const [isAddingSubSector, setIsAddingSubSector] = useState(false);
+  const [newSubSectorVal, setNewSubSectorVal] = useState('');
+
+  const [isAddingAidType, setIsAddingAidType] = useState(false);
+  const [newAidTypeVal, setNewAidTypeVal] = useState('');
+
+  const [isAddingProgramName, setIsAddingProgramName] = useState(false);
+  const [newProgramNameVal, setNewProgramNameVal] = useState('');
+
+  const handleAddSubSector = () => {
+    const trimmed = newSubSectorVal.trim();
+    if (!trimmed || !registrationData.sector) return;
+    setCustomSubSectors(prev => {
+      const list = prev[registrationData.sector] || [];
+      if (list.includes(trimmed)) return prev;
+      return { ...prev, [registrationData.sector]: [...list, trimmed] };
+    });
+    setRegistrationData(prev => ({ ...prev, subSector: trimmed }));
+    setIsAddingSubSector(false);
+    setNewSubSectorVal('');
+  };
+
+  const handleAddAidType = () => {
+    const trimmed = newAidTypeVal.trim();
+    if (!trimmed || !registrationData.sector) return;
+    setCustomAidTypes(prev => {
+      const list = prev[registrationData.sector] || [];
+      if (list.includes(trimmed)) return prev;
+      return { ...prev, [registrationData.sector]: [...list, trimmed] };
+    });
+    setRegistrationData(prev => ({ ...prev, aidType: trimmed }));
+    setIsAddingAidType(false);
+    setNewAidTypeVal('');
+  };
+
+  const handleAddProgramName = () => {
+    const trimmed = newProgramNameVal.trim();
+    if (!trimmed || !registrationData.sector) return;
+    setCustomProgramNames(prev => {
+      const list = prev[registrationData.sector] || [];
+      if (list.includes(trimmed)) return prev;
+      return { ...prev, [registrationData.sector]: [...list, trimmed] };
+    });
+    setRegistrationData(prev => ({ ...prev, programName: trimmed }));
+    setIsAddingProgramName(false);
+    setNewProgramNameVal('');
+  };
+
   // Conversion helper
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -533,7 +586,18 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Sub Bidang</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Sub Bidang</label>
+                {registrationData.sector && (
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAddingSubSector(!isAddingSubSector)}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> Tambah Manual
+                  </button>
+                )}
+              </div>
               <select 
                 className="form-input-custom font-medium" 
                 value={registrationData.subSector} 
@@ -541,14 +605,54 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                 disabled={!registrationData.sector}
               >
                 <option value="">Pilih Sub Bidang</option>
-                {registrationData.sector && SIAK_SECTORS[registrationData.sector]?.map(ss => (
+                {registrationData.sector && [
+                  ...(SIAK_SECTORS[registrationData.sector] || []),
+                  ...(customSubSectors[registrationData.sector] || [])
+                ].map(ss => (
                   <option key={ss} value={ss}>{ss}</option>
                 ))}
               </select>
+              {isAddingSubSector && (
+                <div className="mt-1.5 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-2 items-center duration-150 animate-in fade-in-50 slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder="Nama Sub Bidang baru..."
+                    className="form-input-custom font-medium text-xs bg-white py-1 flex-1 h-8"
+                    value={newSubSectorVal}
+                    onChange={e => setNewSubSectorVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubSector(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddSubSector}
+                    className="bg-indigo-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-indigo-750 transition-colors cursor-pointer"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddingSubSector(false); setNewSubSectorVal(''); }}
+                    className="bg-slate-200 text-slate-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Jenis Bantuan *</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Jenis Bantuan *</label>
+                {registrationData.sector && (
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAddingAidType(!isAddingAidType)}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> Tambah Manual
+                  </button>
+                )}
+              </div>
               <select 
                 required 
                 className="form-input-custom font-medium" 
@@ -557,14 +661,54 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                 disabled={!registrationData.sector}
               >
                 <option value="">Pilih Jenis</option>
-                {registrationData.sector && SIAK_AID_TYPES[registrationData.sector]?.map(ss => (
+                {registrationData.sector && [
+                  ...(SIAK_AID_TYPES[registrationData.sector] || []),
+                   ...(customAidTypes[registrationData.sector] || [])
+                ].map(ss => (
                   <option key={ss} value={ss}>{ss}</option>
                 ))}
               </select>
+              {isAddingAidType && (
+                <div className="mt-1.5 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-2 items-center duration-150 animate-in fade-in-50 slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder="Nama Jenis Bantuan baru..."
+                    className="form-input-custom font-medium text-xs bg-white py-1 flex-1 h-8"
+                    value={newAidTypeVal}
+                    onChange={e => setNewAidTypeVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddAidType(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAidType}
+                    className="bg-indigo-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-indigo-750 transition-colors cursor-pointer"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddingAidType(false); setNewAidTypeVal(''); }}
+                    className="bg-slate-200 text-slate-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Nama Program</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Nama Program</label>
+                {registrationData.sector && (
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAddingProgramName(!isAddingProgramName)}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> Tambah Manual
+                  </button>
+                )}
+              </div>
               <select 
                 className="form-input-custom font-medium" 
                 value={registrationData.programName} 
@@ -572,10 +716,39 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                 disabled={!registrationData.sector}
               >
                 <option value="">Pilih Program</option>
-                {registrationData.sector && SIAK_PROGRAM_NAMES[registrationData.sector]?.map(p => (
+                {registrationData.sector && [
+                  ...(SIAK_PROGRAM_NAMES[registrationData.sector] || []),
+                  ...(customProgramNames[registrationData.sector] || [])
+                ].map(p => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+              {isAddingProgramName && (
+                <div className="mt-1.5 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-2 items-center duration-150 animate-in fade-in-50 slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder="Nama Program baru..."
+                    className="form-input-custom font-medium text-xs bg-white py-1 flex-1 h-8"
+                    value={newProgramNameVal}
+                    onChange={e => setNewProgramNameVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddProgramName(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddProgramName}
+                    className="bg-indigo-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-indigo-750 transition-colors cursor-pointer"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddingProgramName(false); setNewProgramNameVal(''); }}
+                    className="bg-slate-200 text-slate-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 md:col-span-2">
