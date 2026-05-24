@@ -5,7 +5,7 @@ import { getRecipientFile, getRecipientTemplateData } from '../firebase';
  * Merges all available scans for a recipient into a single PDF.
  * Order: Receipt, MPZIS, E-PPD, Survey (including multiple pages if any)
  */
-export async function mergeRecipientScans(recipientId: string, recipientName: string) {
+export async function mergeRecipientScans(recipientId: string, recipientName: string, docSlots?: { name: string, url: string }[]) {
   const fileTypes = ['receipt', 'mpzis', 'eppd'];
   const mergedPdf = await PDFDocument.create();
   
@@ -32,6 +32,22 @@ export async function mergeRecipientScans(recipientId: string, recipientName: st
     }
   }
 
+  // 3. Process Uploaded Documents (Slots 1-15) from input form as requested
+  if (docSlots && Array.isArray(docSlots)) {
+    for (const doc of docSlots) {
+      if (!doc.url) continue;
+      let base64 = '';
+      if (doc.url.startsWith('data:')) {
+        base64 = doc.url;
+      } else {
+        base64 = await getRecipientFile(recipientId, doc.url);
+      }
+      if (base64) {
+        await appendToPdf(mergedPdf, base64, () => addedCount++);
+      }
+    }
+  }
+
   if (addedCount === 0) {
     throw new Error('Tidak ada berkas scan yang ditemukan untuk digabungkan.');
   }
@@ -47,6 +63,52 @@ export async function mergeRecipientScans(recipientId: string, recipientName: st
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+/**
+ * Merges ONLY the uploaded requirements documents (Slots 1-15) space.
+ * Opens the merged PDF in a new tab instead of iframe to bypass Chrome's block.
+ */
+export async function mergeRecipientUploadsOnly(recipientId: string, docSlots: { name: string, url: string }[]) {
+  const mergedPdf = await PDFDocument.create();
+  let addedCount = 0;
+
+  if (docSlots && Array.isArray(docSlots)) {
+    for (const doc of docSlots) {
+      if (!doc.url) continue;
+      let base64 = '';
+      if (doc.url.startsWith('data:')) {
+        base64 = doc.url;
+      } else {
+        base64 = await getRecipientFile(recipientId, doc.url);
+      }
+      if (base64) {
+        await appendToPdf(mergedPdf, base64, () => addedCount++);
+      }
+    }
+  }
+
+  if (addedCount === 0) {
+    throw new Error('Tidak ada berkas persyaratan yang ditemukan (belum diunggah).');
+  }
+
+  const pdfBytes = await mergedPdf.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  
+  const newTab = window.open(url, '_blank');
+  if (!newTab) {
+    // Fallback if popup blocker intervenes
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
   
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return true;

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Search, Filter, 
   ExternalLink, Download, FileText, ChevronRight,
-  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2,
+  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload,
   Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -95,6 +95,8 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
   const [mergingId, setMergingId] = useState<string | null>(null);
   const [recipientToDelete, setRecipientToDelete] = useState<Recipient | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null);
+  const [loadingFile, setLoadingFile] = useState<string | null>(null);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -103,10 +105,35 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
     return () => clearInterval(interval);
   }, []);
 
+  const handlePreviewFile = async (subItem: Recipient, docItem: any) => {
+    if (!docItem.url) return;
+    if (docItem.url.startsWith('data:')) {
+      setPreviewDoc({ name: docItem.name, url: docItem.url });
+      return;
+    }
+
+    const key = `${subItem.id}_${docItem.url}`;
+    setLoadingFile(key);
+    try {
+      const { getRecipientFile } = await import('../firebase');
+      const base64 = await getRecipientFile(subItem.id, docItem.url);
+      if (base64) {
+        setPreviewDoc({ name: docItem.name, url: base64 });
+      } else {
+        alert('Gagal memuat berkas persyaratan. Kemungkinan berkas belum diunggah.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi kesalahan saat mengunduh berkas persyaratan.');
+    } finally {
+      setLoadingFile(null);
+    }
+  };
+
   const handleMergeScans = async (recipient: Recipient) => {
     setMergingId(recipient.id);
     try {
-      await mergeRecipientScans(recipient.id, recipient.name);
+      await mergeRecipientScans(recipient.id, recipient.name, recipient.documents);
     } catch (error: any) {
       alert(error.message || 'Gagal menggabungkan berkas scan.');
     } finally {
@@ -491,11 +518,14 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                 <td className="px-3.5 py-3 font-mono font-normal text-black select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">{subItem.purpose || '-'}</td>
                                                 <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
-                                                  <span className={cn(
-                                                    "px-2.5 py-1 rounded-full text-sm font-normal tracking-tight border shadow-xs !text-black bg-slate-100 border-slate-300"
-                                                  )}>
-                                                    {allSubFilesTracked ? 'Lengkap' : 'Tidak Lengkap'}
+                                                  <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-sans inline-block", (subItem.documentStatus || 'Lengkap') === 'Lengkap' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200")}>
+                                                    {subItem.documentStatus || 'Lengkap'}
                                                   </span>
+                                                  {(subItem.documentStatus || 'Lengkap') === 'Tidak Lengkap' && subItem.documentStatusNotes && (
+                                                    <div className="text-[9px] text-rose-600 font-extrabold max-w-[120px] truncate mt-1 text-left block" title={subItem.documentStatusNotes}>
+                                                      Ket: {subItem.documentStatusNotes}
+                                                    </div>
+                                                  )}
                                                 </td>
                                                 <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
                                                   {subItem.contact ? (
@@ -514,29 +544,40 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                 </td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 truncate max-w-[220px]" title={subItem.address}>{subItem.address || '-'}</td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">{subItem.kampung || '-'}</td>
-                                                <td className="px-3.5 py-3 font-normal whitespace-nowrap">
-                                                  <button
-                                                    onClick={() => handleMergeScans(subItem)}
-                                                    disabled={mergingId === subItem.id}
-                                                    className={cn(
-                                                      "py-1 px-2 text-black bg-white hover:bg-slate-50 border border-slate-205 rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer text-sm font-normal tracking-tight",
-                                                      mergingId === subItem.id 
-                                                        ? "bg-slate-100 border-slate-300 cursor-not-allowed font-normal" 
-                                                        : "border-slate-200"
-                                                    )}
-                                                  >
-                                                    {mergingId === subItem.id ? (
-                                                      <>
-                                                        <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
-                                                        <span>Processing...</span>
-                                                      </>
-                                                    ) : (
-                                                      <>
-                                                        <ExternalLink className="w-3.5 h-3.5 text-black" />
-                                                        <span>Lihat Berkas</span>
-                                                      </>
-                                                    )}
-                                                  </button>
+                                                <td className="px-3.5 py-3 font-normal whitespace-nowrap text-center min-w-[160px]">
+                                                  {subItem.documents && subItem.documents.length > 0 ? (
+                                                    <button
+                                                      type="button"
+                                                      disabled={mergingId !== null}
+                                                      onClick={async () => {
+                                                        setMergingId(subItem.id);
+                                                        try {
+                                                          const { mergeRecipientUploadsOnly } = await import('../lib/pdfMerger');
+                                                          await mergeRecipientUploadsOnly(subItem.id, subItem.documents);
+                                                        } catch (error: any) {
+                                                          alert(error.message || 'Gagal menggabungkan berkas persyaratan.');
+                                                        } finally {
+                                                          setMergingId(null);
+                                                        }
+                                                      }}
+                                                      className="text-xs font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 cursor-pointer hover:scale-102 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all active:scale-95 duration-150 disabled:opacity-50"
+                                                      title="Gabungkan dan lihat 15 slot berkas persyaratan"
+                                                    >
+                                                      {mergingId === subItem.id ? (
+                                                        <>
+                                                          <Loader2 className="w-3.5 h-3.5 text-indigo-700 animate-spin" />
+                                                          Memroses...
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <FileText className="w-3.5 h-3.5" />
+                                                          Lihat Berkas
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  ) : (
+                                                    <span className="text-slate-400 text-xs font-semibold">-</span>
+                                                  )}
                                                 </td>
                                               </tr>
                                             );
@@ -654,6 +695,63 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* PREVIEW DOCUMENT MODAL */}
+      {previewDoc && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-55 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200 text-left">
+            {/* Modal Header */}
+            <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600" />
+                <h4 className="font-bold text-slate-800 text-sm">Pratinjau Berkas: {previewDoc.name}</h4>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setPreviewDoc(null)}
+                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Modal Body */}
+            <div className="p-6 bg-slate-100 flex items-center justify-center min-h-[300px]">
+              {previewDoc.url.startsWith('data:image') ? (
+                <img 
+                  src={previewDoc.url} 
+                  referrerPolicy="no-referrer" 
+                  className="max-h-[60vh] object-contain rounded-lg shadow-sm border border-slate-200 bg-white" 
+                  alt={previewDoc.name} 
+                />
+              ) : previewDoc.url.startsWith('data:application/pdf') ? (
+                <iframe 
+                  src={previewDoc.url} 
+                  title={previewDoc.name}
+                  className="w-full h-[60vh] rounded-lg shadow-sm border border-slate-200 bg-white" 
+                />
+              ) : (
+                <div className="text-center p-8 space-y-4 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md w-full">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full w-14 h-14 mx-auto flex items-center justify-center">
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">{previewDoc.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">Berkas format biner telah siap disimpan.</p>
+                  </div>
+                  <a 
+                    href={previewDoc.url} 
+                    download={previewDoc.name}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 rotate-180 animate-pulse" />
+                    Unduh Berkas
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

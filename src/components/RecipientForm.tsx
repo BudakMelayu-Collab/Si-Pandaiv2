@@ -66,6 +66,8 @@ const DEFAULT_RECIPIENT_INPUT = {
   bankName: '',
   bankAccountHolder: '',
   notes: '',
+  documentStatus: 'Lengkap',
+  documentStatusNotes: '',
 };
 
 const PERSON_IN_CHARGE_OPTIONS = [
@@ -118,6 +120,7 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   );
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null);
+  const [mergingIdx, setMergingIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Conversion helper
@@ -801,6 +804,37 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                     <textarea className="form-input-custom min-h-[50px] font-medium" value={recipientInput.notes} onChange={e => setRecipientInput({...recipientInput, notes: e.target.value})} />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">Status Berkas Saat ini *</label>
+                    <select
+                      className="form-input-custom font-medium bg-white border-indigo-200"
+                      value={recipientInput.documentStatus || 'Lengkap'}
+                      onChange={e => setRecipientInput({
+                        ...recipientInput,
+                        documentStatus: e.target.value,
+                        documentStatusNotes: e.target.value === 'Lengkap' ? '' : recipientInput.documentStatusNotes
+                      })}
+                    >
+                      <option value="Lengkap">Lengkap</option>
+                      <option value="Tidak Lengkap">Tidak Lengkap</option>
+                    </select>
+                  </div>
+                  {recipientInput.documentStatus === 'Tidak Lengkap' && (
+                    <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-150">
+                      <label className="text-xs font-bold text-rose-700 uppercase tracking-wider block">Keterangan Tidak Lengkap *</label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Contoh: Kurang KK / NIK tidak jelas / dll"
+                        className="form-input-custom font-medium bg-white border-rose-200"
+                        value={recipientInput.documentStatusNotes || ''}
+                        onChange={e => setRecipientInput({...recipientInput, documentStatusNotes: e.target.value})}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1002,6 +1036,7 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kampung</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kecamatan</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">Lihat Berkas</th>
+                    <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">Status Berkas</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">No Rekening</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nama Bank</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Pemilik Rekening</th>
@@ -1021,25 +1056,60 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap max-w-[200px] truncate" title={sub.address}>{sub.address || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.kampung || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.district || '-'}</td>
-                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap min-w-[160px]">
+                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap text-center min-w-[160px]">
                         {sub.documents && sub.documents.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-w-[220px]">
-                            {sub.documents.map((doc: any, dIdx: number) => (
-                              <button
-                                key={dIdx}
-                                type="button"
-                                onClick={() => setPreviewDoc({ name: doc.name, url: doc.url })}
-                                className="text-[10px] bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 hover:border-indigo-300 text-indigo-700 font-bold px-2 py-0.5 rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1 active:scale-95 duration-150"
-                                title={`Buka berkas ${doc.name}`}
-                              >
-                                <span className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
-                                <span className="capitalize">{doc.name.toLowerCase()}</span>
-                              </button>
-                            ))}
-                          </div>
+                          <button
+                            type="button"
+                            disabled={mergingIdx !== null}
+                            onClick={async () => {
+                              setMergingIdx(idx);
+                              try {
+                                const { mergeRecipientUploadsOnly } = await import('../lib/pdfMerger');
+                                await mergeRecipientUploadsOnly(sub.id || '', sub.documents);
+                              } catch (error: any) {
+                                alert(error.message || 'Gagal menggabungkan berkas persyaratan.');
+                              } finally {
+                                setMergingIdx(null);
+                              }
+                            }}
+                            className="text-xs font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 cursor-pointer hover:scale-102 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all active:scale-95 duration-150 disabled:opacity-50"
+                            title="Gabungkan dan lihat 15 slot berkas persyaratan"
+                          >
+                            {mergingIdx === idx ? (
+                              <>
+                                <svg className="animate-spin h-3.5 w-3.5 text-indigo-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Memroses...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="w-3.5 h-3.5" />
+                                Lihat Berkas
+                              </>
+                            )}
+                          </button>
                         ) : (
                           <span className="text-slate-400 text-xs font-semibold">-</span>
                         )}
+                      </td>
+                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap text-center">
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-extrabold font-sans",
+                            (sub.documentStatus || 'Lengkap') === 'Lengkap' 
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60" 
+                              : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                          )}>
+                            {sub.documentStatus || 'Lengkap'}
+                          </span>
+                          {(sub.documentStatus || 'Lengkap') === 'Tidak Lengkap' && sub.documentStatusNotes && (
+                            <p className="text-[9px] text-rose-600 font-bold max-w-[120px] truncate" title={sub.documentStatusNotes}>
+                              {sub.documentStatusNotes}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-4 border-r border-slate-200/40 font-mono text-xs text-black whitespace-nowrap">{sub.bankAccountNo || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap uppercase">{sub.bankName || '-'}</td>

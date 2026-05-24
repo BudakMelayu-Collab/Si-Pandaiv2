@@ -52,6 +52,8 @@ export interface Recipient {
 
   status: AidStatus;
   notes: string;
+  documentStatus?: 'Lengkap' | 'Tidak Lengkap';
+  documentStatusNotes?: string;
   documents: AidDocument[];
   signedPdfUrl?: string; // Base64 of the signed PPD
   signedReceiptPdfUrl?: string; // Base64 of the signed receipt
