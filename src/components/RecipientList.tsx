@@ -97,6 +97,8 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
   const [currentTime, setCurrentTime] = useState(new Date());
   const [previewDoc, setPreviewDoc] = useState<{ name: string; url: string } | null>(null);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
+  const [selectedSubItemIds, setSelectedSubItemIds] = useState<Record<string, boolean>>({});
+  const [mergingGroupRegId, setMergingGroupRegId] = useState<string | null>(null);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -138,6 +140,24 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
       alert(error.message || 'Gagal menggabungkan berkas scan.');
     } finally {
       setMergingId(null);
+    }
+  };
+
+  const handleMergeGroupUploads = async (groupItems: Recipient[], regNo: string) => {
+    const checkedRecipients = groupItems.filter(sub => !!selectedSubItemIds[sub.id]);
+    if (checkedRecipients.length === 0) {
+      alert('Pilih setidaknya satu penerima untuk digabungkan berkasnya.');
+      return;
+    }
+
+    setMergingGroupRegId(regNo);
+    try {
+      const { mergeMultipleRecipientsUploadsOnly } = await import('../lib/pdfMerger');
+      await mergeMultipleRecipientsUploadsOnly(regNo, checkedRecipients);
+    } catch (error: any) {
+      alert(error.message || 'Gagal menggabungkan semua berkas penerima yang terpilih.');
+    } finally {
+      setMergingGroupRegId(null);
     }
   };
 
@@ -488,10 +508,55 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                 <tr>
                                   <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
                                     <div className="overflow-x-auto border border-slate-200/80 rounded-2xl shadow-xs bg-white">
+                                      <div className="px-4.5 py-3 bg-slate-50 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                          <FileStack className="w-4 h-4 text-indigo-600" />
+                                          <h5 className="font-bold text-slate-800 text-sm">Berkas Persyaratan Penerima (No. Reg: #{regId})</h5>
+                                          <span className="text-xs bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
+                                            {groupItems.filter(sub => !!selectedSubItemIds[sub.id]).length} dari {groupItems.length} Terpilih
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          disabled={mergingGroupRegId === regId || groupItems.filter(sub => !!selectedSubItemIds[sub.id]).length === 0}
+                                          onClick={() => handleMergeGroupUploads(groupItems, regId)}
+                                          className="text-xs font-bold bg-indigo-600 hover:bg-indigo-750 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 duration-150"
+                                          title="Gabungkan semua berkas persyaratan (Slot 1-15) yang dicentang"
+                                        >
+                                          {mergingGroupRegId === regId ? (
+                                            <>
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                                              Menggabungkan Berkas Berkas...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <FileStack className="w-4 h-4" />
+                                              Gabung Berkas Terpilih (Slot 1-15)
+                                            </>
+                                          )}
+                                        </button>
+                                      </div>
                                       <table className="w-full text-left border-collapse table-auto">
                                         <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal">
                                           <tr>
-                                            <th className="px-3.5 py-2.5 text-center text-black w-12 border-r border-slate-200/40 font-normal">No</th>
+                                            <th className="px-3.5 py-2.5 text-center text-black w-16 border-r border-slate-200/40 font-normal">
+                                              <div className="flex items-center justify-center gap-2">
+                                                <input 
+                                                  type="checkbox" 
+                                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                                                  checked={groupItems.length > 0 && groupItems.every(sub => !!selectedSubItemIds[sub.id])}
+                                                  onChange={() => {
+                                                    const allChecked = groupItems.every(sub => !!selectedSubItemIds[sub.id]);
+                                                    const updated = { ...selectedSubItemIds };
+                                                    groupItems.forEach(sub => {
+                                                      updated[sub.id] = !allChecked;
+                                                    });
+                                                    setSelectedSubItemIds(updated);
+                                                  }}
+                                                />
+                                                <span>No</span>
+                                              </div>
+                                            </th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Nama</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">NIK</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Mengajukan Bantuan Untuk</th>
@@ -513,7 +578,22 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
 
                                             return (
                                               <tr key={subItem.id} className="hover:bg-slate-50/55 bg-white text-sm text-black font-normal">
-                                                <td className="px-3.5 py-3 text-center font-normal text-black border-r border-slate-200/40">{idx + 1}</td>
+                                                <td className="px-3.5 py-3 text-center font-normal text-black border-r border-slate-200/40">
+                                                  <div className="flex items-center justify-center gap-2">
+                                                    <input 
+                                                      type="checkbox" 
+                                                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                                                      checked={!!selectedSubItemIds[subItem.id]}
+                                                      onChange={() => {
+                                                        setSelectedSubItemIds(prev => ({
+                                                          ...prev,
+                                                          [subItem.id]: !prev[subItem.id]
+                                                        }));
+                                                      }}
+                                                    />
+                                                    <span>{idx + 1}</span>
+                                                  </div>
+                                                </td>
                                                 <td className="px-3.5 py-3 font-normal text-black border-r border-slate-200/40 capitalize whitespace-nowrap">{subItem.name?.toLowerCase() || ''}</td>
                                                 <td className="px-3.5 py-3 font-mono font-normal text-black select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">{subItem.purpose || '-'}</td>

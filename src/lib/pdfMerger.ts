@@ -114,6 +114,60 @@ export async function mergeRecipientUploadsOnly(recipientId: string, docSlots: {
   return true;
 }
 
+/**
+ * Merges ONLY the uploaded requirements documents (Slots 1-15) for multiple recipients under a registration number.
+ * Excludes Receipt, MPZIS, E-PPD, and Survey. Opens in a new tab to bypass Chrome block.
+ */
+export async function mergeMultipleRecipientsUploadsOnly(
+  noReg: string,
+  recipientsWithDocs: { id: string; name: string; documents?: { name: string; url: string }[] }[]
+) {
+  const mergedPdf = await PDFDocument.create();
+  let addedCount = 0;
+
+  for (const recipient of recipientsWithDocs) {
+    if (recipient.documents && Array.isArray(recipient.documents)) {
+      for (const doc of recipient.documents) {
+        if (!doc.url) continue;
+        let base64 = '';
+        if (doc.url.startsWith('data:')) {
+          base64 = doc.url;
+        } else {
+          try {
+            base64 = await getRecipientFile(recipient.id, doc.url);
+          } catch (err) {
+            console.error(`Gagal mengunduh file untuk penerima ${recipient.name} (${recipient.id}):`, err);
+          }
+        }
+        if (base64) {
+          await appendToPdf(mergedPdf, base64, () => addedCount++);
+        }
+      }
+    }
+  }
+
+  if (addedCount === 0) {
+    throw new Error('Tidak ada berkas persyaratan yang ditemukan dari penerima terpilih.');
+  }
+
+  const pdfBytes = await mergedPdf.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  
+  const newTab = window.open(url, '_blank');
+  if (!newTab) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+  
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
 async function appendToPdf(mergedPdf: PDFDocument, base64: string, onAdd: () => void) {
   try {
     const parts = base64.split(',');
