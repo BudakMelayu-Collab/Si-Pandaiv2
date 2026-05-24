@@ -89,6 +89,7 @@ export default function App() {
   };
 
   const [authError, setAuthError] = useState<string | null>(null);
+  const [connectionWarning, setConnectionWarning] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -135,7 +136,7 @@ export default function App() {
     const init = async () => {
       const connError = await testConnection();
       if (connError) {
-        setAuthError(connError);
+        setConnectionWarning(connError);
       }
       
       unsubscribeAuth = onAuthStateChanged(auth, (u) => {
@@ -366,6 +367,16 @@ export default function App() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {connectionWarning && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-[10px] font-medium text-left space-y-1">
+                <div className="flex items-center gap-2 font-bold mb-1 text-xs text-amber-800">
+                  <AlertTriangle className="w-4 h-4 text-amber-550" />
+                  <span>Sistem Berjalan dalam Mode Offline</span>
+                </div>
+                <p className="leading-relaxed">Aplikasi tidak mendeteksi koneksi langsung ke server Firestore (Kemungkinan karena firewall jaringan atau batasan browser iframe). Anda tetap dapat menggunakan data lokal/cache dan mengumpulkan data secara offline.</p>
               </div>
             )}
 
@@ -632,23 +643,29 @@ export default function App() {
         />
         
         <div className="p-8 pt-24 max-w-7xl mx-auto">
-          {activeTab !== 'input' && activeTab !== 'assessment' && activeTab !== 'gemini-ai' && (
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <p className="text-slate-500 font-medium">Selamat datang, {user.displayName}</p>
-                <h1 className="text-3xl font-bold text-slate-800">Panel Kontrol Si-PANDAI</h1>
+          {connectionWarning && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-xs flex items-start gap-3 shadow-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-0.5 text-left">
+                <p className="font-bold text-amber-900 text-sm">Mode Offline / Sinkronisasi Terbatas</p>
+                <p className="leading-relaxed">Sistem tidak memiliki koneksi real-time langsung ke server Google Cloud Firestore. Anda tetap dapat membaca, memperbarui data, mengunggah scan/berkas, atau mengisi form karena data tersimpan dan disimulasikan aman secara lokal. Sinkronisasi penuh akan segera terpicu otomatis saat koneksi internet Anda pulih.</p>
               </div>
-              
-              {(activeTab === 'recipients' || activeTab.startsWith('siak-')) && (
-                <button 
-                  onClick={() => setActiveTab('input')}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 scale-100 hover:scale-105 active:scale-95"
-                >
-                  <Plus className="w-5 h-5" />
-                  Tambah Penerima
-                </button>
-              )}
             </div>
+          )}
+          {activeTab !== 'input' && activeTab !== 'assessment' && activeTab !== 'gemini-ai' && (
+            (activeTab === 'dashboard' || activeTab === 'recipients' || activeTab.startsWith('siak-')) ? (
+              <div className={cn("flex items-center mb-8", "justify-end")}>
+                {(activeTab === 'recipients' || activeTab.startsWith('siak-')) && (
+                  <button 
+                    onClick={() => setActiveTab('input')}
+                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 scale-100 hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Tambah Penerima
+                  </button>
+                )}
+              </div>
+            ) : null
           )}
 
           <AnimatePresence mode="wait">

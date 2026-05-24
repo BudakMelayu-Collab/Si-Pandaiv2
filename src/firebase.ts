@@ -69,7 +69,8 @@ console.log('Using Firestore Database Instance:', dbId);
 // Initialize Firestore with experimentalForceLongPolling to bypass iframe WebSocket issues
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-}, dbId === '(default)' ? undefined : dbId);
+  useFetchStreams: false,
+} as any, dbId === '(default)' ? undefined : dbId);
 
 export const auth = getAuth(app);
 
@@ -307,19 +308,56 @@ export const safeGetDoc = async (ref: DocumentReference): Promise<DocumentSnapsh
 export const saveRecipient = async (recipientData: any) => {
   const path = 'recipients';
   try {
-    // Ensure all mandatory keys for firestore rules are present
-    const payload = sanitizeData({
-      pob: '',
-      dob: '',
-      isTermsAccepted: false,
-      ...recipientData, // Spread the incoming data
+    let documentsToSave: { id: string; base64: string }[] = [];
+    let updatedDocumentsMeta: any[] = [];
+
+    if (recipientData.documents && Array.isArray(recipientData.documents)) {
+      recipientData.documents.forEach((docItem: any, idx: number) => {
+        if (docItem && docItem.url && docItem.url.length > 100) {
+          const docId = `reg_${idx}`;
+          documentsToSave.push({ id: docId, base64: docItem.url });
+          updatedDocumentsMeta.push({
+            ...docItem,
+            url: docId // Store identifier/pointer instead of heavy base64
+          });
+        } else {
+          updatedDocumentsMeta.push(docItem);
+        }
+      });
+    }
+
+    const recipientPayload = {
+      ...recipientData,
+      pob: recipientData.pob || '',
+      dob: recipientData.dob || '',
+      isTermsAccepted: recipientData.isTermsAccepted || false,
       status: 'Proses Berkas',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    if (updatedDocumentsMeta.length > 0) {
+      recipientPayload.documents = updatedDocumentsMeta;
+    }
+
+    // Ensure all mandatory keys for firestore rules are present
+    const payload = sanitizeData(recipientPayload);
     
     const docRef = await addDoc(collection(db, path), payload);
-    return docRef.id;
+    const recipientId = docRef.id;
+
+    // Save heavy file documents under individual scans subcollection
+    if (documentsToSave.length > 0) {
+      for (const docToSave of documentsToSave) {
+        const scanRef = doc(db, 'recipients', recipientId, 'scans', docToSave.id);
+        await setDoc(scanRef, {
+          base64: docToSave.base64,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    return recipientId;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
   }

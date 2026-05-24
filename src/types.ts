@@ -20,6 +20,8 @@ export interface Recipient {
   // Aid Details
   registrationId: string;
   source: string; // Sumber Berkas
+  institutionName?: string; // Nama Lembaga
+  personInCharge?: string; // Penanggung Jawab
   sector: string; // Bidang
   subSector: string; // Sub Bidang
   aidType: AidType;

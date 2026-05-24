@@ -124,15 +124,19 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
     })
     .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime());
 
+  const showInstitutionColumns = filteredData.some(item => 
+    item.source && item.source !== 'KLM'
+  );
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-sm font-normal text-black">
       <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black" />
           <input 
             type="text" 
             placeholder="Cari Nama atau NIK..." 
-            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm shadow-sm"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-normal text-black placeholder-black shadow-sm"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -140,9 +144,9 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
         
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+            <span className="text-sm font-normal text-black tracking-wider">Status:</span>
             <select 
-              className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-sm text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-semibold"
+              className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-sm text-black outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-normal"
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
             >
@@ -152,9 +156,9 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jenis:</span>
+            <span className="text-sm font-normal text-black tracking-wider">Jenis:</span>
             <select 
-              className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-sm text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-semibold"
+              className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-sm text-black outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm font-normal"
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
             >
@@ -165,19 +169,16 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
         </div>
       </div>
 
-      {/* Recipient Notification List grouped with distinct spacing & headers */}
-      <div className="p-5 bg-slate-50/15">
+      {/* Recipient Queue Table grouped inside a single unified scrollable wrapper */}
+      <div className="overflow-x-auto">
         {filteredData.length > 0 ? (
-          <div className="space-y-8">
+          <div className="min-w-[1200px] divide-y divide-slate-200">
             {(() => {
-              // Grouping logic for relative timeline separation
+              // Grouping logic for rows
               const groupedData = [
                 {
                   label: 'Antrean Masuk Hari Ini',
                   key: 'Hari ini',
-                  sideStrip: 'before:bg-emerald-500',
-                  avatar: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-                  badge: 'bg-emerald-50 text-emerald-700 border border-emerald-500/20',
                   dotColor: 'bg-emerald-500',
                   pulse: true,
                   items: [] as Recipient[]
@@ -185,9 +186,6 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                 {
                   label: 'Antrean Kemarin (1 Hari yang Lalu)',
                   key: '1 Hari yang lalu',
-                  sideStrip: 'before:bg-amber-500',
-                  avatar: 'bg-amber-50 text-amber-700 border-amber-100',
-                  badge: 'bg-amber-50 text-amber-700 border border-amber-500/20',
                   dotColor: 'bg-amber-500',
                   pulse: false,
                   items: [] as Recipient[]
@@ -195,9 +193,6 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                 {
                   label: 'Antrean 2 Hari yang Lalu',
                   key: '2 Hari yang lalu',
-                  sideStrip: 'before:bg-sky-500',
-                  avatar: 'bg-sky-50 text-sky-700 border-sky-100',
-                  badge: 'bg-sky-50 text-sky-700 border border-sky-500/20',
                   dotColor: 'bg-sky-500',
                   pulse: false,
                   items: [] as Recipient[]
@@ -205,9 +200,6 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                 {
                   label: 'Berkas Masuk Sebelumnya (3+ Hari Lalu)',
                   key: 'Arsip',
-                  sideStrip: 'before:bg-slate-300',
-                  avatar: 'bg-slate-50 text-slate-500 border-slate-200/80',
-                  badge: 'bg-slate-100 text-slate-700 border border-slate-200',
                   dotColor: 'bg-slate-400',
                   pulse: false,
                   items: [] as Recipient[]
@@ -231,276 +223,358 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                 if (group.items.length === 0) return null;
 
                 return (
-                  <div key={group.key} className="space-y-4">
-                    {/* Header Group to establish a clear gap and aesthetic separation */}
-                    <div className="flex items-center justify-between py-2 px-4 bg-slate-100/60 rounded-xl border border-slate-200/60">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "w-2 h-2 rounded-full",
-                          group.dotColor,
-                          group.pulse && "animate-pulse"
-                        )} />
-                        <h4 className="text-xs font-bold tracking-wider text-slate-700">
-                          {group.label}
-                        </h4>
-                      </div>
-                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-tight bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-sm">
+                  <div key={group.key} className="bg-white">
+                    {/* Header Group */}
+                    <div className="bg-slate-100/70 border-b border-slate-200/80 pl-6 pr-6 py-2.5 flex items-center gap-2">
+                      <span className={cn(
+                        "w-2.5 h-2.5 rounded-full",
+                        group.dotColor,
+                        group.pulse && "animate-pulse"
+                      )} />
+                      <span className="text-sm font-normal tracking-wider text-black">
+                        {group.label}
+                      </span>
+                      <span className="text-sm font-normal text-black bg-indigo-50 border border-indigo-150 px-2 py-0.5 rounded-lg ml-auto">
                         {group.items.length} Berkas
                       </span>
                     </div>
 
-                    {/* Actual notification items grid container inside the group */}
-                    <div className="flex flex-col gap-3.5">
-                      {group.items.map((item) => {
-                        const timeNotification = getFormattedSubmissionDate(item.submissionDate);
-                        const isToday = group.key === 'Hari ini';
-                        const isOneDayAgo = group.key === '1 Hari yang lalu';
-                        const isTwoDaysAgo = group.key === '2 Hari yang lalu';
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50/75 border-b border-slate-200">
+                        <tr>
+                          <th className="pl-6 pr-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">No. Reg</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Tanggal</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Program</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Jenis Bantuan</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Sumber Berkas</th>
+                          {showInstitutionColumns && (
+                            <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Nama Lembaga</th>
+                          )}
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Penanggung Jawab (PIC)</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Status</th>
+                          <th className="pr-6 pl-3 py-3.5 text-sm font-normal text-black tracking-wider text-right sticky right-0 bg-slate-50 whitespace-nowrap">Progres dan Tindakan Berkas</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(() => {
+                          const registrationGroupsMap: { [id: string]: Recipient[] } = {};
+                          const registrationIdsOrder: string[] = [];
 
-                        return (
-                          <div 
-                            key={item.id} 
-                            className={cn(
-                              "relative overflow-hidden bg-white hover:bg-slate-50/40 border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 transition-all shadow-sm hover:shadow-md",
-                              "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5",
-                              group.sideStrip
-                            )}
-                          >
-                            {/* Top Row: Info and Badge (Progress on Left, Status on Right) */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100/60 pb-3 w-full">
-                              {/* Top Left: ID, Timing Pill, Sector */}
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                                <span className="font-mono font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-[10px]">
-                                  #{item.registrationId || item.id.substring(0, 8)}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                <div className={cn("px-2 py-0.5 rounded-lg flex items-center gap-1 text-[11px] font-bold shadow-sm", group.badge)}>
-                                  {isToday && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                                  {isOneDayAgo && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                                  {isTwoDaysAgo && <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />}
-                                  <span>{timeNotification}</span>
-                                </div>
-                                <span className="text-slate-300">•</span>
-                                <span className="font-bold text-indigo-600 uppercase tracking-wider text-[10px]">{item.sector}</span>
-                              </div>
+                          group.items.forEach(item => {
+                            const regId = item.registrationId || item.id;
+                            if (!registrationGroupsMap[regId]) {
+                              registrationGroupsMap[regId] = [];
+                              registrationIdsOrder.push(regId);
+                            }
+                            registrationGroupsMap[regId].push(item);
+                          });
 
-                              {/* Top Right: Progress on Left of the Status Badge */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mr-1">Progress Berkas:</span>
-                                
-                                {/* Progress indicators di samping kiri status */}
-                                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/50 p-0.5 rounded-lg shadow-xs">
-                                  {[
-                                    { key: 'receipt', color: 'bg-emerald-500 ring-emerald-500/50 shadow-[0_0_6px_rgba(16,185,129,0.3)]', label: 'Tanda Terima', activeClass: 'bg-emerald-50 border-emerald-200 text-emerald-700 font-extrabold' },
-                                    { key: 'mpzis', color: 'bg-sky-500 ring-sky-500/50 shadow-[0_0_6px_rgba(14,165,233,0.3)]', label: 'MPZIS', activeClass: 'bg-sky-50 border-sky-200 text-sky-700 font-extrabold' },
-                                    { key: 'eppd', color: 'bg-indigo-500 ring-indigo-500/50 shadow-[0_0_6px_rgba(99,102,241,0.3)]', label: 'E-PPD', activeClass: 'bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold' },
-                                    { key: 'survey', color: 'bg-fuchsia-500 ring-fuchsia-500/50 shadow-[0_0_6px_rgba(192,38,211,0.3)]', label: 'SURVEY', activeClass: 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 font-extrabold' },
-                                  ].map((led) => {
-                                    const isTracked = isRecipientFileTracked(item, led.key as any);
-                                    return (
-                                      <div
-                                        key={led.key}
-                                        className={cn(
-                                          "py-0.5 px-1.5 rounded-md text-[8px] border transition-all flex items-center gap-1 select-none",
-                                          isTracked 
-                                            ? led.activeClass 
-                                            : "bg-white border-slate-100 text-slate-400"
-                                        )}
-                                        title={led.label}
-                                      >
-                                        <div 
-                                          className={cn(
-                                            "w-1 h-1 rounded-full ring-1 ring-white/15",
-                                            isTracked ? led.color : "bg-slate-300"
-                                          )}
-                                        />
-                                        <span className="text-[7.5px] font-bold tracking-tight">{led.key.toUpperCase()}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                          return registrationIdsOrder.map((regId) => {
+                            const groupItems = registrationGroupsMap[regId];
+                            const item = groupItems[0];
+                            const { relative, timeStr } = getRelativeTimeDetails(item.createdAt, item.submissionDate, currentTime);
 
-                                <span className={cn(
-                                  "text-[10px] px-2.5 py-1 rounded-full font-extrabold uppercase tracking-tight border shadow-sm",
-                                  STATUS_COLORS[item.status]
-                                )}>
-                                  {item.status}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Main Body Column */}
-                            <div className="flex items-start gap-4 flex-1 min-w-0 w-full">
-                              <div className={cn("hidden sm:flex items-center justify-center w-11 h-11 rounded-xl shrink-0 border relative", group.avatar)}>
-                                <Bell className="w-5 h-5" />
-                                {isToday && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />}
-                              </div>
-                              
-                              <div className="flex-grow min-w-0 space-y-1.5">
-                                {/* Relative Timestamp Info and Reminders */}
-                                {(() => {
-                                  const { relative, timeStr } = getRelativeTimeDetails(item.createdAt, item.submissionDate, currentTime);
-                                  return (
-                                    <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1.5 pl-0.5">
-                                      <span>Terunggah pukul</span>
-                                      <span className="font-extrabold text-slate-700 bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded">{timeStr}</span>
-                                      <span>•</span>
-                                      <span className="text-indigo-600 font-bold bg-indigo-50/50 border border-indigo-100/30 px-2 py-0.5 rounded-md">
-                                        {relative}
-                                      </span>
-                                    </div>
-                                  );
-                                })()}
-
-                                {/* Main Title Row: Mustahik's Name */}
-                                <h3 className="font-bold text-slate-800 text-base uppercase tracking-tight truncate max-w-sm pl-0.5">
-                                  {item.name}
-                                </h3>
-
-                                {/* Info Row: NIK, Contact, & Specific Program Description */}
-                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-600 pl-0.5">
-                                  <span className="flex items-center gap-1 font-mono text-slate-500">
-                                    <Hash className="w-3.5 h-3.5 text-slate-400" /> {item.nik}
-                                  </span>
-                                  {item.contact && (
-                                    <span className="flex items-center gap-1">
-                                      <Phone className="w-3.5 h-3.5 text-slate-400" /> {item.contact}
+                            return (
+                              <React.Fragment key={regId}>
+                                 <tr className="hover:bg-slate-50/80 transition-colors group">
+                                  {/* No. Reg */}
+                                  <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap">
+                                    <span className="font-mono font-normal text-sm text-black">
+                                      #{regId}
                                     </span>
+                                  </td>
+
+                                  {/* Tanggal */}
+                                  <td className="px-3 py-4 text-sm font-normal text-black whitespace-nowrap">
+                                    {timeStr !== 'Harian' ? `${timeStr} (${relative})` : relative}
+                                  </td>
+
+                                  {/* Program */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                                    <div className="text-sm text-black font-normal leading-snug" title={item.programName}>
+                                      {item.programName}
+                                    </div>
+                                  </td>
+
+                                  {/* Jenis */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                                    <span className="font-normal text-black">
+                                      {item.aidType}
+                                    </span>
+                                  </td>
+
+                                  {/* Sumber Berkas */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                                    <span className="font-normal text-black">
+                                      {item.source || 'KLM'}
+                                    </span>
+                                  </td>
+
+                                  {showInstitutionColumns && (
+                                    /* Nama Lembaga */
+                                    <td className="px-3 py-4 text-sm whitespace-nowrap text-black font-semibold">
+                                      {['UPZ', 'Online', 'Instansi', 'Lembaga'].includes(item.source) ? (item.institutionName || '-') : '-'}
+                                    </td>
                                   )}
-                                  <span className="text-slate-300 hidden md:inline">|</span>
-                                  <span className="italic block max-w-md truncate text-slate-600" title={item.programName}>
-                                    {item.aidType}: {item.programName}
-                                  </span>
-                                </div>
 
-                                {/* Amount Proposed Row */}
-                                <div className="flex items-center gap-2 pl-0.5">
-                                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Nominal Usulan:</span>
-                                  <span className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded shadow-sm">
-                                    Rp {Number(item.amountProposed).toLocaleString('id-ID')}
-                                  </span>
-                                </div>
+                                  {/* Penanggung Jawab (PIC) */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap text-black font-medium">
+                                    {item.personInCharge || '-'}
+                                  </td>
 
-                                {/* Location Row: Kampung & Details Address */}
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 pl-0.5">
-                                  <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                  <span className="font-bold text-slate-700">{item.kampung}</span>
-                                  <span className="text-slate-350">•</span>
-                                  <span className="truncate max-w-sm text-slate-500" title={`${item.address} RT ${item.rt} / RW ${item.rw}`}>
-                                    {item.address} RT {item.rt}/{item.rw}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
+                                  {/* Status */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                                    <span className={cn(
+                                      "text-sm px-2.5 py-1 rounded-full font-normal tracking-tight border shadow-xs !text-black bg-slate-100 border-slate-300"
+                                    )}>
+                                      {item.status}
+                                    </span>
+                                  </td>
 
-                            {/* Footer Action Row: Delete on bottom-left, document controls on bottom-right */}
-                            <div className="w-full border-t border-slate-100 pt-3 mt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                              {/* Left Side: Delete (Hapus) Button */}
-                              <div>
-                                {onDeleteRecipient ? (
-                                  <button 
-                                    onClick={() => setRecipientToDelete(item)}
-                                    className="py-1.5 px-3 text-red-600 hover:text-red-700 bg-red-50 hover:bg-rose-50 rounded-xl border border-red-100 hover:border-rose-200 transition-all text-center flex items-center justify-center gap-1.5 shadow-sm hover:shadow cursor-pointer text-xs font-extrabold"
-                                    title="Hapus Berkas"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                    <span>Hapus</span>
-                                  </button>
-                                ) : (
-                                  <div />
-                                )}
-                              </div>
+                                  {/* Progress & Tindakan Berkas sticky right */}
+                                  <td className="pr-6 pl-3 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.04)] whitespace-nowrap">
+                                    <div className="flex flex-col gap-2 items-end justify-center">
+                                      {/* Progress Berkas */}
+                                      <div className="flex items-center gap-1 bg-slate-50/50 border border-slate-100 p-1 rounded-xl w-fit">
+                                        {[
+                                          { key: 'receipt', color: 'bg-emerald-500 ring-emerald-500/50 shadow-[0_0_6px_rgba(16,185,129,0.3)]', label: 'Tanda Terima', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
+                                          { key: 'mpzis', color: 'bg-sky-500 ring-sky-500/50 shadow-[0_0_6px_rgba(14,165,233,0.3)]', label: 'MPZIS', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
+                                          { key: 'eppd', color: 'bg-indigo-500 ring-indigo-500/50 shadow-[0_0_6px_rgba(99,102,241,0.3)]', label: 'E-PPD', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
+                                          { key: 'survey', color: 'bg-fuchsia-500 ring-fuchsia-500/50 shadow-[0_0_6px_rgba(192,38,211,0.3)]', label: 'SURVEY', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
+                                        ].map((led) => {
+                                          const isTracked = isRecipientFileTracked(item, led.key as any);
+                                          return (
+                                            <div
+                                              key={led.key}
+                                              className={cn(
+                                                "py-0.5 px-1.5 rounded-lg text-sm border transition-all flex items-center gap-1 select-none font-normal",
+                                                isTracked 
+                                                  ? led.activeClass 
+                                                  : "bg-white border-slate-150 text-black"
+                                              )}
+                                              title={led.label}
+                                            >
+                                              <div 
+                                                className={cn(
+                                                  "w-1 h-1 rounded-full ring-1 ring-white/15",
+                                                  isTracked ? led.color : "bg-slate-300"
+                                                )}
+                                              />
+                                              <span className="text-sm font-normal tracking-tight text-black">
+                                                {led.key === 'eppd' ? 'E-PPD' : led.key === 'mpzis' ? 'MPZIS' : (led.key.charAt(0).toUpperCase() + led.key.slice(1))}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
 
-                              {/* Right Side: Actions (Receipt, MPZIS, E-PPD, Survey, Merge) */}
-                              <div className="flex flex-wrap items-center gap-1.5 justify-end">
-                                <button 
-                                  onClick={() => onReceipt(item)}
-                                  className="py-1.5 px-2.5 text-slate-600 hover:text-amber-700 bg-white hover:bg-amber-50 rounded-xl border border-slate-200 hover:border-amber-200 transition-all text-center flex items-center justify-center gap-1 group shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                                  title="Buat Tanda Terima Dokumen"
-                                >
-                                  <FileCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500" />
-                                  <span>Receipt</span>
-                                </button>
-                                
-                                <button 
-                                  onClick={() => onMPZIS(item)}
-                                  className="py-1.5 px-2.5 text-slate-600 hover:text-blue-700 bg-white hover:bg-blue-50 rounded-xl border border-slate-200 hover:border-blue-200 transition-all text-center flex items-center justify-center gap-1 group shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                                  title="Buka MPZIS (Memorandum)"
-                                >
-                                  <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500" />
-                                  <span>MPZIS</span>
-                                </button>
-                                
-                                <button 
-                                  onClick={() => onEPPD(item)}
-                                  className="py-1.5 px-2.5 text-slate-600 hover:text-indigo-700 bg-white hover:bg-indigo-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition-all text-center flex items-center justify-center gap-1 group shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                                  title="Buka E-PPD"
-                                >
-                                  <FileCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500" />
-                                  <span>E-PPD</span>
-                                </button>
-                                
-                                <button 
-                                  onClick={() => onSurvey(item)}
-                                  className="py-1.5 px-2.5 text-slate-600 hover:text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl border border-slate-200 hover:border-emerald-200 transition-all text-center flex items-center justify-center gap-1 group shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                                  title="Buka Lembar Verifikasi (Survey)"
-                                >
-                                  <ClipboardList className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500" />
-                                  <span>Survey</span>
-                                </button>
-                                
-                                <button 
-                                  onClick={() => handleMergeScans(item)}
-                                  disabled={mergingId === item.id}
-                                  className={cn(
-                                    "py-1.5 px-2.5 text-slate-600 bg-white rounded-xl border transition-all text-center flex items-center justify-center gap-1 group shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-tight",
-                                    mergingId === item.id 
-                                      ? "bg-indigo-50/50 border-indigo-200 cursor-not-allowed text-indigo-500" 
-                                      : "hover:text-indigo-700 hover:bg-indigo-50 border-slate-200 hover:border-indigo-200"
-                                  )}
-                                  title="Gabungkan Semua File Scan"
-                                >
-                                  {mergingId === item.id ? (
-                                    <>
-                                      <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
-                                      <span>Wait</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileStack className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500" />
-                                      <span>Merge</span>
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                                      {/* Templates buttons */}
+                                      <div className="flex items-center gap-1.5 justify-end">
+                                        <button 
+                                          onClick={() => onReceipt(item)}
+                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
+                                          title="Buat Tanda Terima Dokumen"
+                                        >
+                                          <FileCheck className="w-3 h-3 text-black" />
+                                          <span>Receipt</span>
+                                        </button>
+                                        
+                                        <button 
+                                          onClick={() => onMPZIS(item)}
+                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
+                                          title="Buka MPZIS (Memorandum)"
+                                        >
+                                          <FileText className="w-3 h-3 text-black" />
+                                          <span>MPZIS</span>
+                                        </button>
+                                        
+                                        <button 
+                                          onClick={() => onEPPD(item)}
+                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
+                                          title="Buka E-PPD"
+                                        >
+                                          <FileCheck className="w-3 h-3 text-black" />
+                                          <span>E-PPD</span>
+                                        </button>
+                                        
+                                        <button 
+                                          onClick={() => onSurvey(item)}
+                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
+                                          title="Buka Lembar Verifikasi (Survey)"
+                                        >
+                                          <ClipboardList className="w-3 h-3 text-black" />
+                                          <span>Survey</span>
+                                        </button>
+
+                                        {/* Utility buttons (WA, Merge, Delete) */}
+                                        {item.contact && (
+                                          <a 
+                                            href={`https://wa.me/${item.contact.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors"
+                                            title="Hubungi via WhatsApp"
+                                          >
+                                            <Phone className="w-3 h-3 text-black" />
+                                          </a>
+                                        )}
+
+                                        <button 
+                                          onClick={() => handleMergeScans(item)}
+                                          disabled={mergingId === item.id}
+                                          className={cn(
+                                            "py-1 px-1.5 text-black bg-white rounded-lg border transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight",
+                                            mergingId === item.id 
+                                              ? "bg-slate-100 border-slate-250 cursor-not-allowed font-normal" 
+                                              : "hover:bg-slate-50 border-slate-200"
+                                          )}
+                                          title="Gabungkan Semua File Scan"
+                                        >
+                                          {mergingId === item.id ? (
+                                            <>
+                                              <Loader2 className="w-3 h-3 text-black animate-spin" />
+                                              <span>Wait</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <FileStack className="w-3 h-3 text-black" />
+                                              <span>Merge</span>
+                                            </>
+                                          )}
+                                        </button>
+
+                                        {onDeleteRecipient && (
+                                          <button 
+                                            onClick={() => setRecipientToDelete(item)}
+                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
+                                            title="Hapus Berkas"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-black" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+
+                                {/* Supporting sub-table row for Recipient Details */}
+                                <tr>
+                                  <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
+                                    <div className="overflow-x-auto border border-slate-200/80 rounded-2xl shadow-xs bg-white">
+                                      <table className="w-full text-left border-collapse table-auto">
+                                        <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal">
+                                          <tr>
+                                            <th className="px-3.5 py-2.5 text-center text-black w-12 border-r border-slate-200/40 font-normal">No</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Nama</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">NIK</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Mengajukan Bantuan Untuk</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Status Berkas</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">No Hp</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Info Rekening</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Alamat</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Kampung</th>
+                                            <th className="px-3.5 py-2.5 text-black whitespace-nowrap font-normal">Lihat Berkas</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                          {groupItems.map((subItem, idx) => {
+                                            const hasReceipt = isRecipientFileTracked(subItem, 'receipt');
+                                            const hasEPPD = isRecipientFileTracked(subItem, 'eppd');
+                                            const hasMPZIS = isRecipientFileTracked(subItem, 'mpzis');
+                                            const hasSurvey = isRecipientFileTracked(subItem, 'survey');
+                                            const allSubFilesTracked = hasReceipt && hasEPPD && hasMPZIS && hasSurvey;
+
+                                            return (
+                                              <tr key={subItem.id} className="hover:bg-slate-50/55 bg-white text-sm text-black font-normal">
+                                                <td className="px-3.5 py-3 text-center font-normal text-black border-r border-slate-200/40">{idx + 1}</td>
+                                                <td className="px-3.5 py-3 font-normal text-black border-r border-slate-200/40 capitalize whitespace-nowrap">{subItem.name?.toLowerCase() || ''}</td>
+                                                <td className="px-3.5 py-3 font-mono font-normal text-black select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
+                                                <td className="px-3.5 py-3 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">{subItem.purpose || '-'}</td>
+                                                <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
+                                                  <span className={cn(
+                                                    "px-2.5 py-1 rounded-full text-sm font-normal tracking-tight border shadow-xs !text-black bg-slate-100 border-slate-300"
+                                                  )}>
+                                                    {allSubFilesTracked ? 'Lengkap' : 'Tidak Lengkap'}
+                                                  </span>
+                                                </td>
+                                                <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
+                                                  {subItem.contact ? (
+                                                    <a 
+                                                      href={`https://wa.me/${subItem.contact.replace(/\D/g, '')}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-black font-mono font-normal hover:underline"
+                                                    >
+                                                      {subItem.contact}
+                                                    </a>
+                                                  ) : '-'}
+                                                </td>
+                                                <td className="px-3.5 py-3 font-mono text-sm font-normal text-black border-r border-slate-200/40 whitespace-nowrap">
+                                                  {subItem.bankAccountNo ? `${subItem.bankAccountNo}/${subItem.bankName || 'BCA'}/${subItem.bankAccountHolder || subItem.name}` : '-'}
+                                                </td>
+                                                <td className="px-3.5 py-3 text-black border-r border-slate-200/40 truncate max-w-[220px]" title={subItem.address}>{subItem.address || '-'}</td>
+                                                <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">{subItem.kampung || '-'}</td>
+                                                <td className="px-3.5 py-3 font-normal whitespace-nowrap">
+                                                  <button
+                                                    onClick={() => handleMergeScans(subItem)}
+                                                    disabled={mergingId === subItem.id}
+                                                    className={cn(
+                                                      "py-1 px-2 text-black bg-white hover:bg-slate-50 border border-slate-205 rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer text-sm font-normal tracking-tight",
+                                                      mergingId === subItem.id 
+                                                        ? "bg-slate-100 border-slate-300 cursor-not-allowed font-normal" 
+                                                        : "border-slate-200"
+                                                    )}
+                                                  >
+                                                    {mergingId === subItem.id ? (
+                                                      <>
+                                                        <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
+                                                        <span>Processing...</span>
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        <ExternalLink className="w-3.5 h-3.5 text-black" />
+                                                        <span>Lihat Berkas</span>
+                                                      </>
+                                                    )}
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </React.Fragment>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
                   </div>
                 );
               });
             })()}
           </div>
         ) : (
-          <div className="py-16 text-center border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl">
-            <Archive className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-sm">Tidak Ada Data Antrean</p>
-            <p className="text-xs text-slate-400 mt-1">Ubah kata kunci pencarian atau filter status untuk mencari data.</p>
-          </div>
-        )}
-      </div>
-      
-      {/* Footer statistics summary and pagination control links */}
-      <div className="p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <p className="font-bold text-slate-500">Menampilkan {filteredData.length} dari {data.length} antrean terdaftar</p>
-        <div className="flex items-center gap-1">
-          <button className="px-3 py-1.5 font-bold text-slate-400 cursor-not-allowed rounded">Sebelumnya</button>
-          <button className="px-3 py-1.5 font-bold bg-indigo-600 border border-indigo-600 text-white rounded-lg shadow-md shadow-indigo-500/10 transition-all">1</button>
-          <button className="px-3 py-1.5 font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">2</button>
-          <button className="px-3 py-1.5 font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Selanjutnya</button>
-        </div>
+          <div className="py-16 text-center border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl m-6">
+                                            <Archive className="w-12 h-12 text-black mx-auto mb-3" />
+                                            <p className="text-black font-normal tracking-wider text-sm">Tidak Ada Data Antrean</p>
+                                            <p className="text-sm text-black mt-1">Ubah kata kunci pencarian atau filter status untuk mencari data.</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Footer statistics summary and pagination control links */}
+                                      <div className="p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+                                        <p className="font-normal text-black">Menampilkan {filteredData.length} dari {data.length} antrean terdaftar</p>
+                                        <div className="flex items-center gap-1">
+                                          <button className="px-3 py-1.5 font-normal text-black cursor-not-allowed rounded text-sm">Sebelumnya</button>
+                                          <button className="px-3 py-1.5 font-normal bg-neutral-200 border border-neutral-300 text-black rounded-lg shadow-sm transition-all text-sm">1</button>
+                                          <button className="px-3 py-1.5 font-normal text-black hover:bg-slate-100 rounded-lg transition-colors text-sm">2</button>
+                                          <button className="px-3 py-1.5 font-normal text-black hover:bg-slate-100 rounded-lg transition-colors text-sm">Selanjutnya</button>
+                                        </div>
       </div>
 
       {/* Custom Delete Warning Confirmation Modal */}
@@ -515,53 +589,53 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 z-10"
+            className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 z-10 font-normal"
           >
-            <div className="p-6 text-center space-y-4">
-              <div className="w-16 h-16 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                <Trash2 className="w-8 h-8 text-rose-500 animate-pulse" />
+            <div className="p-6 text-center space-y-4 font-normal">
+              <div className="w-16 h-16 bg-slate-50 border border-slate-200 text-black rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                <Trash2 className="w-8 h-8 text-black" />
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-lg font-black text-slate-800 tracking-tight">Hapus Berkas Penerima</h3>
-                <p className="text-slate-500 text-xs leading-relaxed font-semibold">
+                <h3 className="text-sm font-normal text-black tracking-tight">Hapus Berkas Penerima</h3>
+                <p className="text-black text-sm leading-relaxed font-normal">
                   Tindakan ini tidak dapat dibatalkan. Berkas pendaftaran, status, dan riwayat bantuan untuk mustahik berikut akan terhapus secara permanen dari pangkalan data Si-PANDAI:
                 </p>
               </div>
 
-              <div className="bg-rose-50/50 rounded-2xl p-4 border border-rose-100/30 text-left space-y-2.5">
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-left space-y-2.5">
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-rose-500">Mustahik / Penerima</span>
-                  <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{recipientToDelete.name}</p>
+                  <span className="text-sm font-normal tracking-wider text-black">Mustahik / Penerima</span>
+                  <p className="text-sm font-normal text-black tracking-tight capitalize">{recipientToDelete.name?.toLowerCase() || ''}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-rose-200/20 text-xs">
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200 text-sm font-normal">
                   <div>
-                    <span className="text-[10px] uppercase font-medium text-slate-400">No. NIK</span>
-                    <p className="font-bold text-slate-700">{recipientToDelete.nik}</p>
+                    <span className="text-sm font-normal text-black font-normal">No. NIK</span>
+                    <p className="font-normal text-black">{recipientToDelete.nik}</p>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-medium text-slate-400">Bidang</span>
-                    <p className="font-bold text-slate-700">{recipientToDelete.sector}</p>
+                    <span className="text-sm font-normal text-black font-normal">Bidang</span>
+                    <p className="font-normal text-black font-normal">{recipientToDelete.sector}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200/50 rounded-2xl p-3.5 text-left flex gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-black text-amber-800">PERINGATAN SEBELUM MENGHAPUS</h4>
-                  <p className="text-[10px] text-amber-700/90 font-medium leading-relaxed">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left flex gap-3 font-normal">
+                <AlertTriangle className="w-5 h-5 text-black shrink-0 mt-0.5" />
+                <div className="space-y-0.5 font-normal">
+                  <h4 className="text-sm font-normal text-black">Peringatan sebelum menghapus</h4>
+                  <p className="text-sm text-black font-normal leading-relaxed">
                     Pastikan Anda telah memeriksa kembali data di atas. Data yang dihapus tidak bisa dikembalikan kembali.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3 font-normal">
               <button
                 type="button"
                 onClick={() => setRecipientToDelete(null)}
-                className="flex-1 py-2.5 text-xs font-extrabold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer active:scale-95"
+                className="flex-1 py-2.5 text-sm font-normal text-black bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer active:scale-95 text-center"
               >
                 Batal
               </button>
@@ -573,10 +647,10 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                   }
                   setRecipientToDelete(null);
                 }}
-                className="flex-1 py-2.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-600/10 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 text-sm font-normal text-black bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                Ya, Hapus Permanen
+                <Trash2 className="w-3.5 h-3.5 text-black" />
+                Ya, hapus permanen
               </button>
             </div>
           </motion.div>
