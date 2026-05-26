@@ -610,14 +610,46 @@ export const updateRecipientData = async (id: string, data: Partial<Recipient>) 
   const path = `recipients/${id}`;
   try {
     const ref = doc(db, 'recipients', id);
-    // Sanitize payload to only keep what is allowed to be updated.
-    // Strip id, createdAt (which might be typed as string from frontend), and documents.
+    
+    // Process documents if they exist
+    let documentsToSave: { id: string; base64: string }[] = [];
+    let updatedDocumentsMeta: any[] = [];
+    
     const { id: _id, createdAt, documents, ...cleanData } = data as any;
+    
+    if (documents && Array.isArray(documents)) {
+      documents.forEach((docItem: any, idx: number) => {
+        if (docItem && docItem.url && docItem.url.startsWith('data:')) {
+          const docId = `reg_${Date.now()}_${idx}`;
+          documentsToSave.push({ id: docId, base64: docItem.url });
+          updatedDocumentsMeta.push({
+            ...docItem,
+            url: docId // Store identifier/pointer
+          });
+        } else {
+          updatedDocumentsMeta.push(docItem);
+        }
+      });
+      
+      cleanData.documents = updatedDocumentsMeta;
+    }
     
     await updateDoc(ref, {
       ...cleanData,
       updatedAt: serverTimestamp()
     });
+    
+    // Save heavy file documents under individual scans subcollection
+    if (documentsToSave.length > 0) {
+      for (const docToSave of documentsToSave) {
+        const scanRef = doc(db, 'recipients', id, 'scans', docToSave.id);
+        await setDoc(scanRef, {
+          base64: docToSave.base64,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+    
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
     throw error;
