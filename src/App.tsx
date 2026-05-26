@@ -426,7 +426,8 @@ export default function App() {
           <div className="max-w-4xl mx-auto">
             <RecipientForm 
               onSubmit={handleCreateRecipient} 
-              onCancel={() => setActiveTab('dashboard')} 
+              onCancel={() => setActiveTab('dashboard')}
+              existingRecipients={recipients}
             />
           </div>
         );

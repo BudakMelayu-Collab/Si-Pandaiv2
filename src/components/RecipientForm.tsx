@@ -6,11 +6,12 @@ import {
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
-import { AidDocument } from '../types';
+import { AidDocument, Recipient } from '../types';
 
 interface RecipientFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  existingRecipients?: Recipient[];
 }
 
 interface DocumentSlot {
@@ -81,7 +82,7 @@ const PERSON_IN_CHARGE_OPTIONS = [
   "Syarifah Suci Merza"
 ];
 
-export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps) {
+export default function RecipientForm({ onSubmit, onCancel, existingRecipients }: RecipientFormProps) {
   const generateRegId = () => `REG-${Math.floor(100000 + Math.random() * 900000)}`;
 
   // Main Registration Data State (Tabel Utama)
@@ -127,6 +128,55 @@ export default function RecipientForm({ onSubmit, onCancel }: RecipientFormProps
   const [customSubSectors, setCustomSubSectors] = useState<Record<string, string[]>>({});
   const [customAidTypes, setCustomAidTypes] = useState<Record<string, string[]>>({});
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (!existingRecipients) return;
+    
+    // Auto-discover unique custom parameters historically to prepopulate dropdowns
+    const newCustomSubs = { ...customSubSectors };
+    const newCustomAid = { ...customAidTypes };
+    const newCustomProg = { ...customProgramNames };
+    let hasChanges = false;
+
+    existingRecipients.forEach(r => {
+      const sec = r.sector;
+      if (!sec) return;
+      
+      if (r.subSector && r.subSector !== '-') {
+        if (!(SIAK_SECTORS[sec] || []).includes(r.subSector)) {
+          if (!newCustomSubs[sec]) newCustomSubs[sec] = [];
+          if (!newCustomSubs[sec].includes(r.subSector)) {
+            newCustomSubs[sec].push(r.subSector);
+            hasChanges = true;
+          }
+        }
+      }
+      if (r.aidType && (r.aidType as string) !== '-') {
+        if (!(SIAK_AID_TYPES[sec] || []).includes(r.aidType as string)) {
+          if (!newCustomAid[sec]) newCustomAid[sec] = [];
+          if (!newCustomAid[sec].includes(r.aidType as string)) {
+            newCustomAid[sec].push(r.aidType as string);
+            hasChanges = true;
+          }
+        }
+      }
+      if (r.programName && r.programName !== '-') {
+        if (!(SIAK_PROGRAM_NAMES[sec] || []).includes(r.programName)) {
+          if (!newCustomProg[sec]) newCustomProg[sec] = [];
+          if (!newCustomProg[sec].includes(r.programName)) {
+            newCustomProg[sec].push(r.programName);
+            hasChanges = true;
+          }
+        }
+      }
+    });
+
+    if (hasChanges) {
+      setCustomSubSectors(newCustomSubs);
+      setCustomAidTypes(newCustomAid);
+      setCustomProgramNames(newCustomProg);
+    }
+  }, [existingRecipients]);
 
   const [isAddingSubSector, setIsAddingSubSector] = useState(false);
   const [newSubSectorVal, setNewSubSectorVal] = useState('');
