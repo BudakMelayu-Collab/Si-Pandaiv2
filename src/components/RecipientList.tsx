@@ -18,6 +18,7 @@ interface RecipientListProps {
   onEPPD: (recipient: Recipient) => void;
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
+  onEditRecipient?: (recipient: Recipient) => void;
 }
 
 function getFormattedSubmissionDate(dateStr: string): string {
@@ -88,7 +89,7 @@ function getRelativeTimeDetails(createdAtStr?: string, submissionDateStr?: strin
   return { relative, timeStr };
 }
 
-export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient }: RecipientListProps) {
+export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient }: RecipientListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -565,6 +566,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Info Rekening</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Alamat</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Kampung</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal text-center">Aksi</th>
                                             <th className="px-3.5 py-2.5 text-black whitespace-nowrap font-normal">Lihat Berkas</th>
                                           </tr>
                                         </thead>
@@ -624,6 +626,32 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                 </td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 truncate max-w-[220px]" title={subItem.address}>{subItem.address || '-'}</td>
                                                 <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">{subItem.kampung || '-'}</td>
+                                                <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap text-center">
+                                                  <div className="flex items-center justify-center gap-1.5">
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (onEditRecipient) onEditRecipient(subItem);
+                                                      }}
+                                                      className="inline-flex items-center justify-center bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
+                                                      title="Edit data penerima"
+                                                    >
+                                                      <Edit3 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onSurvey(subItem);
+                                                      }}
+                                                      className="inline-flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
+                                                      title="Buka Lembar Verifikasi (Survey)"
+                                                    >
+                                                      <ClipboardList className="w-3.5 h-3.5" />
+                                                    </button>
+                                                  </div>
+                                                </td>
                                                 <td className="px-3.5 py-3 font-normal whitespace-nowrap text-center min-w-[160px]">
                                                   {subItem.documents && subItem.documents.length > 0 ? (
                                                     <button

@@ -606,6 +606,24 @@ export const updateRecipientStatus = async (id: string, status: AidStatus) => {
   }
 };
 
+export const updateRecipientData = async (id: string, data: Partial<Recipient>) => {
+  const path = `recipients/${id}`;
+  try {
+    const ref = doc(db, 'recipients', id);
+    // Sanitize payload to only keep what is allowed to be updated.
+    // Strip id, createdAt (which might be typed as string from frontend), and documents.
+    const { id: _id, createdAt, documents, ...cleanData } = data as any;
+    
+    await updateDoc(ref, {
+      ...cleanData,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+    throw error;
+  }
+};
+
 export const streamRecipients = (callback: (data: Recipient[]) => void) => {
   const path = 'recipients';
   const q = query(collection(db, path), orderBy('createdAt', 'desc'));

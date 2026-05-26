@@ -21,6 +21,7 @@ import CompanionCatalog from './components/CompanionCatalog';
 import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
+import EditRecipientModal from './components/EditRecipientModal';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
@@ -48,6 +49,7 @@ export default function App() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [ppdRecords, setPpdRecords] = useState<PPDRecord[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
+  const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isShowingReceipt, setIsShowingReceipt] = useState(false);
   const [isShowingMPZIS, setIsShowingMPZIS] = useState(false);
@@ -234,6 +236,22 @@ export default function App() {
       setShowSuccessToast(true);
     } catch (error) {
       alert('Gagal menghapus data penerima. Pastikan Anda memiliki akses.');
+    }
+  };
+
+  const handleUpdateRecipientData = async (id: string, data: Partial<Recipient>) => {
+    try {
+      const { updateRecipientData } = await import('./firebase');
+      await updateRecipientData(id, data);
+      setToastConfig({
+        title: 'Berhasil Diperbarui!',
+        description: 'Data penerima bantuan berhasil diperbarui.',
+        type: 'success'
+      });
+      setShowSuccessToast(true);
+    } catch (error) {
+      // The modal shows its own alert, so we just throw.
+      throw error;
     }
   };
 
@@ -484,6 +502,7 @@ export default function App() {
                     setIsShowingSurvey(true);
                   }}
                   onDeleteRecipient={handleDeleteRecipient}
+                  onEditRecipient={(rec) => setEditingRecipient(rec)}
                 />
               )}
             </div>
@@ -565,6 +584,7 @@ export default function App() {
                 setIsShowingSurvey(true);
               }}
               onDeleteRecipient={handleDeleteRecipient}
+              onEditRecipient={(rec) => setEditingRecipient(rec)}
             />
           </div>
         );
@@ -731,6 +751,16 @@ export default function App() {
           <SurveyTemplate
             recipient={selectedRecipient}
             onClose={() => setIsShowingSurvey(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editingRecipient && (
+          <EditRecipientModal
+            recipient={editingRecipient}
+            onClose={() => setEditingRecipient(null)}
+            onSave={handleUpdateRecipientData}
           />
         )}
       </AnimatePresence>

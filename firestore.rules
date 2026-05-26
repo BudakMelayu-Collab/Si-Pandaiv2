@@ -69,11 +69,11 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly([
             'name', 'nik', 'kk', 'pob', 'dob', 'gender', 'familyStatus', 'headOfFamilyName',
             'headOfFamilyDob', 'address', 'rt', 'rw', 'kampung', 'district', 'registrationId',
-            'source', 'sector', 'subSector', 'aidType', 'programName', 'purpose', 'amountProposed',
+            'source', 'institutionName', 'personInCharge', 'sector', 'subSector', 'aidType', 'programName', 'purpose', 'amountProposed',
             'contact', 'companion', 'submissionDate', 'surveyDate', 'disbursementDate', 'amountDisbursed',
             'schoolName', 'schoolLevel', 'schoolClass', 'schoolAddress', 'schoolPhone', 
             'bankAccountNo', 'bankName', 'bankAccountHolder', 'status', 'notes', 'isTermsAccepted',
-            'skmp',
+            'skmp', 'documentStatus', 'documentStatusNotes',
             'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf',
             'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl',
             'updatedAt'
