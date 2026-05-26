@@ -128,6 +128,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
   const [customSubSectors, setCustomSubSectors] = useState<Record<string, string[]>>({});
   const [customAidTypes, setCustomAidTypes] = useState<Record<string, string[]>>({});
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
+  const [customCompanions, setCustomCompanions] = useState<string[]>([]);
+  const [customPersonInCharge, setCustomPersonInCharge] = useState<string[]>([]);
 
   useEffect(() => {
     if (!existingRecipients) return;
@@ -136,10 +138,27 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
     const newCustomSubs = { ...customSubSectors };
     const newCustomAid = { ...customAidTypes };
     const newCustomProg = { ...customProgramNames };
+    const newCustomCompanions = [ ...customCompanions ];
+    const newCustomPersonInCharge = [ ...customPersonInCharge ];
     let hasChanges = false;
 
     existingRecipients.forEach(r => {
       const sec = r.sector;
+      
+      if (r.companion && r.companion !== '-') {
+        if (!SIAK_COMPANIONS.includes(r.companion) && !newCustomCompanions.includes(r.companion)) {
+          newCustomCompanions.push(r.companion);
+          hasChanges = true;
+        }
+      }
+      
+      if (r.personInCharge && r.personInCharge !== '-') {
+        if (!PERSON_IN_CHARGE_OPTIONS.includes(r.personInCharge) && !newCustomPersonInCharge.includes(r.personInCharge)) {
+          newCustomPersonInCharge.push(r.personInCharge);
+          hasChanges = true;
+        }
+      }
+
       if (!sec) return;
       
       if (r.subSector && r.subSector !== '-') {
@@ -175,6 +194,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
       setCustomSubSectors(newCustomSubs);
       setCustomAidTypes(newCustomAid);
       setCustomProgramNames(newCustomProg);
+      setCustomCompanions(newCustomCompanions);
+      setCustomPersonInCharge(newCustomPersonInCharge);
     }
   }, [existingRecipients]);
 
@@ -186,6 +207,12 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
 
   const [isAddingProgramName, setIsAddingProgramName] = useState(false);
   const [newProgramNameVal, setNewProgramNameVal] = useState('');
+
+  const [isAddingCompanion, setIsAddingCompanion] = useState(false);
+  const [newCompanionVal, setNewCompanionVal] = useState('');
+
+  const [isAddingPersonInCharge, setIsAddingPersonInCharge] = useState(false);
+  const [newPersonInChargeVal, setNewPersonInChargeVal] = useState('');
 
   const handleAddSubSector = () => {
     const trimmed = newSubSectorVal.trim();
@@ -224,6 +251,30 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
     setRegistrationData(prev => ({ ...prev, programName: trimmed }));
     setIsAddingProgramName(false);
     setNewProgramNameVal('');
+  };
+
+  const handleAddCompanion = () => {
+    const trimmed = newCompanionVal.trim();
+    if (!trimmed) return;
+    setCustomCompanions(prev => {
+      if (prev.includes(trimmed)) return prev;
+      return [...prev, trimmed];
+    });
+    setRegistrationData(prev => ({ ...prev, companion: trimmed }));
+    setIsAddingCompanion(false);
+    setNewCompanionVal('');
+  };
+
+  const handleAddPersonInCharge = () => {
+    const trimmed = newPersonInChargeVal.trim();
+    if (!trimmed) return;
+    setCustomPersonInCharge(prev => {
+      if (prev.includes(trimmed)) return prev;
+      return [...prev, trimmed];
+    });
+    setRegistrationData(prev => ({ ...prev, personInCharge: trimmed }));
+    setIsAddingPersonInCharge(false);
+    setNewPersonInChargeVal('');
   };
 
   // Conversion helper
@@ -599,25 +650,95 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Pendamping Program</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Pendamping Program</label>
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddingCompanion(!isAddingCompanion)}
+                  className="text-[10px] text-indigo-600 font-extrabold hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" /> Tambah Manual
+                </button>
+              </div>
               <select className="form-input-custom font-medium" value={registrationData.companion} onChange={e => setRegistrationData({...registrationData, companion: e.target.value})}>
                 <option value="">Pilih Pendamping</option>
-                {SIAK_COMPANIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                {[...SIAK_COMPANIONS, ...customCompanions].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              {isAddingCompanion && (
+                <div className="mt-1.5 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-2 items-center duration-150 animate-in fade-in-50 slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder="Nama Pendamping baru..."
+                    className="form-input-custom font-medium text-xs bg-white py-1 flex-1 h-8"
+                    value={newCompanionVal}
+                    onChange={e => setNewCompanionVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCompanion(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCompanion}
+                    className="bg-indigo-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-indigo-750 transition-colors cursor-pointer"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddingCompanion(false); setNewCompanionVal(''); }}
+                    className="bg-slate-200 text-slate-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Penanggung Jawab</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Penanggung Jawab</label>
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddingPersonInCharge(!isAddingPersonInCharge)}
+                  className="text-[10px] text-indigo-600 font-extrabold hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" /> Tambah Manual
+                </button>
+              </div>
               <select 
                 className="form-input-custom font-medium" 
                 value={registrationData.personInCharge} 
                 onChange={e => setRegistrationData({...registrationData, personInCharge: e.target.value})}
               >
                 <option value="">Pilih Penanggung Jawab</option>
-                {PERSON_IN_CHARGE_OPTIONS.map(name => (
+                {[...PERSON_IN_CHARGE_OPTIONS, ...customPersonInCharge].map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
+              {isAddingPersonInCharge && (
+                <div className="mt-1.5 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-2 items-center duration-150 animate-in fade-in-50 slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder="Nama Penanggung Jawab baru..."
+                    className="form-input-custom font-medium text-xs bg-white py-1 flex-1 h-8"
+                    value={newPersonInChargeVal}
+                    onChange={e => setNewPersonInChargeVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddPersonInCharge(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddPersonInCharge}
+                    className="bg-indigo-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-indigo-750 transition-colors cursor-pointer"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddingPersonInCharge(false); setNewPersonInChargeVal(''); }}
+                    className="bg-slate-200 text-slate-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
