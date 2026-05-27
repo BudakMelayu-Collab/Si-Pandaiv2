@@ -11,6 +11,7 @@ import RecipientList from './components/RecipientList';
 import BNBARecapTable from './components/BNBARecapTable';
 import SectorReportTable from './components/SectorReportTable';
 import MonthlyPaymentTable from './components/MonthlyPaymentTable';
+import RumahSinggahModule from './components/RumahSinggahModule';
 import PrintTemplate from './components/PrintTemplate';
 import ReceiptTemplate from './components/ReceiptTemplate';
 import MPZISTemplate from './components/MPZISTemplate';
@@ -50,6 +51,46 @@ export default function App() {
   const [ppdRecords, setPpdRecords] = useState<PPDRecord[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
+  const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(null);
+
+  const handleUpdateGroupData = async (data: any) => {
+    try {
+      const { updateRecipientData, saveRecipient, deleteRecipientServer } = await import('./firebase');
+      
+      const updatedRecipients = Array.isArray(data) ? data : [data];
+      const initialIds = new Set<string>(editingGroupData?.filter(r => r.id).map(r => r.id as string) || []);
+      const newIds = new Set<string>(updatedRecipients.filter((r: any) => r.id).map((r: any) => r.id as string));
+
+      // 1. Delete removed recipients
+      for (const id of Array.from(initialIds)) {
+        if (!newIds.has(id)) {
+          await deleteRecipientServer(id);
+        }
+      }
+
+      // 2. Add or update recipients
+      for (const item of updatedRecipients) {
+        if (item.id) {
+          // It's an existing item, we must update
+          await updateRecipientData(item.id, item);
+        } else {
+          // New item added during edit
+          await saveRecipient(item);
+        }
+      }
+
+      setEditingGroupData(null);
+      setActiveTab('recipients');
+      setToastConfig({
+        title: 'Berhasil Diperbarui!',
+        description: 'Data grup pendaftaran berhasil diperbarui.',
+        type: 'success'
+      });
+      setShowSuccessToast(true);
+    } catch (error: any) {
+      alert(error.message || 'Gagal menyimpan perubahan');
+    }
+  };
   const [isPrinting, setIsPrinting] = useState(false);
   const [isShowingReceipt, setIsShowingReceipt] = useState(false);
   const [isShowingMPZIS, setIsShowingMPZIS] = useState(false);
@@ -425,9 +466,13 @@ export default function App() {
         return (
           <div className="max-w-4xl mx-auto">
             <RecipientForm 
-              onSubmit={handleCreateRecipient} 
-              onCancel={() => setActiveTab('dashboard')}
+              onSubmit={editingGroupData ? handleUpdateGroupData : handleCreateRecipient} 
+              onCancel={() => {
+                setEditingGroupData(null);
+                setActiveTab('dashboard');
+              }}
               existingRecipients={recipients}
+              initialGroupRecipients={editingGroupData || undefined}
             />
           </div>
         );
@@ -438,7 +483,6 @@ export default function App() {
       case 'siak-sehat':
       case 'siak-sejahtera':
       case 'atm-beras':
-      case 'rumah-singgah':
       case 'bnba-recap':
         let filteredData = [];
         let currentSector = '';
@@ -447,8 +491,6 @@ export default function App() {
           filteredData = recipients;
         } else if (activeTab === 'atm-beras') {
           filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('atm beras') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('beras')));
-        } else if (activeTab === 'rumah-singgah') {
-          filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('rumah singgah') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('rumah')));
         } else {
           currentSector = activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
           filteredData = recipients.filter(r => r.sector === currentSector);
@@ -504,6 +546,10 @@ export default function App() {
                   }}
                   onDeleteRecipient={handleDeleteRecipient}
                   onEditRecipient={(rec) => setEditingRecipient(rec)}
+                  onEditGroup={(group) => {
+                    setEditingGroupData(group);
+                    setActiveTab('input');
+                  }}
                 />
               )}
             </div>
@@ -586,6 +632,10 @@ export default function App() {
               }}
               onDeleteRecipient={handleDeleteRecipient}
               onEditRecipient={(rec) => setEditingRecipient(rec)}
+              onEditGroup={(group) => {
+                setEditingGroupData(group);
+                setActiveTab('input');
+              }}
             />
           </div>
         );
@@ -595,6 +645,14 @@ export default function App() {
             records={ppdRecords}
             onDelete={deletePPDRecordLocal}
             onClose={() => setActiveTab('dashboard')}
+          />
+        );
+      case 'rumah-singgah':
+        return (
+          <RumahSinggahModule 
+            recipients={recipients}
+            onBack={() => setActiveTab('dashboard')}
+            onCheckInCompleted={() => setActiveTab('rumah-singgah')}
           />
         );
       case 'gemini-ai':

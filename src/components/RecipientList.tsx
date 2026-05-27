@@ -19,6 +19,7 @@ interface RecipientListProps {
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
   onEditRecipient?: (recipient: Recipient) => void;
+  onEditGroup?: (groupItems: Recipient[]) => void;
 }
 
 function getFormattedSubmissionDate(dateStr: string): string {
@@ -89,7 +90,7 @@ function getRelativeTimeDetails(createdAtStr?: string, submissionDateStr?: strin
   return { relative, timeStr };
 }
 
-export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient }: RecipientListProps) {
+export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient, onEditGroup }: RecipientListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -491,6 +492,15 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                           )}
                                         </button>
 
+                                        {onEditGroup && (
+                                          <button 
+                                            onClick={() => onEditGroup(groupItems)}
+                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
+                                            title="Edit Formulir"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5 text-black" />
+                                          </button>
+                                        )}
                                         {onDeleteRecipient && (
                                           <button 
                                             onClick={() => setRecipientToDelete(item)}

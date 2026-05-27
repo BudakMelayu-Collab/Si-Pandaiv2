@@ -12,6 +12,7 @@ interface RecipientFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   existingRecipients?: Recipient[];
+  initialGroupRecipients?: Recipient[];
 }
 
 interface DocumentSlot {
@@ -82,7 +83,7 @@ const PERSON_IN_CHARGE_OPTIONS = [
   "Syarifah Suci Merza"
 ];
 
-export default function RecipientForm({ onSubmit, onCancel, existingRecipients }: RecipientFormProps) {
+export default function RecipientForm({ onSubmit, onCancel, existingRecipients, initialGroupRecipients }: RecipientFormProps) {
   const generateRegId = () => `REG-${Math.floor(100000 + Math.random() * 900000)}`;
 
   // Main Registration Data State (Tabel Utama)
@@ -130,6 +131,32 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
   const [customCompanions, setCustomCompanions] = useState<string[]>([]);
   const [customPersonInCharge, setCustomPersonInCharge] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (initialGroupRecipients && initialGroupRecipients.length > 0) {
+      const first = initialGroupRecipients[0];
+      setRegistrationData({
+        registrationId: first.registrationId || generateRegId(),
+        source: first.source || '',
+        institutionName: first.institutionName || '',
+        personInCharge: first.personInCharge || '',
+        contact: first.contact || '',
+        submissionDate: first.submissionDate || new Date().toISOString().split('T')[0],
+        companion: first.companion || '',
+        sector: first.sector || '',
+        subSector: first.subSector || '',
+        aidType: first.aidType || '',
+        programName: first.programName || '',
+        amountProposed: first.amountProposed || '',
+        purpose: first.purpose || '',
+        notes: first.notes || '',
+        isTermsAccepted: true,
+        status: first.status || 'Masuk Berkas',
+        documents: []
+      });
+      setSubRecipients(initialGroupRecipients);
+    }
+  }, [initialGroupRecipients]);
 
   useEffect(() => {
     if (!existingRecipients) return;
@@ -976,11 +1003,21 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients }
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">NIK *</label>
                 <input type="text" maxLength={16} className="form-input-custom font-mono" value={recipientInput.nik} onChange={e => setRecipientInput({...recipientInput, nik: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit NIK" />
+                {recipientInput.nik.length > 0 && recipientInput.nik.length < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    NIK kurang {(16 - recipientInput.nik.length)} digit
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Nomor KK *</label>
                 <input type="text" maxLength={16} className="form-input-custom font-mono" value={recipientInput.kk} onChange={e => setRecipientInput({...recipientInput, kk: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit No KK" />
+                {recipientInput.kk.length > 0 && recipientInput.kk.length < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    Nomor KK kurang {(16 - recipientInput.kk.length)} digit
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

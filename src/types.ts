@@ -64,6 +64,23 @@ export interface Recipient {
   hasSignedMPZISPdf?: boolean;
   hasSignedSurveyPdf?: boolean;
   isTermsAccepted: boolean;
+  
+  // Custom data for specific programs
+  monthlyPaymentStatus?: 'Active' | 'Stopped' | 'Finished';
+  monthlyPaymentNote?: string;
+  
+  // Rumah Singgah Specific fields
+  rsBedId?: string; // e.g. "1A"
+  rsCheckInDate?: string;
+  rsEstimatedCheckOutDate?: string;
+  rsCheckOutDate?: string;
+  rsMedicalNotes?: { date: string, note: string }[];
+  rsStatus?: 'Active' | 'Discharged' | 'Maintenance';
+  rsCompanionName?: string;
+  rsCompanionRelation?: string;
+  rsHospital?: string;
+  rsJenisRawatan?: string;
+
   createdAt: string;
   updatedAt: string;
 }
