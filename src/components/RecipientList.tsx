@@ -460,10 +460,10 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                         <button 
                                           onClick={() => onSurvey(item)}
                                           className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Buka Lembar Verifikasi (Survey)"
+                                          title="Buka Lembar Verifikasi (Survei)"
                                         >
                                           <ClipboardList className="w-3 h-3 text-black" />
-                                          <span>Survey</span>
+                                          <span>Buka Lembar Verifikasi (Survei)</span>
                                         </button>
 
                                         {/* Utility buttons (WA, Merge, Delete) */}
@@ -671,7 +671,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                         onSurvey(subItem);
                                                       }}
                                                       className="inline-flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
-                                                      title="Buka Lembar Verifikasi (Survey)"
+                                                      title="Buka Lembar Verifikasi (Survei)"
                                                     >
                                                       <ClipboardList className="w-3.5 h-3.5" />
                                                     </button>
