@@ -615,7 +615,12 @@ export const updateRecipientData = async (id: string, data: Partial<Recipient>) 
     let documentsToSave: { id: string; base64: string }[] = [];
     let updatedDocumentsMeta: any[] = [];
     
-    const { id: _id, createdAt, documents, ...cleanData } = data as any;
+    const { id: _id, createdAt, documents, ...rawCleanData } = data as any;
+    
+    // Strip undefined values to prevent Firestore updateDoc errors
+    const cleanData = Object.fromEntries(
+      Object.entries(rawCleanData).filter(([_, v]) => v !== undefined)
+    );
     
     if (documents && Array.isArray(documents)) {
       documents.forEach((docItem: any, idx: number) => {

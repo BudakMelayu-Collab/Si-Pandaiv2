@@ -588,9 +588,10 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     }
 
     // Map each subRecipient element, applying the group (Tabel Utama) fields
+    const { documents: groupDocs, status: groupStatus, ...groupSettings } = registrationData;
     const submissionData = finalRecipients.map(r => ({
-      ...registrationData,
       ...r,
+      ...groupSettings,
       amountProposed: Number(registrationData.amountProposed),
       amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
     }));
