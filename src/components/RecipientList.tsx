@@ -57,17 +57,20 @@ function getRelativeTimeDetails(createdAtStr?: string, submissionDateStr?: strin
   
   const date = new Date(dateStr);
   
-  // Format local timestamp like HH:mm (e.g. 14:30)
+  // Format local timestamp like DD/MM/YYYY HH:mm (e.g. 28/05/2026 14:30)
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
-  const timeStr = `${hours}:${minutes}`;
-
+  
   const hasHighPrecision = !!createdAtStr && (createdAtStr.includes('T') || createdAtStr.includes(':'));
+  const timeStr = hasHighPrecision ? `${day}/${month}/${year} ${hours}:${minutes}` : `${day}/${month}/${year}`;
   
   if (!hasHighPrecision) {
     return {
       relative: 'Hari ini',
-      timeStr: 'Harian'
+      timeStr
     };
   }
 
@@ -219,7 +222,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
       </div>
 
       {/* Recipient Queue Table grouped inside a single unified scrollable wrapper */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-260px)]">
         {filteredData.length > 0 ? (
           <div className="min-w-[1200px] divide-y divide-slate-200">
             {(() => {
@@ -274,7 +277,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                 return (
                   <div key={group.key} className="bg-white">
                     {/* Header Group */}
-                    <div className="bg-slate-100/70 border-b border-slate-200/80 pl-6 pr-6 py-2.5 flex items-center gap-2">
+                    <div className="bg-slate-100 border-b border-slate-200/80 pl-6 pr-6 py-2.5 flex items-center gap-2 sticky top-0 z-30">
                       <span className={cn(
                         "w-2.5 h-2.5 rounded-full",
                         group.dotColor,
@@ -288,20 +291,23 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                       </span>
                     </div>
 
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50/75 border-b border-slate-200">
+                    <table className="w-full text-left border-collapse relative">
+                      <thead className="bg-slate-50/75 border-b border-slate-200 sticky top-[41px] z-20 backdrop-blur-sm shadow-sm">
                         <tr>
-                          <th className="pl-6 pr-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">No. Reg</th>
-                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Tanggal</th>
+                          <th className="pl-6 pr-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap text-center w-12">No</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">No. Reg</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Tanggal Masuk</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Program</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Jenis Bantuan</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Status</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Sumber Berkas</th>
                           {showInstitutionColumns && (
                             <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Nama Lembaga</th>
                           )}
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Penanggung Jawab (PIC)</th>
-                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Status</th>
-                          <th className="pr-6 pl-3 py-3.5 text-sm font-normal text-black tracking-wider text-right sticky right-0 bg-slate-50 whitespace-nowrap">Progres dan Tindakan Berkas</th>
+                          <th className="pr-6 pl-3 py-3.5 text-sm font-normal text-black tracking-wider text-right sticky right-0 bg-slate-50 whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:overflow-hidden lg:opacity-0">
+                            <span className="lg:hidden">Progres dan Tindakan Berkas</span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -318,7 +324,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                             registrationGroupsMap[regId].push(item);
                           });
 
-                          return registrationIdsOrder.map((regId) => {
+                          return registrationIdsOrder.map((regId, index) => {
                             const groupItems = registrationGroupsMap[regId];
                             const item = groupItems[0];
                             const { relative, timeStr } = getRelativeTimeDetails(item.createdAt, item.submissionDate, currentTime);
@@ -326,8 +332,13 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                             return (
                               <React.Fragment key={regId}>
                                  <tr className="hover:bg-slate-50/80 transition-colors group">
+                                  {/* Nomor */}
+                                  <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap text-center">
+                                    {index + 1}
+                                  </td>
+
                                   {/* No. Reg */}
-                                  <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap">
+                                  <td className="px-3 py-4 text-sm font-normal text-black whitespace-nowrap">
                                     <span className="font-mono font-normal text-sm text-black">
                                       #{regId}
                                     </span>
@@ -335,7 +346,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
 
                                   {/* Tanggal */}
                                   <td className="px-3 py-4 text-sm font-normal text-black whitespace-nowrap">
-                                    {timeStr !== 'Harian' ? `${timeStr} (${relative})` : relative}
+                                    {`${timeStr} (${relative})`}
                                   </td>
 
                                   {/* Program */}
@@ -349,6 +360,15 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                   <td className="px-3 py-4 text-sm whitespace-nowrap">
                                     <span className="font-normal text-black">
                                       {item.aidType}
+                                    </span>
+                                  </td>
+
+                                  {/* Status */}
+                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                                    <span className={cn(
+                                      "text-sm px-2.5 py-1 rounded-full font-normal tracking-tight border shadow-xs !text-black bg-slate-100 border-slate-300"
+                                    )}>
+                                      {item.status}
                                     </span>
                                   </td>
 
@@ -371,20 +391,11 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                     {item.personInCharge || '-'}
                                   </td>
 
-                                  {/* Status */}
-                                  <td className="px-3 py-4 text-sm whitespace-nowrap">
-                                    <span className={cn(
-                                      "text-sm px-2.5 py-1 rounded-full font-normal tracking-tight border shadow-xs !text-black bg-slate-100 border-slate-300"
-                                    )}>
-                                      {item.status}
-                                    </span>
-                                  </td>
-
-                                  {/* Progress & Tindakan Berkas sticky right */}
-                                  <td className="pr-6 pl-3 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.04)] whitespace-nowrap">
-                                    <div className="flex flex-col gap-2 items-end justify-center">
+                                  {/* Progress & Tindakan Berkas Overlay (Desktop) / Column (Mobile) */}
+                                  <td className="pr-6 pl-3 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.04)] whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:align-middle lg:z-10 lg:shadow-none lg:bg-transparent lg:group-hover:bg-transparent">
+                                    <div className="flex flex-col items-end justify-center gap-2 lg:absolute lg:inset-y-0 lg:right-0 lg:pr-6 lg:pl-16 lg:bg-gradient-to-l lg:from-slate-50 lg:from-70% lg:to-transparent lg:opacity-0 lg:group-hover:opacity-100 lg:pointer-events-none lg:group-hover:pointer-events-auto transition-all duration-200 lg:min-w-[420px]">
                                       {/* Progress Berkas */}
-                                      <div className="flex items-center gap-1 bg-slate-50/50 border border-slate-100 p-1 rounded-xl w-fit">
+                                      <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl w-fit drop-shadow-sm lg:bg-slate-50/50 lg:border-slate-100 lg:drop-shadow-none">
                                         {[
                                           { key: 'receipt', color: 'bg-emerald-500 ring-emerald-500/50 shadow-[0_0_6px_rgba(16,185,129,0.3)]', label: 'Tanda Terima', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
                                           { key: 'mpzis', color: 'bg-sky-500 ring-sky-500/50 shadow-[0_0_6px_rgba(14,165,233,0.3)]', label: 'MPZIS', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
