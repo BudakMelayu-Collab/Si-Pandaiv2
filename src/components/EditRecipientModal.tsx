@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2 } from 'lucide-react';
+import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User } from 'lucide-react';
 import { Recipient, AidDocument } from '../types';
 import { cn } from '../lib/utils';
+import { SIAK_REGIONAL_DATA } from '../constants';
 
 interface DocumentSlot {
   label: string;
@@ -150,10 +151,35 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'nik' || name === 'kk') {
+      setFormData(prev => ({ ...prev, [name]: value.replace(/\D/g, '') }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
+    if (!formData.name?.trim()) {
+      alert('Nama penerima wajib diisi.');
+      return;
+    }
+    if (!formData.nik || formData.nik.length !== 16) {
+      alert('NIK penerima wajib diisi dan harus tepat 16 digit.');
+      return;
+    }
+    if (!formData.kk || formData.kk.length !== 16) {
+      alert('Nomor KK penerima wajib diisi dan harus tepat 16 digit.');
+      return;
+    }
+    if (!formData.address?.trim()) {
+      alert('Alamat domisili lengkap wajib diisi.');
+      return;
+    }
+    if (!formData.district) {
+      alert('Kecamatan domisili wajib dipilih.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const finalDocs: AidDocument[] = documentSlots
@@ -188,77 +214,236 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
         </div>
         
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <h4 className="font-bold text-slate-800 border-b pb-2 text-sm">Informasi Pribadi</h4>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Nama</label>
-                <input name="name" value={formData.name || ''} onChange={handleChange} className="form-input-custom" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">Nama Penerima *</label>
+                <input name="name" type="text" className="form-input-custom font-medium" value={formData.name || ''} onChange={handleChange} placeholder="Nama lengkap sesuai KTP" />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">NIK</label>
-                <input name="nik" value={formData.nik || ''} onChange={handleChange} className="form-input-custom" />
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">NIK *</label>
+                <input name="nik" type="text" maxLength={16} className="form-input-custom font-mono" value={formData.nik || ''} onChange={handleChange} placeholder="16 Digit NIK" />
+                {(formData.nik?.length || 0) > 0 && (formData.nik?.length || 0) < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    NIK kurang {(16 - (formData.nik?.length || 0))} digit
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">No HP / Kontak</label>
-                <input name="contact" value={formData.contact || ''} onChange={handleChange} className="form-input-custom" />
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Nomor KK *</label>
+                <input name="kk" type="text" maxLength={16} className="form-input-custom font-mono" value={formData.kk || ''} onChange={handleChange} placeholder="16 Digit No KK" />
+                {(formData.kk?.length || 0) > 0 && (formData.kk?.length || 0) < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    Nomor KK kurang {(16 - (formData.kk?.length || 0))} digit
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Tujuan/Untuk</label>
-                <input name="purpose" value={formData.purpose || ''} onChange={handleChange} className="form-input-custom" />
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tempat Lahir</label>
+                <input name="pob" type="text" className="form-input-custom font-medium" value={formData.pob || ''} onChange={handleChange} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
+                <input name="dob" type="date" className="form-input-custom font-medium" value={formData.dob || ''} onChange={handleChange} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Jenis Kelamin</label>
+                <select name="gender" className="form-input-custom font-medium" value={formData.gender || 'Laki-laki'} onChange={handleChange}>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Status Hubungan Keluarga</label>
+                <select name="familyStatus" className="form-input-custom font-medium" value={formData.familyStatus || ''} onChange={handleChange}>
+                  <option value="">Pilih Status</option>
+                  <option value="Kepala Keluarga">Kepala Keluarga</option>
+                  <option value="Istri">Istri</option>
+                  <option value="Anak">Anak</option>
+                  <option value="Famili Lain">Famili Lain</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Nama Kepala Keluarga</label>
+                <input name="headOfFamilyName" type="text" className="form-input-custom font-medium" value={formData.headOfFamilyName || ''} onChange={handleChange} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
+                <input name="headOfFamilyDob" type="date" className="form-input-custom font-medium" value={formData.headOfFamilyDob || ''} onChange={handleChange} />
               </div>
             </div>
 
+            {/* DOMISILI BLOK */}
+            <hr className="border-slate-100" />
             <div className="space-y-4">
-              <h4 className="font-bold text-slate-800 border-b pb-2 text-sm">Informasi Domisili</h4>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Alamat</label>
-                <input name="address" value={formData.address || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Kampung</label>
-                <input name="kampung" value={formData.kampung || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Kecamatan</label>
-                <input name="district" value={formData.district || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-bold text-slate-800 border-b pb-2 text-sm">Informasi Rekening</h4>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Nama Bank</label>
-                <input name="bankName" value={formData.bankName || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">No Rekening</label>
-                <input name="bankAccountNo" value={formData.bankAccountNo || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 mb-1 block">Atas Nama Rekening</label>
-                <input name="bankAccountHolder" value={formData.bankAccountHolder || ''} onChange={handleChange} className="form-input-custom" />
-              </div>
-            </div>
-            
-            <div className="space-y-4 md:col-span-2 lg:col-span-3">
-              <h4 className="font-bold text-slate-800 border-b pb-2 text-sm">Status Berkas</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1 block">Status Kelengkapan</label>
-                  <select name="documentStatus" value={formData.documentStatus || 'Lengkap'} onChange={handleChange} className="form-input-custom text-sm">
-                    <option value="Lengkap">Lengkap</option>
-                    <option value="Tidak Lengkap">Tidak Lengkap</option>
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-indigo-500" /> Wilayah Domisili Penerima
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-2 lg:col-span-4">
+                  <label className="text-sm font-semibold text-slate-700">Alamat Lengkap *</label>
+                  <textarea name="address" className="form-input-custom min-h-[60px]" value={formData.address || ''} onChange={handleChange} placeholder="Dusun / Rukun Tetangga / Rukun Warga" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">RT</label>
+                  <input name="rt" type="text" maxLength={3} className="form-input-custom font-mono" value={formData.rt || ''} onChange={handleChange} placeholder="000" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">RW</label>
+                  <input name="rw" type="text" maxLength={3} className="form-input-custom font-mono" value={formData.rw || ''} onChange={handleChange} placeholder="000" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Kecamatan *</label>
+                  <select 
+                    name="district"
+                    required 
+                    className="form-input-custom font-medium" 
+                    value={formData.district || ''} 
+                    onChange={e => {
+                      const newDistrict = e.target.value;
+                      setFormData(prev => ({...prev, district: newDistrict, kampung: ''}));
+                    }}
+                  >
+                    <option value="">Pilih Kecamatan</option>
+                    {Object.keys(SIAK_REGIONAL_DATA).map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 mb-1 block">Keterangan Tidak Lengkap (bila ada)</label>
-                  <input name="documentStatusNotes" value={formData.documentStatusNotes || ''} onChange={handleChange} className="form-input-custom" />
+                {formData.district && (
+                  <div className="space-y-2 animate-in fade-in-50 duration-200 block">
+                    <label className="text-sm font-semibold text-slate-700">Kampung / Kelurahan *</label>
+                    <select 
+                      name="kampung"
+                      required 
+                      className="form-input-custom font-medium" 
+                      value={formData.kampung || ''} 
+                      onChange={handleChange}
+                    >
+                      <option value="">Pilih Kampung/Kelurahan</option>
+                      {SIAK_REGIONAL_DATA[formData.district as keyof typeof SIAK_REGIONAL_DATA]?.map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* PENDIDIKAN & PERBANKAN BLOK */}
+            <hr className="border-slate-100" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Detail Pendidikan (Opsional)</h4>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Nama Sekolah / Instansi</label>
+                    <input name="schoolName" type="text" className="form-input-custom font-medium" value={formData.schoolName || ''} onChange={handleChange} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Tingkatan</label>
+                      <input name="schoolLevel" type="text" className="form-input-custom font-medium" placeholder="SD / SMP / Universitas" value={formData.schoolLevel || ''} onChange={handleChange} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Kelas / Semester</label>
+                      <input name="schoolClass" type="text" className="form-input-custom font-medium" value={formData.schoolClass || ''} onChange={handleChange} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Alamat Sekolah</label>
+                    <input name="schoolAddress" type="text" className="form-input-custom font-medium" value={formData.schoolAddress || ''} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">No Hp Instansi</label>
+                    <input 
+                      name="schoolPhone"
+                      type="tel" 
+                      maxLength={13}
+                      className="form-input-custom font-mono" 
+                      value={formData.schoolPhone || ''} 
+                      onChange={handleChange} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Detail Perbankan / Lainnya</h4>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Nomor Rekening</label>
+                    <input 
+                      name="bankAccountNo"
+                      type="text" 
+                      maxLength={16}
+                      className="form-input-custom font-mono" 
+                      value={formData.bankAccountNo || ''} 
+                      onChange={handleChange} 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Nama Bank</label>
+                    <input name="bankName" type="text" className="form-input-custom font-medium" placeholder="Bank Riau Kepri / Syariah" value={formData.bankName || ''} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Nama Pemilik Rekening</label>
+                    <input name="bankAccountHolder" type="text" className="form-input-custom font-medium" value={formData.bankAccountHolder || ''} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Kontak Personal (No HP)</label>
+                    <input name="contact" type="text" className="form-input-custom font-medium" value={formData.contact || ''} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Catatan Tambahan Mustahik</label>
+                    <textarea name="notes" className="form-input-custom min-h-[50px] font-medium" value={formData.notes || ''} onChange={handleChange} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">Status Berkas Saat ini *</label>
+                    <select
+                      name="documentStatus"
+                      className="form-input-custom font-medium bg-white border-indigo-200"
+                      value={formData.documentStatus || 'Lengkap'}
+                      onChange={e => setFormData(prev => ({
+                        ...prev,
+                        documentStatus: e.target.value,
+                        documentStatusNotes: e.target.value === 'Lengkap' ? '' : prev.documentStatusNotes
+                      }))}
+                    >
+                      <option value="Lengkap">Lengkap</option>
+                      <option value="Tidak Lengkap">Tidak Lengkap</option>
+                    </select>
+                  </div>
+                  {formData.documentStatus === 'Tidak Lengkap' && (
+                    <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-150">
+                      <label className="text-xs font-bold text-rose-700 uppercase tracking-wider block">Keterangan Tidak Lengkap *</label>
+                      <input
+                        name="documentStatusNotes"
+                        required
+                        type="text"
+                        placeholder="Contoh: Kurang KK / NIK tidak jelas / dll"
+                        className="form-input-custom font-medium bg-white border-rose-200"
+                        value={formData.documentStatusNotes || ''}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4 md:col-span-2 lg:col-span-3 mt-4">
+            <div className="space-y-4 mt-4">
               <div className="flex items-center justify-between border-b pb-2">
                 <h4 className="font-bold text-indigo-600 border-b-0 pb-0 text-sm flex items-center gap-2">
                   <Upload className="w-4 h-4" /> Edit Unggah Berkas Persyaratan (15 Slot)
