@@ -19,6 +19,7 @@ export interface Recipient {
   
   // Aid Details
   registrationId: string;
+  serviceType?: 'Layanan Konter' | 'Program Bulanan';
   source: string; // Sumber Berkas
   institutionName?: string; // Nama Lembaga
   personInCharge?: string; // Penanggung Jawab

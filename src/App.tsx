@@ -488,7 +488,12 @@ export default function App() {
         let currentSector = '';
         
         if (activeTab === 'recipients' || activeTab === 'bnba-recap') {
-          filteredData = recipients;
+          // Antrean Layanan excludes Program Bulanan and ATM Beras entirely. BNBA Recap can show all.
+          if (activeTab === 'recipients') {
+            filteredData = recipients.filter(r => r.serviceType !== 'Program Bulanan' && !(r.programName?.toLowerCase().includes('atm beras')));
+          } else {
+            filteredData = recipients;
+          }
         } else if (activeTab === 'atm-beras') {
           filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('atm beras') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('beras')));
         } else {
@@ -497,8 +502,8 @@ export default function App() {
         }
         
         const isSectorTab = ['Siak Cerdas', 'Siak Dakwah', 'Siak Peduli', 'Siak Sehat', 'Siak Sejahtera'].includes(currentSector);
-        const isMonthlySector = ['Siak Cerdas', 'Siak Dakwah', 'Siak Peduli', 'Siak Sejahtera'].includes(currentSector) || activeTab === 'atm-beras';
-        const displaySector = isMonthlySector ? (activeTab === 'atm-beras' ? 'ATM Beras' : currentSector) : currentSector;
+        const isMonthlySector = activeTab === 'atm-beras';
+        const displaySector = isMonthlySector ? 'ATM Beras' : currentSector;
 
         return (
           <div className="space-y-12">
@@ -527,7 +532,7 @@ export default function App() {
                 />
               ) : (
                 <RecipientList 
-                  data={filteredData} 
+                  data={isSectorTab ? filteredData.filter(r => r.serviceType !== 'Program Bulanan') : filteredData} 
                   onReceipt={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
@@ -558,7 +563,36 @@ export default function App() {
               <MonthlyPaymentTable sector={displaySector} />
             ) : (
               isSectorTab && (
-                <SectorReportTable sector={currentSector} />
+                <div className="space-y-12">
+                  <div className="space-y-4 pt-8 border-t border-slate-200">
+                    <h2 className="text-lg font-bold text-slate-800">Program Bulanan - {currentSector}</h2>
+                    <RecipientList 
+                      data={filteredData.filter(r => r.serviceType === 'Program Bulanan')} 
+                      onReceipt={(rec) => {
+                        setSelectedRecipient(rec);
+                        setIsShowingReceipt(true);
+                      }}
+                      onMPZIS={(rec) => {
+                        setSelectedRecipient(rec);
+                        setIsShowingMPZIS(true);
+                      }}
+                      onEPPD={(rec) => {
+                        setSelectedRecipient(rec);
+                        setIsShowingEPPD(true);
+                      }}
+                      onSurvey={(rec) => {
+                        setSelectedRecipient(rec);
+                        setIsShowingSurvey(true);
+                      }}
+                      onDeleteRecipient={handleDeleteRecipient}
+                      onEditRecipient={(rec) => setEditingRecipient(rec)}
+                      onEditGroup={(group) => {
+                        setEditingGroupData(group);
+                        setActiveTab('input');
+                      }}
+                    />
+                  </div>
+                </div>
               )
             )}
           </div>

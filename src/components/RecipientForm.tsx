@@ -89,6 +89,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   // Main Registration Data State (Tabel Utama)
   const [registrationData, setRegistrationData] = useState({
     registrationId: generateRegId(),
+    serviceType: 'Layanan Konter' as 'Layanan Konter' | 'Program Bulanan',
     source: '',
     institutionName: '',
     personInCharge: '',
@@ -619,6 +620,18 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">ID Registrasi</label>
               <input type="text" className="form-input-custom bg-slate-100 font-mono !cursor-not-allowed" value={registrationData.registrationId} readOnly />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Jenis Layanan</label>
+              <select 
+                className="form-input-custom font-medium" 
+                value={registrationData.serviceType} 
+                onChange={e => setRegistrationData({...registrationData, serviceType: e.target.value as 'Layanan Konter' | 'Program Bulanan'})}
+              >
+                <option value="Layanan Konter">Layanan Konter</option>
+                <option value="Program Bulanan">Program Bulanan</option>
+              </select>
             </div>
 
             <div className="space-y-2">
