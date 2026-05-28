@@ -1453,17 +1453,17 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
                  </div>
 
                  <div className="mt-4 border border-black p-2 min-h-[140px]">
-                    <p className="font-bold mb-2 uppercase underline text-[10px]">Catatan Hasil Survei :</p>
+                    <p className="font-bold mb-2 uppercase underline text-[13px] font-sans">Catatan Hasil Survei :</p>
                     <div className={cn(
-                      "text-[10px] break-words whitespace-pre-wrap",
+                      "text-[13px] font-sans break-words whitespace-pre-wrap",
                       !surveyData.penjelasanKeuangan && "italic text-gray-400"
                     )}>
                       {surveyData.penjelasanKeuangan || 'Tuliskan catatan hasil survei jika ada...'}
                     </div>
                  </div>
                  <div className="mt-4 border border-black p-3 flex-1">
-                    <p className="font-bold mb-2 uppercase underline text-[10px]">Catatan Survey Tambahan :</p>
-                    <div className="h-full italic text-gray-200">.................................................................................................................................................</div>
+                    <p className="font-bold mb-2 uppercase underline text-[13px] font-sans">Catatan Survey Tambahan :</p>
+                    <div className="h-full italic text-gray-200 text-[13px] font-sans">.................................................................................................................................................</div>
                  </div>
                </div>
                

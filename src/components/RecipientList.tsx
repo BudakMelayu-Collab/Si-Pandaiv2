@@ -584,6 +584,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Mengajukan Bantuan Untuk</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Status Berkas</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">No Hp</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Kecamatan</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Info Rekening</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Alamat</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Kampung</th>
@@ -641,6 +642,9 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                       {subItem.contact}
                                                     </a>
                                                   ) : '-'}
+                                                </td>
+                                                <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">
+                                                  {subItem.district || '-'}
                                                 </td>
                                                 <td className="px-3.5 py-3 font-mono text-sm font-normal text-black border-r border-slate-200/40 whitespace-nowrap">
                                                   {subItem.bankAccountNo ? `${subItem.bankAccountNo}/${subItem.bankName || 'BCA'}/${subItem.bankAccountHolder || subItem.name}` : '-'}
