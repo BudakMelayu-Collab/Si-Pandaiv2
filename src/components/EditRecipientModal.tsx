@@ -216,6 +216,20 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recipient.programName === 'Rumah Singgah' && (
+                <div className="space-y-2 lg:col-span-3 pb-2 border-b border-slate-100 mb-2">
+                  <label className="text-sm font-semibold text-slate-700">No Registrasi (Rumah Singgah)</label>
+                  <input 
+                    name="rsNoReg" 
+                    type="text" 
+                    className="form-input-custom font-mono bg-slate-50 cursor-not-allowed" 
+                    value={formData.rsNoReg || ''} 
+                    readOnly 
+                    disabled 
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">No Registrasi dibuat otomatis oleh sistem dan tidak dapat diubah.</p>
+                </div>
+              )}
               <div className="space-y-2 lg:col-span-2">
                 <label className="text-sm font-semibold text-slate-700">Nama Penerima *</label>
                 <input name="name" type="text" className="form-input-custom font-medium" value={formData.name || ''} onChange={handleChange} placeholder="Nama lengkap sesuai KTP" />

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Recipient } from '../types';
 import { 
   Plus, ChevronLeft, Calendar, FileText, Camera,
@@ -499,8 +499,8 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
   
   const filtered = historicalPatients.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.nik.includes(search));
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Yakin ingin menghapus riwayat pasien ${name}?`)) return;
+  const handleDelete = async (id: string, name: string, noReg?: string) => {
+    if (!window.confirm(`Yakin ingin menghapus riwayat pasien ${name}${noReg ? ` dengan No Reg ${noReg}` : ''}?`)) return;
     try {
       await deleteDoc(doc(db, 'recipients', id));
       if (onCheckInCompleted) onCheckInCompleted();
@@ -560,12 +560,40 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
                onChange={e => setSearch(e.target.value)}
              />
            </div>
-           <button 
-             onClick={() => setShowInputForm(true)}
-             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 transition"
-           >
-             <Plus className="w-4 h-4" /> Input Data
-           </button>
+           <div className="flex gap-2">
+             <button 
+               onClick={async () => {
+                 let count = 0;
+                 for (const p of historicalPatients) {
+                   if (!p.rsNoReg) {
+                     try {
+                       const newReg = 'RS-' + p.id.substring(0, 8).toUpperCase();
+                       await updateDoc(doc(db, 'recipients', p.id), { 
+                         rsNoReg: newReg,
+                         updatedAt: serverTimestamp() 
+                       });
+                       count++;
+                     } catch (err) {}
+                   }
+                 }
+                 if (count > 0) {
+                   alert(`Berhasil memberikan No Reg pada ${count} data pasien.`);
+                   if (onCheckInCompleted) onCheckInCompleted();
+                 } else {
+                   alert('Semua data pasien sudah memiliki No Reg.');
+                 }
+               }}
+               className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-sm font-bold shadow-sm transition"
+             >
+               Fix Data No Reg
+             </button>
+             <button 
+               onClick={() => setShowInputForm(true)}
+               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 transition"
+             >
+               <Plus className="w-4 h-4" /> Input Data
+             </button>
+           </div>
          </div>
       </div>
       <div className="flex-1 overflow-auto">
@@ -600,33 +628,51 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
            <table className="w-full text-left text-sm whitespace-nowrap">
              <thead className="bg-white border-b border-slate-200 sticky top-0">
                <tr>
-                 <th className="px-6 py-4 font-semibold text-slate-600">Nama Pasien</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600">NIK</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600">Diagnosa / Status</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600">Check-in</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600">Check-out</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600 text-center">Kamar Terakhir</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600 text-center">Aksi</th>
-                 <th className="px-6 py-4 font-semibold text-slate-600 text-center">Lihat Berkas</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">No Reg</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Jenis Rawatan</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Nama Pasien</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Nama Pendamping</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">NIK</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Diagnosa / Status</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Check-in</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Check-out</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40 text-center">Kamar Terakhir</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Kampung & Kecamatan</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Jenis Kelamin</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">RS Tujuan</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Hubungan</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 border-r border-slate-200/40">Nomor / WA</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 text-center border-r border-slate-200/40">Aksi</th>
+                  <th className="px-6 py-4 font-semibold text-slate-600 text-center">Lihat Berkas</th>
                </tr>
              </thead>
              <tbody className="divide-y divide-slate-100">
-               {filtered.map(p => (
+               {filtered.map(p => {
+                 const displayNoReg = p.rsNoReg || 'RS-' + p.id.substring(0, 8).toUpperCase();
+                 return (
                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-bold text-slate-800">{p.name}</td>
-                    <td className="px-6 py-4 font-mono text-slate-500 text-xs">{p.nik}</td>
-                    <td className="px-6 py-4 truncate max-w-[200px]">{p.notes || '-'}</td>
-                    <td className="px-6 py-4">{formatDate(p.rsCheckInDate)}</td>
-                    <td className="px-6 py-4 font-medium text-slate-800">{formatDate(p.rsCheckOutDate)}</td>
-                    <td className="px-6 py-4 text-center">
-                       <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold text-xs">{p.rsBedId}</span>
-                    </td>
+                     <td className="px-6 py-4 text-slate-800 font-mono text-xs font-semibold">{displayNoReg}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.rsJenisRawatan || '-'}</td>
+                     <td className="px-6 py-4 font-bold text-slate-800">{p.name}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.rsCompanionName || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.nik}</td>
+                     <td className="px-6 py-4 truncate max-w-[200px] text-slate-800">{p.notes || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{formatDate(p.rsCheckInDate)}</td>
+                     <td className="px-6 py-4 font-medium text-slate-800">{formatDate(p.rsCheckOutDate)}</td>
+                     <td className="px-6 py-4 text-center">
+                        <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold text-xs">{p.rsBedId}</span>
+                     </td>
+                     <td className="px-6 py-4 text-slate-800">{p.kampung || '-'} / {p.district || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.gender || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.rsHospital || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.rsCompanionRelation || '-'}</td>
+                     <td className="px-6 py-4 text-slate-800">{p.contact || '-'}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => setEditingPatient(p)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
+                        <button onClick={() => setEditingPatient({...p, rsNoReg: displayNoReg})} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus">
+                        <button onClick={() => handleDelete(p.id, p.name, displayNoReg)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -667,7 +713,8 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
                       )}
                     </td>
                  </tr>
-               ))}
+                 );
+               })}
              </tbody>
            </table>
          )}
@@ -723,7 +770,8 @@ function CheckInModal({ bedId, onClose, onSuccess }: any) {
   const [formData, setFormData] = useState({
     name: '', nik: '', district: '', kampung: '', phone: '', checkIn: new Date().toISOString().split('T')[0],
     estCheckOut: '', notes: '', gender: 'Laki-laki', rsHospital: '', rsCompanionName: '', rsCompanionRelation: '',
-    rsJenisRawatan: 'Pasien Rawat Inap'
+    rsJenisRawatan: 'Pasien Rawat Inap',
+    rsNoReg: 'RS-' + Math.floor(Date.now() / 1000).toString(16).toUpperCase()
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [docIdentitas, setDocIdentitas] = useState<any>(null);
@@ -811,6 +859,7 @@ function CheckInModal({ bedId, onClose, onSuccess }: any) {
         contact: formData.phone, rsCheckInDate: formData.checkIn, rsHospital: formData.rsHospital,
         rsCompanionName: formData.rsCompanionName, rsCompanionRelation: formData.rsCompanionRelation,
         rsJenisRawatan: formData.rsJenisRawatan,
+        rsNoReg: formData.rsNoReg,
         rsEstimatedCheckOutDate: formData.estCheckOut, notes: formData.notes,
         rsBedId: bedId, rsStatus: 'Active', programName: 'Rumah Singgah',
         sector: 'Siak Sejahtera', status: 'Diproses', documents: docs,
@@ -867,6 +916,16 @@ function CheckInModal({ bedId, onClose, onSuccess }: any) {
             <h3 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">1. Data Pasien</h3>
             <div className="space-y-4">
               <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">No Registrasi *</label>
+                <input 
+                  required 
+                  type="text" 
+                  readOnly
+                  className="w-full border-2 border-slate-200 rounded-xl p-2.5 bg-slate-100/50 text-slate-500 text-sm font-mono cursor-not-allowed" 
+                  value={formData.rsNoReg} 
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Jenis Rawatan Rumah Sakit *</label>
                 <select 
                   className="w-full border-2 border-slate-200 rounded-xl p-2.5 focus:border-indigo-500 focus:outline-none bg-white font-medium"
@@ -880,7 +939,7 @@ function CheckInModal({ bedId, onClose, onSuccess }: any) {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">NIK KTP *</label>
-                <input required type="text" className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-mono text-sm focus:border-indigo-500 focus:outline-none" value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit NIK" maxLength={16}/>
+                <input required type="text" className="w-full border-2 border-slate-200 rounded-xl p-2.5 text-sm focus:border-indigo-500 focus:outline-none" value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit NIK" maxLength={16}/>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Lengkap Pasien *</label>
@@ -1124,7 +1183,7 @@ function PatientDetailModal({ patient, onClose, onUpdate, onCheckOut }: any) {
             
             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-sm space-y-4 shadow-sm">
               <div><p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Diagnosa/Penyakit</p><p className="font-bold text-slate-800">{patient.notes || '-'}</p></div>
-              <div><p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">NIK KTP</p><p className="font-mono font-medium text-slate-700">{patient.nik}</p></div>
+              <div><p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">NIK KTP</p><p className="text-slate-800">{patient.nik}</p></div>
               <div><p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Nomor HP / Kontak</p><p className="font-medium text-slate-700">{patient.contact || '-'}</p></div>
               <div><p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Asal Daerah (Kecamatan)</p><p className="font-bold text-slate-800">{patient.district}</p></div>
             </div>

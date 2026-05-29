@@ -73,6 +73,7 @@ export interface Recipient {
   // Rumah Singgah Specific fields
   rsBedId?: string; // e.g. "1A"
   rsCheckInDate?: string;
+  rsNoReg?: string;
   rsEstimatedCheckOutDate?: string;
   rsCheckOutDate?: string;
   rsMedicalNotes?: { date: string, note: string }[];
