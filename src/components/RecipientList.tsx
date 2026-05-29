@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { 
   Search, Filter, 
-  ExternalLink, Download, FileText, ChevronRight,
+  ExternalLink, Download, FileText, ChevronRight, ChevronDown,
   Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload,
   Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AID_TYPES, AID_STATUSES, STATUS_COLORS } from '../constants';
 import { Recipient } from '../types';
 import { cn, isRecipientFileTracked } from '../lib/utils';
 import { mergeRecipientScans } from '../lib/pdfMerger';
+import ActivityTicker from './ActivityTicker';
 
 interface RecipientListProps {
   data: Recipient[];
@@ -104,6 +105,14 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [selectedSubItemIds, setSelectedSubItemIds] = useState<Record<string, boolean>>({});
   const [mergingGroupRegId, setMergingGroupRegId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const toggleRow = (regId: string) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [regId]: !prev[regId]
+    }));
+  };
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -283,9 +292,13 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                         group.dotColor,
                         group.pulse && "animate-pulse"
                       )} />
-                      <span className="text-sm font-normal tracking-wider text-black">
-                        {group.label}
-                      </span>
+                      {group.key === 'Arsip' ? (
+                        <ActivityTicker data={data} />
+                      ) : (
+                        <span className="text-sm font-normal tracking-wider text-black">
+                          {group.label}
+                        </span>
+                      )}
                       <span className="text-sm font-normal text-black bg-indigo-50 border border-indigo-150 px-2 py-0.5 rounded-lg ml-auto">
                         {group.items.length} Berkas
                       </span>
@@ -334,7 +347,15 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                  <tr className="hover:bg-slate-50/80 transition-colors group">
                                   {/* Nomor */}
                                   <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap text-center">
-                                    {index + 1}
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button 
+                                        onClick={() => toggleRow(regId)}
+                                        className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                                      >
+                                        {expandedRows[regId] ? <ChevronDown className="w-4 h-4 cursor-pointer" /> : <ChevronRight className="w-4 h-4 cursor-pointer" />}
+                                      </button>
+                                      <span>{index + 1}</span>
+                                    </div>
                                   </td>
 
                                   {/* No. Reg */}
@@ -527,6 +548,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                 </tr>
 
                                 {/* Supporting sub-table row for Recipient Details */}
+                                {expandedRows[regId] && (
                                 <tr>
                                   <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
                                     <div className="overflow-x-auto border border-slate-200/80 rounded-2xl shadow-xs bg-white">
@@ -720,6 +742,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                     </div>
                                   </td>
                                 </tr>
+                                )}
                               </React.Fragment>
                             );
                           });

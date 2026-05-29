@@ -605,7 +605,7 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
              <EditRecipientModal 
                recipient={editingPatient}
                onClose={() => setEditingPatient(null)}
-               onSave={async (data) => {
+               onSave={async (data: any) => {
                  try {
                    await updateDoc(doc(db, 'recipients', editingPatient.id), {
                      ...data,

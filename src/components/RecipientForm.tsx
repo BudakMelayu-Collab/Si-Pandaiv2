@@ -54,6 +54,7 @@ const DEFAULT_RECIPIENT_INPUT = {
   familyStatus: '',
   headOfFamilyName: '',
   headOfFamilyDob: '',
+  contact: '',
   address: '',
   rt: '',
   rw: '',
@@ -93,7 +94,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     source: '',
     institutionName: '',
     personInCharge: '',
-    contact: '',
     submissionDate: new Date().toISOString().split('T')[0],
     companion: '',
     sector: '',
@@ -141,7 +141,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         source: first.source || '',
         institutionName: first.institutionName || '',
         personInCharge: first.personInCharge || '',
-        contact: first.contact || '',
         submissionDate: first.submissionDate || new Date().toISOString().split('T')[0],
         companion: first.companion || '',
         sector: first.sector || '',
@@ -674,18 +673,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">No Handphone Kontak Group</label>
-              <input 
-                type="tel" 
-                maxLength={13}
-                placeholder="0812xxxxxxxx"
-                className="form-input-custom font-medium" 
-                value={registrationData.contact} 
-                onChange={e => setRegistrationData({...registrationData, contact: e.target.value.replace(/\D/g, '')})} 
-              />
-            </div>
-
-            <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Tgl Masuk Berkas *</label>
               <input required type="date" className="form-input-custom font-medium" value={registrationData.submissionDate} onChange={e => setRegistrationData({...registrationData, submissionDate: e.target.value})} />
             </div>
@@ -1071,6 +1058,18 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
                 <input type="date" className="form-input-custom font-medium" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">No Handphone</label>
+                <input 
+                  type="tel" 
+                  maxLength={13}
+                  placeholder="0812xxxxxxxx"
+                  className="form-input-custom font-medium" 
+                  value={recipientInput.contact} 
+                  onChange={e => setRecipientInput({...recipientInput, contact: e.target.value.replace(/\D/g, '')})} 
+                />
               </div>
             </div>
 
