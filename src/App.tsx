@@ -490,7 +490,7 @@ export default function App() {
         if (activeTab === 'recipients' || activeTab === 'bnba-recap') {
           // Antrean Layanan excludes Program Bulanan and ATM Beras entirely. BNBA Recap can show all.
           if (activeTab === 'recipients') {
-            filteredData = recipients.filter(r => r.serviceType !== 'Program Bulanan' && !(r.programName?.toLowerCase().includes('atm beras')));
+            filteredData = recipients.filter(r => r.serviceType !== 'Program Bulanan' && !(r.programName?.toLowerCase().includes('atm beras')) && !(r.programName?.toLowerCase().includes('rumah singgah')));
           } else {
             filteredData = recipients;
           }
@@ -498,7 +498,11 @@ export default function App() {
           filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('atm beras') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('beras')));
         } else {
           currentSector = activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          filteredData = recipients.filter(r => r.sector === currentSector);
+          filteredData = recipients.filter(r => 
+            r.sector === currentSector && 
+            !r.programName?.toLowerCase().includes('atm beras') && 
+            !r.programName?.toLowerCase().includes('rumah singgah')
+          );
         }
         
         const isSectorTab = ['Siak Cerdas', 'Siak Dakwah', 'Siak Peduli', 'Siak Sehat', 'Siak Sejahtera'].includes(currentSector);
