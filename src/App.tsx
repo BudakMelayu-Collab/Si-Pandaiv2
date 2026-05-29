@@ -488,11 +488,11 @@ export default function App() {
         let currentSector = '';
         
         if (activeTab === 'recipients' || activeTab === 'bnba-recap') {
-          // Antrean Layanan excludes Program Bulanan and ATM Beras entirely. BNBA Recap can show all.
+          // Antrean Layanan excludes Program Bulanan and ATM Beras entirely. BNBA Recap can show all EXCEPT Rumah Singgah.
           if (activeTab === 'recipients') {
             filteredData = recipients.filter(r => r.serviceType !== 'Program Bulanan' && !(r.programName?.toLowerCase().includes('atm beras')) && !(r.programName?.toLowerCase().includes('rumah singgah')));
           } else {
-            filteredData = recipients;
+            filteredData = recipients.filter(r => !(r.programName?.toLowerCase().includes('rumah singgah')));
           }
         } else if (activeTab === 'atm-beras') {
           filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('atm beras') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('beras')));

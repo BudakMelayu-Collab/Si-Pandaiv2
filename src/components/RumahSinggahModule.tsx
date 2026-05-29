@@ -2,14 +2,15 @@ import React, { useState, useRef } from 'react';
 import { Recipient } from '../types';
 import { 
   Plus, ChevronLeft, Calendar, FileText, Camera,
-  X, Bell, Search, Paintbrush, DoorOpen, ClipboardList, Bed, Database, AlertCircle, Clock, AlertTriangle
+  X, Bell, Search, Paintbrush, DoorOpen, ClipboardList, Bed, Database, AlertCircle, Clock, AlertTriangle, Edit3, Trash2, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { saveRecipient } from '../firebase';
 import { SIAK_REGIONAL_DATA } from '../constants';
 import RecipientForm from './RecipientForm';
+import EditRecipientModal from './EditRecipientModal';
 
 interface RumahSinggahModuleProps {
   recipients: Recipient[];
@@ -308,7 +309,7 @@ export default function RumahSinggahModule({ recipients, onBack, onCheckInComple
 
       {/* --- DATABASE TAB --- */}
       {activeTab === 'database' && (
-        <DatabaseTab historicalPatients={historicalPatients} recipients={recipients} />
+        <DatabaseTab historicalPatients={historicalPatients} recipients={recipients} onCheckInCompleted={onCheckInCompleted} />
       )}
 
       {/* --- MODALS --- */}
@@ -490,11 +491,23 @@ function BedCard({ bedId, status, patient, isWarning, handlers }: any) {
   );
 }
 
-function DatabaseTab({ historicalPatients, recipients }: { historicalPatients: Recipient[], recipients: Recipient[] }) {
+function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { historicalPatients: Recipient[], recipients: Recipient[], onCheckInCompleted?: () => void }) {
   const [search, setSearch] = useState('');
   const [showInputForm, setShowInputForm] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Recipient | null>(null);
+  const [mergingId, setMergingId] = useState<string | null>(null);
   
   const filtered = historicalPatients.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.nik.includes(search));
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Yakin ingin menghapus riwayat pasien ${name}?`)) return;
+    try {
+      await deleteDoc(doc(db, 'recipients', id));
+      if (onCheckInCompleted) onCheckInCompleted();
+    } catch (e: any) {
+      alert('Gagal menghapus data: ' + e.message);
+    }
+  };
 
   const handleCreateRecipient = async (data: any) => {
     try {
@@ -556,6 +569,26 @@ function DatabaseTab({ historicalPatients, recipients }: { historicalPatients: R
          </div>
       </div>
       <div className="flex-1 overflow-auto">
+         <AnimatePresence>
+           {editingPatient && (
+             <EditRecipientModal 
+               recipient={editingPatient}
+               onClose={() => setEditingPatient(null)}
+               onSave={async (data) => {
+                 try {
+                   await updateDoc(doc(db, 'recipients', editingPatient.id), {
+                     ...data,
+                     updatedAt: serverTimestamp()
+                   });
+                   setEditingPatient(null);
+                   if (onCheckInCompleted) onCheckInCompleted();
+                 } catch (e: any) {
+                   alert('Gagal update: ' + e.message);
+                 }
+               }}
+             />
+           )}
+         </AnimatePresence>
          {filtered.length === 0 ? (
            <div className="h-full flex flex-col items-center justify-center text-center p-8">
              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
@@ -573,6 +606,8 @@ function DatabaseTab({ historicalPatients, recipients }: { historicalPatients: R
                  <th className="px-6 py-4 font-semibold text-slate-600">Check-in</th>
                  <th className="px-6 py-4 font-semibold text-slate-600">Check-out</th>
                  <th className="px-6 py-4 font-semibold text-slate-600 text-center">Kamar Terakhir</th>
+                 <th className="px-6 py-4 font-semibold text-slate-600 text-center">Aksi</th>
+                 <th className="px-6 py-4 font-semibold text-slate-600 text-center">Lihat Berkas</th>
                </tr>
              </thead>
              <tbody className="divide-y divide-slate-100">
@@ -585,6 +620,51 @@ function DatabaseTab({ historicalPatients, recipients }: { historicalPatients: R
                     <td className="px-6 py-4 font-medium text-slate-800">{formatDate(p.rsCheckOutDate)}</td>
                     <td className="px-6 py-4 text-center">
                        <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold text-xs">{p.rsBedId}</span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => setEditingPatient(p)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {p.documents && p.documents.length > 0 ? (
+                        <button
+                          type="button"
+                          disabled={mergingId !== null}
+                          onClick={async () => {
+                            setMergingId(p.id);
+                            try {
+                              const { mergeRecipientUploadsOnly } = await import('../lib/pdfMerger');
+                              await mergeRecipientUploadsOnly(p.id, p.documents);
+                            } catch (error: any) {
+                              alert(error.message || 'Gagal menggabungkan berkas persyaratan.');
+                            } finally {
+                              setMergingId(null);
+                            }
+                          }}
+                          className="text-xs font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 cursor-pointer hover:scale-102 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all active:scale-95 duration-150 disabled:opacity-50 mx-auto"
+                          title="Gabungkan dan lihat berkas"
+                        >
+                          {mergingId === p.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 text-indigo-700 animate-spin" />
+                              Memroses...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-3.5 h-3.5" />
+                              Lihat Berkas
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-semibold">-</span>
+                      )}
                     </td>
                  </tr>
                ))}
