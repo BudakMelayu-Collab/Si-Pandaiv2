@@ -495,17 +495,20 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
   const [search, setSearch] = useState('');
   const [showInputForm, setShowInputForm] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Recipient | null>(null);
+  const [patientToDelete, setPatientToDelete] = useState<Recipient | null>(null);
   const [mergingId, setMergingId] = useState<string | null>(null);
   
   const filtered = historicalPatients.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.nik.includes(search));
 
-  const handleDelete = async (id: string, name: string, noReg?: string) => {
-    if (!window.confirm(`Yakin ingin menghapus riwayat pasien ${name}${noReg ? ` dengan No Reg ${noReg}` : ''}?`)) return;
+  const handleDeleteConfirmed = async () => {
+    if (!patientToDelete) return;
     try {
-      await deleteDoc(doc(db, 'recipients', id));
+      await deleteDoc(doc(db, 'recipients', patientToDelete.id));
       if (onCheckInCompleted) onCheckInCompleted();
     } catch (e: any) {
       alert('Gagal menghapus data: ' + e.message);
+    } finally {
+      setPatientToDelete(null);
     }
   };
 
@@ -617,6 +620,55 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
              />
            )}
          </AnimatePresence>
+          <AnimatePresence>
+            {patientToDelete && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setPatientToDelete(null)}
+                  className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm cursor-pointer"
+                />
+                
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 z-10 font-normal"
+                >
+                  <div className="p-6 text-center space-y-4 font-normal">
+                    <div className="w-16 h-16 bg-slate-50 border border-slate-200 text-black rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                      <Trash2 className="w-8 h-8 text-black" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-normal text-black tracking-tight">Hapus Riwayat Pasien</h3>
+                      <p className="text-black text-sm leading-relaxed font-normal">
+                        Anda yakin ingin menghapus data pasien <span className="font-bold underline decoration-slate-300 underline-offset-4">{patientToDelete.name}</span> secara permanen?
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button 
+                        onClick={() => setPatientToDelete(null)}
+                        className="flex-1 py-2.5 text-sm font-normal text-black bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button 
+                        onClick={handleDeleteConfirmed}
+                        className="flex-1 py-2.5 text-sm font-normal text-white bg-rose-600 hover:bg-rose-700 border border-transparent rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Ya, hapus permanen
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
          {filtered.length === 0 ? (
            <div className="h-full flex flex-col items-center justify-center text-center p-8">
              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
@@ -672,7 +724,7 @@ function DatabaseTab({ historicalPatients, recipients, onCheckInCompleted }: { h
                         <button onClick={() => setEditingPatient({...p, rsNoReg: displayNoReg})} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(p.id, p.name, displayNoReg)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus">
+                        <button onClick={() => setPatientToDelete({...p, rsNoReg: displayNoReg})} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Hapus">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
