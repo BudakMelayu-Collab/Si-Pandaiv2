@@ -1028,7 +1028,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
-                <input type="date" className="form-input-custom font-medium" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
+                <input type="text" className="form-input-custom font-medium" placeholder="DD/MM/YYYY atau umur" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
@@ -1057,7 +1057,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
-                <input type="date" className="form-input-custom font-medium" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
+                <input type="text" className="form-input-custom font-medium" placeholder="DD/MM/YYYY atau umur" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
