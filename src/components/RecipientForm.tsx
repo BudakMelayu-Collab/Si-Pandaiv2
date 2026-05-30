@@ -1430,7 +1430,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     <th className="px-3.5 py-3 text-center border-r border-slate-200 w-12 font-bold">No</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nama Penerima</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">NIK</th>
-                    <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">No Family Card (KK)</th>
+                    <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nomor KK</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Alamat</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kampung</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kecamatan</th>
@@ -1450,8 +1450,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     <tr key={idx} className="hover:bg-slate-50/60 transition-colors text-black font-normal">
                       <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">{idx + 1}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-slate-800 capitalize whitespace-nowrap">{sub.name.toLowerCase()}</td>
-                      <td className="px-3 py-4 border-r border-slate-200/40 font-mono text-xs text-black whitespace-nowrap">{sub.nik}</td>
-                      <td className="px-3 py-4 border-r border-slate-200/40 font-mono text-xs text-slate-500 whitespace-nowrap">{sub.kk}</td>
+                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.nik}</td>
+                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.kk}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap max-w-[200px] truncate" title={sub.address}>{sub.address || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.kampung || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.district || '-'}</td>

@@ -3,7 +3,7 @@ import {
   Search, Filter, 
   ExternalLink, Download, FileText, ChevronRight, ChevronDown,
   Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload,
-  Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle
+  Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AID_TYPES, AID_STATUSES, STATUS_COLORS } from '../constants';
@@ -560,25 +560,38 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                             {groupItems.filter(sub => !!selectedSubItemIds[sub.id]).length} dari {groupItems.length} Terpilih
                                           </span>
                                         </div>
-                                        <button
-                                          type="button"
-                                          disabled={mergingGroupRegId === regId || groupItems.filter(sub => !!selectedSubItemIds[sub.id]).length === 0}
-                                          onClick={() => handleMergeGroupUploads(groupItems, regId)}
-                                          className="text-xs font-bold bg-indigo-600 hover:bg-indigo-750 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 duration-150"
-                                          title="Gabungkan semua berkas persyaratan (Slot 1-15) yang dicentang"
-                                        >
-                                          {mergingGroupRegId === regId ? (
-                                            <>
-                                              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                                              Menggabungkan Berkas Berkas...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <FileStack className="w-4 h-4" />
-                                              Gabung Berkas Terpilih (Slot 1-15)
-                                            </>
+                                        <div className="flex items-center gap-2">
+                                          {onEditGroup && (
+                                            <button
+                                              type="button"
+                                              onClick={() => onEditGroup(groupItems)}
+                                              className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 duration-150"
+                                              title="Tambah penerima baru ke dalam grup/registrasi ini"
+                                            >
+                                              <Plus className="w-4 h-4" />
+                                              Tambah Penerima Baru
+                                            </button>
                                           )}
-                                        </button>
+                                          <button
+                                            type="button"
+                                            disabled={mergingGroupRegId === regId || groupItems.filter(sub => !!selectedSubItemIds[sub.id]).length === 0}
+                                            onClick={() => handleMergeGroupUploads(groupItems, regId)}
+                                            className="text-xs font-bold bg-indigo-600 hover:bg-indigo-750 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 duration-150"
+                                            title="Gabungkan semua berkas persyaratan (Slot 1-15) yang dicentang"
+                                          >
+                                            {mergingGroupRegId === regId ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                                                Menggabungkan Berkas Berkas...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <FileStack className="w-4 h-4" />
+                                                Gabung Berkas Terpilih (Slot 1-15)
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
                                       </div>
                                       <table className="w-full text-left border-collapse table-auto">
                                         <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal">
@@ -640,9 +653,9 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                     <span>{idx + 1}</span>
                                                   </div>
                                                 </td>
-                                                <td className="px-3.5 py-3 font-normal text-black border-r border-slate-200/40 capitalize whitespace-nowrap">{subItem.name?.toLowerCase() || ''}</td>
-                                                <td className="px-3.5 py-3 font-mono font-normal text-black select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
-                                                <td className="px-3.5 py-3 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">{subItem.purpose || '-'}</td>
+                                                <td className="px-3.5 py-3 font-normal text-black capitalize border-r border-slate-200/40 whitespace-nowrap">{subItem.name?.toLowerCase() || ''}</td>
+                                                <td className="px-3.5 py-3 text-black font-normal select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
+                                                <td className="px-3.5 py-3 text-black font-normal border-r border-slate-200/40 whitespace-nowrap">{subItem.purpose || '-'}</td>
                                                 <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
                                                   <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-sans inline-block", (subItem.documentStatus || 'Lengkap') === 'Lengkap' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200")}>
                                                     {subItem.documentStatus || 'Lengkap'}
