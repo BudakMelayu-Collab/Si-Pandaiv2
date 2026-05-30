@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, X, Upload, FileText, Image as ImageIcon, 
   MapPin, User, Hash, Phone, Calendar, DollarSign,
-  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight
+  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
 import { AidDocument, Recipient } from '../types';
 
 interface RecipientFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => void | Promise<void>;
   onCancel: () => void;
   existingRecipients?: Recipient[];
   initialGroupRecipients?: Recipient[];
@@ -116,6 +116,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   
   // Editing state for sub-table recipient
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  
+  const [isAddingToSub, setIsAddingToSub] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   // Local states for 15 slots document upload
   const [documentSlots, setDocumentSlots] = useState<DocumentSlot[]>(() => 
@@ -401,7 +404,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   }, [registrationData.sector]);
 
   // Handle addition of a recipient into the sub-table
-  const handleAddRecipientToSubTable = () => {
+  const handleAddRecipientToSubTable = async () => {
     if (!recipientInput.name.trim()) {
       alert('Nama penerima wajib diisi.');
       return;
@@ -422,6 +425,10 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       alert('Kecamatan domisili wajib dipilih.');
       return;
     }
+
+    setIsAddingToSub(true);
+    // Simulate slight saving delay to show progress
+    await new Promise(res => setTimeout(res, 500));
 
     const updatedDocuments: AidDocument[] = documentSlots
       .filter(slot => slot.file)
@@ -447,20 +454,11 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       setSubRecipients([...subRecipients, finalRecipient]);
     }
 
-    // Reset input fields, but retain helpful family/address parameters for quicker entry of group/households
-    setRecipientInput(prev => ({
-      ...DEFAULT_RECIPIENT_INPUT,
-      address: prev.address,
-      rt: prev.rt,
-      rw: prev.rw,
-      kampung: prev.kampung,
-      district: prev.district,
-      kk: prev.kk, // Retain KK for household entries
-      headOfFamilyName: prev.headOfFamilyName,
-      headOfFamilyDob: prev.headOfFamilyDob,
-    }));
+    // Reset input fields completely for new entry
+    setRecipientInput(DEFAULT_RECIPIENT_INPUT);
 
     setDocumentSlots(INITIAL_DOCUMENT_SLOTS.map(s => ({ ...s })));
+    setIsAddingToSub(false);
   };
 
   // Turn off editing state and reset
@@ -531,7 +529,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   };
 
   // Submit the entire compound form (Tabel Utama + Sub Tabel)
-  const handleSaveAllData = (e: React.FormEvent) => {
+  const handleSaveAllData = async (e: React.FormEvent) => {
     e.preventDefault();
 
     let finalRecipients = [...subRecipients];
@@ -596,7 +594,12 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
     }));
 
-    onSubmit(submissionData);
+    setIsSavingAll(true);
+    try {
+      await onSubmit(submissionData);
+    } finally {
+      setIsSavingAll(false);
+    }
   };
 
   return (
@@ -1368,11 +1371,13 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <button
                 type="button"
                 onClick={handleAddRecipientToSubTable}
+                disabled={isAddingToSub}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-sm select-none cursor-pointer",
+                  "px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-sm select-none",
                   editingIndex !== null 
-                    ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100" 
-                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
+                    ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100 cursor-pointer" 
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer",
+                  isAddingToSub ? "opacity-75 cursor-not-allowed" : ""
                 )}
               >
                 {editingIndex !== null ? (
@@ -1382,8 +1387,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4" />
-                    <span>Tambahkan Penerima ke Sub Tabel</span>
+                    {isAddingToSub ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    <span>{isAddingToSub ? 'Memproses...' : 'Tambahkan Penerima ke Sub Tabel'}</span>
                   </>
                 )}
               </button>
@@ -1567,14 +1572,18 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             
             <button 
               onClick={handleSaveAllData}
-              type="button" 
-              className="px-8 py-2.5 bg-indigo-600 text-white hover:bg-indigo-750 active:scale-95 rounded-xl font-black flex items-center gap-2 transition-all shadow-md cursor-pointer"
+              type="button"
+              disabled={isSavingAll}
+              className={cn(
+                "px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
+                isSavingAll ? "opacity-75 cursor-not-allowed" : "hover:bg-indigo-750 active:scale-95 cursor-pointer"
+              )}
             >
-              <Save className="w-4 h-4" />
+              {isSavingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>
-                {subRecipients.length > 0 
+                {isSavingAll ? 'Menyimpan...' : (subRecipients.length > 0 
                   ? `Simpan Seluruh Registrasi (${subRecipients.length} Penerima)` 
-                  : 'Simpan Langsung'}
+                  : 'Simpan Langsung')}
               </span>
             </button>
           </div>
