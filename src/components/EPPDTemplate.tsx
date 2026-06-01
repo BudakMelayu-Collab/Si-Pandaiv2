@@ -1087,6 +1087,19 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
         <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white pb-32">
           <style dangerouslySetInnerHTML={{ __html: `
+            .eppd-print-page, .lampiran-print-page {
+              background-color: white;
+            }
+            .eppd-print-page {
+              width: ${paperSize === 'A4' ? '210mm' : '215.9mm'};
+              height: ${paperSize === 'A4' ? '297mm' : '330.2mm'};
+              min-height: ${paperSize === 'A4' ? '297mm' : '330.2mm'};
+            }
+            .lampiran-print-page {
+              width: ${paperSize === 'A4' ? '297mm' : '330.2mm'};
+              height: ${paperSize === 'A4' ? '210mm' : '215.9mm'};
+              min-height: ${paperSize === 'A4' ? '210mm' : '215.9mm'};
+            }
             @media print {
               @page {
                 size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
@@ -1095,9 +1108,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   content: counter(page);
                 }
               }
-              .landscape-container {
-                /* page: landscape-page; - fallback if needed, but global size is better */
-              }
+              
               #root > div > *:not(.eppd-template-overlay) {
                 display: none !important;
               }
@@ -1115,16 +1126,43 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 position: static !important;
               }
               body { 
-                background: white !important;
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
               }
-              .print-container {
-                width: 100% !important;
-                max-width: none !important;
+              .print\\:hidden {
+                display: none !important;
+              }
+              
+              .eppd-print-page, .lampiran-print-page {
+                page-break-after: always !important;
+                break-after: page !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                border: none !important;
                 box-shadow: none !important;
+                border-radius: 0 !important;
+                box-sizing: border-box !important;
+                position: relative !important;
+                overflow: hidden !important;
+                flex-shrink: 0 !important;
+                background-color: white !important;
+              }
+              
+              .eppd-print-page {
+                width: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+                height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+                min-height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+              }
+
+              .lampiran-print-page {
+                width: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+                height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+                min-height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+              }
+              
+              .eppd-print-page:last-child, .lampiran-print-page:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
               }
             }
           `}} />
@@ -1280,7 +1318,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {activeTab === 'eppd' && (
             <div className={cn(
-              "bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container",
+              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
               isEditing && "ring-4 ring-amber-500/30"
             )}
             style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
@@ -1943,7 +1981,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         {/* Lampiran Section */}
         {activeTab === 'lampiran' && chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
         <div key={`lampiran-page-${pageIndex}`} className={cn(
-          "bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container landscape-container",
+          "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
           pageIndex > 0 && "print:break-before-page",
           isEditing && "ring-4 ring-amber-500/30"
         )}
