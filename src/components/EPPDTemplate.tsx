@@ -1078,21 +1078,14 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
-                size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
-                margin: 3mm;
-                @bottom-right {
-                  content: counter(page);
-                }
-              }
-              @page landscape-page {
-                size: ${paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm'};
+                size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
                 margin: 3mm;
                 @bottom-right {
                   content: counter(page);
                 }
               }
               .landscape-container {
-                page: landscape-page;
+                /* page: landscape-page; - fallback if needed, but global size is better */
               }
               #root > div > *:not(.eppd-template-overlay) {
                 display: none !important;
