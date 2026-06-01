@@ -3,7 +3,7 @@ import {
   Search, Filter, 
   ExternalLink, Download, FileText, ChevronRight, ChevronDown,
   Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload,
-  Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle, Plus
+  Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle, Plus, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AID_TYPES, AID_STATUSES, STATUS_COLORS } from '../constants';
@@ -21,6 +21,7 @@ interface RecipientListProps {
   onDeleteRecipient?: (recipient: Recipient) => void;
   onEditRecipient?: (recipient: Recipient) => void;
   onEditGroup?: (groupItems: Recipient[]) => void;
+  onDuplicateGroup?: (groupItems: Recipient[]) => void;
 }
 
 function getFormattedSubmissionDate(dateStr: string): string {
@@ -94,7 +95,7 @@ function getRelativeTimeDetails(createdAtStr?: string, submissionDateStr?: strin
   return { relative, timeStr };
 }
 
-export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient, onEditGroup }: RecipientListProps) {
+export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient, onEditGroup, onDuplicateGroup }: RecipientListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -524,6 +525,15 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                           )}
                                         </button>
 
+                                        {onDuplicateGroup && (
+                                          <button 
+                                            onClick={() => onDuplicateGroup(groupItems)}
+                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
+                                            title="Duplikat untuk Bulan Baru"
+                                          >
+                                            <Copy className="w-3.5 h-3.5 text-black" />
+                                          </button>
+                                        )}
                                         {onEditGroup && (
                                           <button 
                                             onClick={() => onEditGroup(groupItems)}

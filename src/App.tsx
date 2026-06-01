@@ -52,6 +52,7 @@ export default function App() {
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(null);
+  const [prefilledGroupData, setPrefilledGroupData] = useState<Recipient[] | null>(null);
 
   const handleUpdateGroupData = async (data: any) => {
     try {
@@ -243,6 +244,19 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [showSuccessToast]);
+
+  const handleDuplicateGroup = (groupItems: Recipient[]) => {
+    // Strip ids and registrationIds so they are treated as new insertions
+    const newItems = groupItems.map(item => {
+      const newItem = { ...item };
+      delete newItem.id;
+      delete newItem.registrationId;
+      return newItem;
+    });
+    setPrefilledGroupData(newItems);
+    setEditingGroupData(null);
+    setActiveTab('input');
+  };
 
   const handleCreateRecipient = async (data: any) => {
     try {
@@ -469,10 +483,11 @@ export default function App() {
               onSubmit={editingGroupData ? handleUpdateGroupData : handleCreateRecipient} 
               onCancel={() => {
                 setEditingGroupData(null);
+                setPrefilledGroupData(null);
                 setActiveTab('dashboard');
               }}
               existingRecipients={recipients}
-              initialGroupRecipients={editingGroupData || undefined}
+              initialGroupRecipients={editingGroupData || prefilledGroupData || undefined}
             />
           </div>
         );
@@ -508,11 +523,12 @@ export default function App() {
         const isSectorTab = ['Siak Cerdas', 'Siak Dakwah', 'Siak Peduli', 'Siak Sehat', 'Siak Sejahtera'].includes(currentSector);
         const isMonthlySector = activeTab === 'atm-beras';
         const displaySector = isMonthlySector ? 'ATM Beras' : currentSector;
+        const shouldSplitMonthly = isSectorTab || isMonthlySector;
 
         return (
           <div className="space-y-12">
             <div className="space-y-4">
-              {isSectorTab && <h2 className="text-lg font-bold text-slate-800">Layanan Konter - {currentSector}</h2>}
+              {shouldSplitMonthly && <h2 className="text-lg font-bold text-slate-800">Layanan Konter - {displaySector}</h2>}
               {activeTab === 'bnba-recap' ? (
                 <BNBARecapTable 
                   data={filteredData} 
@@ -536,7 +552,7 @@ export default function App() {
                 />
               ) : (
                 <RecipientList 
-                  data={isSectorTab ? filteredData.filter(r => r.serviceType !== 'Program Bulanan') : filteredData} 
+                  data={shouldSplitMonthly ? filteredData.filter(r => r.serviceType !== 'Program Bulanan') : filteredData} 
                   onReceipt={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
@@ -559,46 +575,45 @@ export default function App() {
                     setEditingGroupData(group);
                     setActiveTab('input');
                   }}
+                  onDuplicateGroup={handleDuplicateGroup}
                 />
               )}
             </div>
             
-            {isMonthlySector ? (
-              <MonthlyPaymentTable sector={displaySector} />
-            ) : (
-              isSectorTab && (
-                <div className="space-y-12">
-                  <div className="space-y-4 pt-8 border-t border-slate-200">
-                    <h2 className="text-lg font-bold text-slate-800">Program Bulanan - {currentSector}</h2>
-                    <RecipientList 
-                      data={filteredData.filter(r => r.serviceType === 'Program Bulanan')} 
-                      onReceipt={(rec) => {
-                        setSelectedRecipient(rec);
-                        setIsShowingReceipt(true);
-                      }}
-                      onMPZIS={(rec) => {
-                        setSelectedRecipient(rec);
-                        setIsShowingMPZIS(true);
-                      }}
-                      onEPPD={(rec) => {
-                        setSelectedRecipient(rec);
-                        setIsShowingEPPD(true);
-                      }}
-                      onSurvey={(rec) => {
-                        setSelectedRecipient(rec);
-                        setIsShowingSurvey(true);
-                      }}
-                      onDeleteRecipient={handleDeleteRecipient}
-                      onEditRecipient={(rec) => setEditingRecipient(rec)}
-                      onEditGroup={(group) => {
-                        setEditingGroupData(group);
-                        setActiveTab('input');
-                      }}
-                    />
-                  </div>
+            {shouldSplitMonthly && (
+              <div className="space-y-12">
+                <div className="space-y-4 pt-8 border-t border-slate-200">
+                  <h2 className="text-lg font-bold text-slate-800">Program Bulanan - {displaySector}</h2>
+                  <RecipientList 
+                    data={filteredData.filter(r => r.serviceType === 'Program Bulanan')} 
+                    onReceipt={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingReceipt(true);
+                    }}
+                    onMPZIS={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingMPZIS(true);
+                    }}
+                    onEPPD={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingEPPD(true);
+                    }}
+                    onSurvey={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingSurvey(true);
+                    }}
+                    onDeleteRecipient={handleDeleteRecipient}
+                    onEditRecipient={(rec) => setEditingRecipient(rec)}
+                    onEditGroup={(group) => {
+                      setEditingGroupData(group);
+                      setActiveTab('input');
+                    }}
+                    onDuplicateGroup={handleDuplicateGroup}
+                  />
                 </div>
-              )
+              </div>
             )}
+            {isMonthlySector && <MonthlyPaymentTable sector={displaySector} />}
           </div>
         );
       case 'profile':
@@ -674,6 +689,7 @@ export default function App() {
                 setEditingGroupData(group);
                 setActiveTab('input');
               }}
+              onDuplicateGroup={handleDuplicateGroup}
             />
           </div>
         );
