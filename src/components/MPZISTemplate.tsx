@@ -128,6 +128,36 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
               label: defaultsMap[col.label] || col.label
             }));
         }
+
+        // Apply new rules to existing saved data
+        // 1. Classification
+        if (parsed.classification?.startsWith('Baznas ')) {
+          parsed.classification = recipient.sector || 'Siak Sejahtera';
+        }
+        // 2. Clear old hardcoded purposes / ashnaf / source
+        if (parsed.purpose?.startsWith('Melaksanakan program ')) parsed.purpose = '';
+        if (parsed.ashnaf === 'Miskin') parsed.ashnaf = '';
+        if (parsed.source === 'Zakat / Infaq / Shadaqah') parsed.source = '';
+        if (parsed.budgetPost === recipient.aidType) parsed.budgetPost = '';
+        
+        // Fix old `nomor` format dynamically if it contains the old pattern
+        if (!parsed.nomor?.includes('/001/MPZIS/') && !parsed.nomor?.includes('/000/MPZIS/')) {
+          const getBidangCode = (sector: string) => {
+            switch(sector?.toLowerCase()) {
+              case 'siak cerdas': return 'SC';
+              case 'siak dakwah': return 'SD';
+              case 'siak peduli': return 'SP';
+              case 'siak sehat': return 'SS';
+              case 'siak sejahtera': return 'SJ';
+              default: return 'SC';
+            }
+          };
+          const getRomanMonth = (month: number) => {
+            const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+            return romans[month - 1] || 'I';
+          };
+          parsed.nomor = `${recipient.registrationId}/001/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`;
+        }
         
         setMemoData(parsed);
       }
@@ -358,16 +388,33 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
     document.body.removeChild(link);
   };
 
+  // formatting helpers
+  const getBidangCode = (sector: string) => {
+    switch(sector?.toLowerCase()) {
+      case 'siak cerdas': return 'SC';
+      case 'siak dakwah': return 'SD';
+      case 'siak peduli': return 'SP';
+      case 'siak sehat': return 'SS';
+      case 'siak sejahtera': return 'SJ';
+      default: return 'SC';
+    }
+  };
+
+  const getRomanMonth = (month: number) => {
+    const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    return romans[month - 1] || 'I';
+  };
+
   // Local state for memorandum data
   const [memoData, setMemoData] = useState({
-    nomor: `${recipient.registrationId}/MPZIS/SP/I/${new Date().getFullYear()}`,
+    nomor: `${recipient.registrationId}/001/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`,
     programValue: recipient.sector || '',
     headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    classification: `Baznas ${recipient.sector || 'Siak Sehat'}`,
-    purpose: `Melaksanakan program ${recipient.programName}`,
-    ashnaf: 'Miskin',
-    source: 'Zakat / Infaq / Shadaqah',
-    budgetPost: recipient.aidType,
+    classification: recipient.sector || 'Siak Sehat',
+    purpose: '',
+    ashnaf: '',
+    source: '',
+    budgetPost: '',
     transactionType: 'TRANSFER' as 'CASH' | 'TRANSFER',
     columns: [
       { key: 'description', label: 'Uraian' },
@@ -532,9 +579,8 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
               <FileText className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="hidden sm:block">
-              <h3 className="font-bold text-white text-sm leading-tight">MPZIS Administrator</h3>
+              <h3 className="font-bold text-white text-sm leading-tight">MPZIS</h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-emerald-300/60 uppercase font-bold tracking-wider italic">Sistem Administrasi BAZNAS</span>
                 {saveStatus === 'saving' && <span className="text-white/40 animate-pulse text-[8px] uppercase tracking-tighter bg-white/5 px-1.5 py-0.5 rounded border border-white/5">● Menyimpan...</span>}
                 {saveStatus === 'saved' && <span className="text-emerald-400 text-[8px] uppercase tracking-tighter bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/10">● Tersimpan</span>}
                 {saveStatus === 'error' && <span className="text-red-400 text-[8px] uppercase tracking-tighter bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/10">● Gagal</span>}
@@ -588,25 +634,8 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </button>
           </div>
 
-          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2">
-            <button 
-              onClick={() => setPaperSize('A4')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                paperSize === 'A4' ? "bg-white/10 text-white" : "text-white/30 hover:text-white"
-              )}
-            >
-              A4
-            </button>
-            <button 
-              onClick={() => setPaperSize('F4')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                paperSize === 'F4' ? "bg-white/10 text-white" : "text-white/30 hover:text-white"
-              )}
-            >
-              F4
-            </button>
+          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2 items-center">
+            
           </div>
 
           <div className="w-px h-6 bg-white/10 shrink-0" />
@@ -623,7 +652,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 )}
               >
                 {isEditing ? <FileCheck className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-                {isEditing ? "Selesai Edit" : "Edit Konten"}
+                {isEditing ? "Selesai Edit" : "Edit"}
               </button>
 
               <button 
@@ -666,7 +695,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
           >
             {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
-            Simpan ke Server
+            Simpan
           </button>
         </div>
       </div>
@@ -735,16 +764,16 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             
             <div className="border border-black p-2 text-center flex flex-col justify-center text-black">
               <h1 className="text-xl font-bold mb-1 uppercase">MEMORANDUM</h1>
-              <h2 className="text-xs font-bold uppercase mb-1">PENYALURAN DANA ZAKAT INFAQ DAN SHADAQAH</h2>
-              <h2 className="text-xs font-bold uppercase mb-2">TAHUN {new Date().getFullYear()}</h2>
+              <h2 className="text-[14px] font-bold uppercase mb-1">PENYALURAN DANA ZAKAT INFAQ DAN SHADAQAH</h2>
+              <h2 className="text-[14px] font-bold uppercase mb-2">TAHUN {new Date().getFullYear()}</h2>
               {isEditing ? (
                 <input 
-                  className="text-center w-full bg-amber-50 border-b border-amber-200 outline-none p-1 text-sm text-black font-bold"
+                  className="text-center w-full bg-amber-50 border-b border-amber-200 outline-none p-1 text-[13px] text-black font-bold"
                   value={memoData.nomor}
                   onChange={e => setMemoData({...memoData, nomor: e.target.value})}
                 />
               ) : (
-                <p className="text-sm font-bold tracking-tight">NOMOR : {memoData.nomor}</p>
+                <p className="text-[13px] font-bold tracking-tight">No : {memoData.nomor}</p>
               )}
             </div>
 
@@ -752,13 +781,13 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
               <div className="border border-black p-1 text-center text-black font-bold text-sm bg-slate-50 uppercase">
                 {recipient.sector?.toLowerCase().startsWith('siak') ? recipient.sector : recipient.sector || 'SIAK SEHAT'}
               </div>
-              <div className="border border-black flex-1 p-2 text-[10px] leading-snug text-black flex flex-col justify-center gap-1">
+              <div className="border border-black flex-1 p-2 text-[11px] leading-snug text-black flex flex-col justify-center gap-1">
                 <div className="grid grid-cols-[45px_1fr]">
-                  <span className="opacity-70">Program</span>
+                  <span className="text-black">Program</span>
                   <div className="font-bold border-l border-black/10 pl-1 overflow-hidden">
                     {isEditing ? (
                       <input 
-                        className="w-full bg-amber-50 outline-none text-[10px]" 
+                        className="w-full bg-amber-50 outline-none text-[11px]" 
                         value={memoData.programValue || ''} 
                         placeholder={recipient.sector}
                         onChange={e => setMemoData({...memoData, programValue: e.target.value})} 
@@ -769,11 +798,11 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   </div>
                 </div>
                 <div className="grid grid-cols-[45px_1fr]">
-                  <span className="opacity-70">Tanggal</span>
+                  <span className="text-black">Tanggal</span>
                   <div className="font-bold border-l border-black/10 pl-1 overflow-hidden">
                     {isEditing ? (
                       <input 
-                        className="w-full bg-amber-50 outline-none text-[10px]" 
+                        className="w-full bg-amber-50 outline-none text-[11px]" 
                         value={memoData.headerDate || ''} 
                         placeholder={new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         onChange={e => setMemoData({...memoData, headerDate: e.target.value})} 
@@ -978,7 +1007,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           </p>
 
           {/* Approval Section */}
-          <div className="grid grid-cols-3 border border-black mb-10 text-[13px] font-sans text-black">
+          <div className="grid grid-cols-3 border border-black mb-10 text-[14px] font-sans text-black">
             {memoData.signersTop.map((signer, idx) => (
               <div key={idx} className={cn("p-4 flex flex-col items-center", idx < 2 && "border-r border-black")}>
                 {isEditing ? (
@@ -1008,7 +1037,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         }}
                       />
                       <input 
-                        className="text-[10px] w-full text-center bg-amber-50 outline-none text-black"
+                        className="text-[11px] w-full text-center bg-amber-50 outline-none text-black"
                         value={signer.role}
                         onChange={e => {
                           const newSigners = [...memoData.signersTop];
@@ -1020,7 +1049,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   ) : (
                     <>
                       <p className="font-bold underline leading-none mb-0 tracking-tight">{signer.name}</p>
-                      <p className="text-[11px] font-bold opacity-80 leading-none mt-0.5">{signer.role}</p>
+                      <p className="text-[12px] font-bold leading-none mt-0.5">{signer.role}</p>
                     </>
                   )}
                 </div>
@@ -1029,16 +1058,16 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           </div>
 
           {/* Footer Decision Section */}
-          <div className="border border-black text-xs font-sans text-black">
+          <div className="border border-black text-[13px] font-sans text-black">
             <div>
-              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[13px]">Diputuskan</p>
+              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[14px]">Diputuskan</p>
               <div className="grid grid-cols-[1fr_1fr_1fr_1.15fr_1fr] h-40">
                 {memoData.signersBottom.map((signer, idx) => (
                   <div key={idx} className="border-r last:border-r-0 border-black p-1 flex flex-col justify-end text-center overflow-hidden">
                     {isEditing ? (
                       <>
                         <input 
-                          className="font-bold text-[8px] underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black"
+                          className="font-bold text-[9px] underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black"
                           value={signer.name}
                           onChange={e => {
                             const newSigners = [...memoData.signersBottom];
@@ -1047,7 +1076,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                           }}
                         />
                         <input 
-                          className="text-[9px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
+                          className="text-[10px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
                           value={signer.role}
                           onChange={e => {
                             const newSigners = [...memoData.signersBottom];
@@ -1058,9 +1087,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                       </>
                     ) : (
                       <>
-                        <p className="font-bold text-[13px] underline mb-0 leading-tight tracking-tighter whitespace-nowrap">{signer.name}</p>
+                        <p className="font-bold text-[14px] underline mb-0 leading-tight tracking-tighter whitespace-nowrap">{signer.name}</p>
                         <div className="h-6 flex items-start justify-center">
-                          <p className="text-[10px] leading-tight font-bold opacity-80">{signer.role}</p>
+                          <p className="text-[11px] leading-tight font-bold">{signer.role}</p>
                         </div>
                       </>
                     )}
