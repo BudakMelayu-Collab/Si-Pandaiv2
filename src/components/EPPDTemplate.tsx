@@ -636,7 +636,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
   };
 
   return (
-    <div className="eppd-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className="eppd-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:relative print:overflow-visible print:h-auto print:p-0 print:bg-white print:block overflow-hidden">
       {/* Toolbar */}
       <div className="bg-[#1a1c2c] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -776,7 +776,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       </div>
 
       {/* Document View */}
-      <div className="flex-1 flex overflow-hidden bg-slate-900/50 print:bg-white print:block">
+      <div className="flex-1 flex overflow-hidden bg-slate-900/50 print:bg-white print:block print:overflow-visible">
         {/* Form Panel (Left Side) */}
         {isEditing && (
           <div className="w-[400px] bg-slate-800 border-r border-white/10 overflow-y-auto p-4 flex flex-col gap-6 print:hidden">
@@ -1085,7 +1085,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
         )}
 
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white pb-32">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible pb-32">
           <style dangerouslySetInnerHTML={{ __html: `
             .eppd-print-page, .lampiran-print-page {
               background-color: white;
