@@ -24,6 +24,17 @@ interface EPPDTemplateProps {
   onClose: () => void;
 }
 
+function chunkArray<T>(array: T[], size: number): T[][] {
+  if (!array || array.length === 0) return [[]];
+  const chunked: T[][] = [];
+  let index = 0;
+  while (index < array.length) {
+    chunked.push(array.slice(index, size + index));
+    index += size;
+  }
+  return chunked;
+}
+
 export default function EPPDTemplate({ recipient, lampiranItems, records, onSaveRecord, onDeleteRecord, onClose }: EPPDTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -1930,9 +1941,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         )}
 
         {/* Lampiran Section */}
-        {activeTab === 'lampiran' && (
-        <div className={cn(
+        {activeTab === 'lampiran' && chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
+        <div key={`lampiran-page-${pageIndex}`} className={cn(
           "bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container landscape-container",
+          pageIndex > 0 && "print:break-before-page",
           isEditing && "ring-4 ring-amber-500/30"
         )}
         style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
@@ -1946,10 +1958,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             {isEditing ? (
               <input className="text-center font-bold text-lg bg-amber-50 outline-none w-full" value={ppdData.labels?.lampiranTitle || 'Lampiran'} onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, lampiranTitle: e.target.value}})} />
             ) : (
-              <h2 className="text-center font-bold text-lg">{ppdData.labels?.lampiranTitle || 'Lampiran'}</h2>
+              <h2 className="text-center font-bold text-lg">{(ppdData.labels?.lampiranTitle || 'Lampiran')}{allPages.length > 1 ? ` (Hal. ${pageIndex + 1})` : ''}</h2>
             )}
             
-            <div className="overflow-x-auto relative">
+            <div className="overflow-x-auto relative min-h-[400px]">
               <table className="w-full border-collapse border border-black text-[11px] bg-transparent">
                 <thead>
                   <tr className="bg-slate-100/50 print:bg-white text-center">
@@ -1966,7 +1978,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   </tr>
                 </thead>
                 <tbody>
-                  {ppdData.lampiranRows?.map((row, idx) => (
+                  {pageRows.map((row, localIdx) => {
+                    const idx = pageIndex * 18 + localIdx;
+                    return (
                     <tr key={row.id}>
                       <td className="border border-black p-2 text-center">{idx + 1}</td>
                       <td className="border border-black p-1 text-center">
@@ -2037,9 +2051,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                         </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                   
-                  {isEditing && (
+                  {isEditing && pageIndex === allPages.length - 1 && (
                     <tr className="print:hidden">
                       <td colSpan={10} className="border border-black p-2 text-center bg-slate-50">
                         <button onClick={() => {
@@ -2057,16 +2072,18 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     </tr>
                   )}
                   
+                  {pageIndex === allPages.length - 1 && (
                   <tr>
                     <td colSpan={8} className="border border-black p-2 text-right font-bold tracking-widest px-4">TOTAL Rp</td>
                     <td className="border border-black p-2 text-right font-bold">{totalLampiran.toLocaleString('id-ID')}</td>
                     {isEditing && <td className="border border-black p-2 print:hidden"></td>}
                   </tr>
+                  )}
                 </tbody>
               </table>
             </div>
             
-            <div className="grid grid-cols-2 mt-8 text-center text-sm">
+            <div className="grid grid-cols-2 mt-auto text-center text-sm pt-4">
               <div className="flex flex-col items-center justify-start h-32">
                 <span className="mb-auto">Pemeriksa</span>
                 <span className="font-bold border-b border-black w-64 mb-1 leading-none">
@@ -2084,7 +2101,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             </div>
           </div>
         </div>
-        )}
+        ))}
 
         {/* PDF Upload Section */}
         <div className="w-full max-w-[950px] flex flex-col gap-8 mt-4 print:hidden">

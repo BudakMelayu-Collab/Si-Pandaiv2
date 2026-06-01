@@ -10,7 +10,7 @@ interface BNBARecapTableProps {
   data: Recipient[];
   onReceipt?: (recipient: Recipient) => void;
   onMPZIS?: (recipient: Recipient) => void;
-  onEPPD?: (recipient: Recipient) => void;
+  onEPPD?: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onSurvey?: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
 }
