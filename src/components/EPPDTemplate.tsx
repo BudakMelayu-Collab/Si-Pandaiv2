@@ -27,6 +27,7 @@ interface EPPDTemplateProps {
 export default function EPPDTemplate({ recipient, lampiranItems, records, onSaveRecord, onDeleteRecord, onClose }: EPPDTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'eppd' | 'lampiran'>('eppd');
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
   
@@ -1256,6 +1257,24 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             </div>
           ) : (
             <>
+            <div className="flex bg-slate-800 rounded-lg p-1.5 gap-1 mx-auto w-full max-w-[400px] mt-4 mb-6 print:hidden z-10 sticky top-4 shadow-xl border border-white/10 shrink-0">
+              <button
+                onClick={() => setActiveTab('eppd')}
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-bold rounded-md transition-all shadow-sm",
+                  activeTab === 'eppd' ? "bg-amber-500 text-white" : "text-slate-400 hover:text-white"
+                )}
+              >E-PPD</button>
+              <button
+                onClick={() => setActiveTab('lampiran')}
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-bold rounded-md transition-all shadow-sm",
+                  activeTab === 'lampiran' ? "bg-amber-500 text-white" : "text-slate-400 hover:text-white"
+                )}
+              >Lampiran</button>
+            </div>
+
+            {activeTab === 'eppd' && (
             <div className={cn(
               "bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container",
               isEditing && "ring-4 ring-amber-500/30"
@@ -1915,10 +1934,12 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
 
         </div>
+        )}
 
         {/* Lampiran Section */}
+        {activeTab === 'lampiran' && (
         <div className={cn(
-          "bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container print:break-before-page landscape-container",
+          "bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 print-container landscape-container",
           isEditing && "ring-4 ring-amber-500/30"
         )}
         style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
@@ -2070,6 +2091,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             </div>
           </div>
         </div>
+        )}
 
         {/* PDF Upload Section */}
         <div className="w-full max-w-[950px] flex flex-col gap-8 mt-4 print:hidden">
