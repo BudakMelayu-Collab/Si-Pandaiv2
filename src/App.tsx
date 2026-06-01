@@ -50,6 +50,7 @@ export default function App() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [ppdRecords, setPpdRecords] = useState<PPDRecord[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
+  const [selectedLampiran, setSelectedLampiran] = useState<Recipient[]>([]);
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
   const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(null);
   const [prefilledGroupData, setPrefilledGroupData] = useState<Recipient[] | null>(null);
@@ -540,8 +541,9 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setIsShowingMPZIS(true);
                   }}
-                  onEPPD={(rec) => {
+                  onEPPD={(rec, lampiran) => {
                     setSelectedRecipient(rec);
+                    setSelectedLampiran(lampiran || []);
                     setIsShowingEPPD(true);
                   }}
                   onSurvey={(rec) => {
@@ -561,8 +563,9 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setIsShowingMPZIS(true);
                   }}
-                  onEPPD={(rec) => {
+                  onEPPD={(rec, lampiran) => {
                     setSelectedRecipient(rec);
+                    setSelectedLampiran(lampiran || []);
                     setIsShowingEPPD(true);
                   }}
                   onSurvey={(rec) => {
@@ -594,8 +597,9 @@ export default function App() {
                       setSelectedRecipient(rec);
                       setIsShowingMPZIS(true);
                     }}
-                    onEPPD={(rec) => {
+                    onEPPD={(rec, lampiran) => {
                       setSelectedRecipient(rec);
+                      setSelectedLampiran(lampiran || []);
                       setIsShowingEPPD(true);
                     }}
                     onSurvey={(rec) => {
@@ -675,8 +679,9 @@ export default function App() {
                 setSelectedRecipient(rec);
                 setIsShowingMPZIS(true);
               }}
-              onEPPD={(rec) => {
+              onEPPD={(rec, lampiran) => {
                 setSelectedRecipient(rec);
+                setSelectedLampiran(lampiran || []);
                 setIsShowingEPPD(true);
               }}
               onSurvey={(rec) => {
@@ -851,6 +856,7 @@ export default function App() {
         {isShowingEPPD && selectedRecipient && (
           <EPPDTemplate
             recipient={selectedRecipient}
+            lampiranItems={selectedLampiran}
             records={ppdRecords}
             onSaveRecord={savePPDRecordLocal}
             onDeleteRecord={deletePPDRecordLocal}

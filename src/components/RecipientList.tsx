@@ -16,7 +16,7 @@ interface RecipientListProps {
   data: Recipient[];
   onReceipt: (recipient: Recipient) => void;
   onMPZIS: (recipient: Recipient) => void;
-  onEPPD: (recipient: Recipient) => void;
+  onEPPD: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
   onEditRecipient?: (recipient: Recipient) => void;
@@ -471,7 +471,10 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                         </button>
                                         
                                         <button 
-                                          onClick={() => onEPPD(item)}
+                                          onClick={() => {
+                                            const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]);
+                                            onEPPD(item, checked.length > 0 ? checked : [item]);
+                                          }}
                                           className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
                                           title="Buka E-PPD"
                                         >
