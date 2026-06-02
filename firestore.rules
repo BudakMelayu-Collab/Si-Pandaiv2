@@ -71,9 +71,10 @@ service cloud.firestore {
             'contact', 'companion', 'submissionDate', 'surveyDate', 'disbursementDate', 'amountDisbursed',
             'schoolName', 'schoolLevel', 'schoolClass', 'schoolAddress', 'schoolPhone', 
             'bankAccountNo', 'bankName', 'bankAccountHolder', 'status', 'notes', 'isTermsAccepted',
-            'skmp', 'documentStatus', 'documentStatusNotes',
+            'skmp', 'documentStatus', 'documentStatusNotes', 'documents',
             'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf',
             'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl',
+            'serviceType', 'monthlyPaymentStatus', 'monthlyPaymentNote',
             'rsBedId', 'rsCheckInDate', 'rsNoReg', 'rsEstimatedCheckOutDate', 'rsCheckOutDate', 'rsMedicalNotes', 'rsStatus', 'rsCompanionName', 'rsCompanionRelation', 'rsHospital', 'rsJenisRawatan',
             'updatedAt'
           ])
