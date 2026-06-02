@@ -345,7 +345,12 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
 
                             return (
                               <React.Fragment key={regId}>
-                                 <tr className="hover:bg-slate-50/80 transition-colors group">
+                                 <motion.tr 
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                                  className="hover:bg-slate-50/80 transition-colors group"
+                                 >
                                   {/* Nomor */}
                                   <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap text-center">
                                     <div className="flex items-center justify-center gap-2">
@@ -558,11 +563,15 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                       </div>
                                     </div>
                                   </td>
-                                </tr>
+                                </motion.tr>
 
                                 {/* Supporting sub-table row for Recipient Details */}
                                 {expandedRows[regId] && (
-                                <tr>
+                                <motion.tr
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ duration: 0.2 }}
+                                >
                                   <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
                                     <div className="overflow-x-auto border border-slate-200/80 rounded-2xl shadow-xs bg-white">
                                       <div className="px-4.5 py-3 bg-slate-50 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
@@ -780,7 +789,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                       </table>
                                     </div>
                                   </td>
-                                </tr>
+                                </motion.tr>
                                 )}
                               </React.Fragment>
                             );

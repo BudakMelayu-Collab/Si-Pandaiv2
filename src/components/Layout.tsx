@@ -50,7 +50,6 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
     { id: 'rumah-singgah', label: 'Rumah Singgah', icon: Home },
     { id: 'assessment', label: 'Asessment', icon: ClipboardCheck },
     { id: 'e-ppd', label: 'E-PPD', icon: FileText },
-    { id: 'payout-recap', label: 'Rekap Pencairan', icon: ClipboardList },
     { id: 'gemini-ai', label: 'Asisten AI Gemini', icon: BrainCircuit },
   ];
 

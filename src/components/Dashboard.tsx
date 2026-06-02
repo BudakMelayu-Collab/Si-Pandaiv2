@@ -1,30 +1,31 @@
 import React, { useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, Legend,
+  AreaChart, Area
 } from 'recharts';
-import { Users, FileCheck, Clock, AlertCircle, TrendingUp, Info } from 'lucide-react';
-import { AID_STATUSES, AID_TYPES, STATUS_COLORS } from '../constants';
+import { Users, FileCheck, Clock, AlertCircle, TrendingUp, Info, Wallet, Heart, GraduationCap, Building, Activity, Sprout } from 'lucide-react';
+import { AID_STATUSES, AID_TYPES, STATUS_COLORS, SIAK_SECTORS } from '../constants';
 import { Recipient } from '../types';
 
 interface DashboardProps {
   recipients: Recipient[];
 }
 
-const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
-  <div className="bg-white p-6 rounded-xl border border-slate-200 flex items-start justify-between shadow-sm">
+const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }: any) => (
+  <div className="bg-white p-6 rounded-2xl border border-slate-200 flex items-start justify-between shadow-sm hover:shadow-md transition-shadow">
     <div>
       <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{title}</p>
-      <h3 className="text-2xl font-black text-slate-800 mt-1">{value}</h3>
+      <h3 className="text-2xl font-black text-slate-800 mt-2">{value}</h3>
+      {subtitle && <p className="text-xs text-slate-400 font-medium mt-1">{subtitle}</p>}
       {trend && (
-        <div className="flex items-center gap-1 mt-2 text-green-600">
+        <div className="flex items-center gap-1 mt-2 text-green-600 bg-green-50 w-fit px-2 py-0.5 rounded-full">
           <TrendingUp className="w-3 h-3" />
-          <span className="text-xs font-bold">{trend}</span>
-          <span className="text-xs text-slate-400 font-normal ml-1">dari bulan lalu</span>
+          <span className="text-[10px] font-bold">{trend}</span>
         </div>
       )}
     </div>
-    <div className={`p-3 rounded-2xl ${color} shadow-inner`}>
+    <div className={`p-4 rounded-2xl ${color} shadow-inner`}>
       <Icon className="w-6 h-6" />
     </div>
   </div>
@@ -58,14 +59,93 @@ export default function Dashboard({ recipients }: DashboardProps) {
     })).filter(s => s.value > 0);
   }, [recipients]);
 
+  // Aggregate trend data per month and sector
+  const monthlyTrendData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    
+    // Initialize data array
+    const data = months.map(month => {
+      const entry: any = { name: month, total: 0 };
+      Object.keys(SIAK_SECTORS).forEach(sector => {
+        entry[sector] = 0;
+      });
+      return entry;
+    });
+
+    recipients.forEach(r => {
+      const dateStr = r.submissionDate || r.createdAt;
+      if (dateStr) {
+        let dateObj;
+        if (dateStr.includes('/')) {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+        } else {
+          dateObj = new Date(dateStr);
+        }
+
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const monthIndex = dateObj.getMonth();
+          if (r.sector && data[monthIndex][r.sector] !== undefined) {
+            data[monthIndex][r.sector] += 1;
+            data[monthIndex].total += 1;
+          }
+        }
+      }
+    });
+
+    // Optionally truncate to current month if we don't want trailing zeros
+    const currentMonth = new Date().getMonth();
+    return data.slice(0, currentMonth + 1);
+  }, [recipients]);
+
   // Calculated Stats
   const stats = useMemo(() => {
     const total = recipients.length;
     const completed = recipients.filter(r => r.status === 'Selesai').length;
     const processing = recipients.filter(r => r.status === 'Proses Berkas').length;
     const itemsWithIssues = recipients.filter(r => r.status === 'Ditolak').length;
+    
+    // New stats
+    const activeRecipients = recipients.filter(r => r.status !== 'Ditolak' && r.status !== 'Selesai').length;
+    
+    // Total dana disalurkan
+    const totalFunds = recipients.reduce((sum, r) => {
+      if (r.status === 'Disalurkan' || r.status === 'Selesai') {
+        return sum + (r.amountDisbursed || r.amountProposed || 0);
+      }
+      return sum;
+    }, 0);
 
-    return { total, completed, processing, itemsWithIssues };
+    const formatCurrency = (amount: number) => {
+      if (amount >= 1e12) {
+        return `Rp ${(amount / 1e12).toFixed(1)} Triliun`;
+      }
+      if (amount >= 1e9) {
+        return `Rp ${(amount / 1e9).toFixed(1)} Miliar`;
+      }
+      if (amount >= 1e6) {
+        return `Rp ${(amount / 1e6).toFixed(1)} Juta`;
+      }
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+    };
+
+    // Calculate per sector (Siak Cerdas, etc)
+    const sectors = Object.keys(SIAK_SECTORS).map(sector => ({
+      name: sector,
+      count: recipients.filter(r => r.sector === sector).length
+    }));
+
+    return { 
+      total, 
+      completed, 
+      processing, 
+      itemsWithIssues, 
+      activeRecipients, 
+      totalFundsFormatted: formatCurrency(totalFunds),
+      sectors
+    };
   }, [recipients]);
 
   // Recent activity (last 5)
@@ -73,33 +153,78 @@ export default function Dashboard({ recipients }: DashboardProps) {
     return recipients.slice(0, 5);
   }, [recipients]);
 
+  const getSectorIcon = (sectorName: string) => {
+    switch (sectorName) {
+      case 'Siak Cerdas': return GraduationCap;
+      case 'Siak Dakwah': return Building;
+      case 'Siak Peduli': return Heart;
+      case 'Siak Sejahtera': return Sprout;
+      case 'Siak Sehat': return Activity;
+      default: return Users;
+    }
+  };
+
+  const getSectorColor = (sectorName: string) => {
+    switch (sectorName) {
+      case 'Siak Cerdas': return 'bg-blue-50 text-blue-600';
+      case 'Siak Dakwah': return 'bg-emerald-50 text-emerald-600';
+      case 'Siak Peduli': return 'bg-rose-50 text-rose-600';
+      case 'Siak Sejahtera': return 'bg-amber-50 text-amber-600';
+      case 'Siak Sehat': return 'bg-cyan-50 text-cyan-600';
+      default: return 'bg-slate-50 text-slate-600';
+    }
+  };
+
+  const SECTOR_CHART_COLORS: Record<string, string> = {
+    'Siak Cerdas': '#3b82f6', 
+    'Siak Dakwah': '#10b981', 
+    'Siak Peduli': '#f43f5e', 
+    'Siak Sejahtera': '#f59e0b', 
+    'Siak Sehat': '#06b6d4'
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Pendaftar" 
-          value={stats.total}
-          icon={Users} 
-          color="bg-indigo-50 text-indigo-600"
-        />
-        <StatCard 
-          title="Berkas Selesai" 
-          value={stats.completed}
-          icon={FileCheck} 
-          color="bg-emerald-50 text-emerald-600"
-        />
-        <StatCard 
-          title="Proses Berkas" 
-          value={stats.processing}
-          icon={Clock} 
-          color="bg-amber-50 text-amber-600"
-        />
-        <StatCard 
-          title="Ditolak" 
-          value={stats.itemsWithIssues}
-          icon={AlertCircle} 
-          color="bg-rose-50 text-rose-600"
-        />
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Top Summary Ringkasan Statistik */}
+      <div>
+        <h2 className="text-lg font-black text-slate-800 mb-4 px-1">Ringkasan Eksekutif</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <StatCard 
+            title="Penerima Bantuan Aktif" 
+            value={stats.activeRecipients}
+            subtitle="Sedang dalam proses / aktif"
+            icon={Users} 
+            color="bg-indigo-500 text-white"
+          />
+          <StatCard 
+            title="Dana Disalurkan" 
+            value={stats.totalFundsFormatted}
+            subtitle="Total pencairan berhasil"
+            icon={Wallet} 
+            color="bg-emerald-500 text-white"
+          />
+          <StatCard 
+            title="Total Pendaftar" 
+            value={stats.total}
+            subtitle="Keseluruhan pendaftar sistem"
+            icon={FileCheck} 
+            color="bg-slate-800 text-white"
+          />
+        </div>
+
+        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-1">Muzaki / Penerima per Bidang</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {stats.sectors.map(sector => (
+            <StatCard 
+              key={sector.name}
+              title={sector.name} 
+              value={sector.count}
+              icon={getSectorIcon(sector.name)} 
+              color={getSectorColor(sector.name)}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -170,6 +295,61 @@ export default function Dashboard({ recipients }: DashboardProps) {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative z-0">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs">Tren Bantuan Perbulan (Sektor) {new Date().getFullYear()} </h3>
+            <p className="text-xs text-slate-500 mt-1">Akumulasi penerimaan pengajuan bantuan berdasarkan sektor</p>
+          </div>
+          <div className="p-2 bg-slate-50 rounded-lg">
+            <Activity className="w-4 h-4 text-indigo-500" />
+          </div>
+        </div>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <defs>
+                {Object.entries(SECTOR_CHART_COLORS).map(([sector, color]) => (
+                  <linearGradient key={`color${sector}`} id={`color${sector.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }} 
+                dy={10}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
+                dx={-10}
+              />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+              />
+              {Object.entries(SECTOR_CHART_COLORS).map(([sector, color]) => (
+                <Area 
+                  key={sector}
+                  type="monotone" 
+                  dataKey={sector} 
+                  stroke={color} 
+                  fillOpacity={1} 
+                  fill={`url(#color${sector.replace(/\s+/g, '')})`} 
+                  strokeWidth={2}
+                  activeDot={{ r: 4, strokeWidth: 0 }}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

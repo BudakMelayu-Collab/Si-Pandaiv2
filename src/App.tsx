@@ -16,6 +16,7 @@ import PrintTemplate from './components/PrintTemplate';
 import ReceiptTemplate from './components/ReceiptTemplate';
 import MPZISTemplate from './components/MPZISTemplate';
 import EPPDTemplate from './components/EPPDTemplate';
+import EPPDModule from './components/EPPDModule';
 import PPDRecap from './components/PPDRecap';
 import SurveyTemplate from './components/SurveyTemplate';
 import CompanionCatalog from './components/CompanionCatalog';
@@ -664,48 +665,38 @@ export default function App() {
         return <AssessmentComponent recipients={recipients} />;
       case 'e-ppd':
         return (
-          <div className="space-y-4">
-            <div className="bg-indigo-600 p-6 rounded-3xl text-white shadow-xl mb-8">
-              <h2 className="text-xl font-bold mb-2">E-PPD: Elektronik Permohonan Pengeluaran Dana</h2>
-              <p className="text-indigo-100 text-sm">Pilih penerima bantuan di bawah ini untuk mencetak atau mengelola dokumen EPPD (Normal/Transfer).</p>
-            </div>
-            <RecipientList 
-              data={recipients} 
-              onReceipt={(rec) => {
-                setSelectedRecipient(rec);
-                setIsShowingReceipt(true);
-              }}
-              onMPZIS={(rec) => {
-                setSelectedRecipient(rec);
-                setIsShowingMPZIS(true);
-              }}
-              onEPPD={(rec, lampiran) => {
-                setSelectedRecipient(rec);
-                setSelectedLampiran(lampiran || []);
-                setIsShowingEPPD(true);
-              }}
-              onSurvey={(rec) => {
-                setSelectedRecipient(rec);
-                setIsShowingSurvey(true);
-              }}
-              onDeleteRecipient={handleDeleteRecipient}
-              onEditRecipient={(rec) => setEditingRecipient(rec)}
-              onEditGroup={(group) => {
-                setEditingGroupData(group);
-                setActiveTab('input');
-              }}
-              onDuplicateGroup={handleDuplicateGroup}
-            />
-          </div>
-        );
-      case 'payout-recap':
-        return (
-          <PPDRecap 
-            records={ppdRecords}
-            onDelete={deletePPDRecordLocal}
-            onClose={() => setActiveTab('dashboard')}
+          <EPPDModule 
+            recipients={recipients}
+            ppdRecords={ppdRecords}
+            onSelectEPPD={(rec, lampiran) => {
+              setSelectedRecipient(rec);
+              setSelectedLampiran(lampiran || []);
+              setIsShowingEPPD(true);
+            }}
+            onReceipt={(rec) => {
+              setSelectedRecipient(rec);
+              setIsShowingReceipt(true);
+            }}
+            onMPZIS={(rec) => {
+              setSelectedRecipient(rec);
+              setIsShowingMPZIS(true);
+            }}
+            onSurvey={(rec) => {
+              setSelectedRecipient(rec);
+              setIsShowingSurvey(true);
+            }}
+            onDeleteRecord={deletePPDRecordLocal}
+            onDeleteRecipient={handleDeleteRecipient}
+            onEditRecipient={(rec) => setEditingRecipient(rec)}
+            onEditGroup={(group) => {
+              setEditingGroupData(group);
+              setActiveTab('input');
+            }}
+            onDuplicateGroup={handleDuplicateGroup}
+            onCloseRecap={() => setActiveTab('dashboard')}
           />
         );
+
       case 'rumah-singgah':
         return (
           <RumahSinggahModule 
@@ -751,7 +742,6 @@ export default function App() {
       case 'rumah-singgah': return 'Program Khusus: Rumah Singgah';
       case 'bnba-recap': return 'Rekap BNBA (By Name By Address)';
       case 'e-ppd': return 'Elektronik Permohonan Pengeluaran Dana (E-PPD)';
-      case 'payout-recap': return 'Rekapitulasi Pencairan Dana (PPD)';
       case 'profile': return 'Profil Pengguna';
       case 'settings': return 'Pengaturan Aplikasi';
       case 'assessment': return 'Asessment dan Prensentasi';
