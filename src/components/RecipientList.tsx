@@ -712,6 +712,19 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                     >
                                                       <Edit3 className="w-3.5 h-3.5" />
                                                     </button>
+                                                    {onDeleteRecipient && (
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setRecipientToDelete(subItem);
+                                                        }}
+                                                        className="inline-flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
+                                                        title="Hapus data penerima"
+                                                      >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    )}
                                                     <button
                                                       type="button"
                                                       onClick={(e) => {
