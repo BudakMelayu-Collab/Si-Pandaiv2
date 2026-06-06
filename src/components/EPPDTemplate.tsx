@@ -232,7 +232,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     noPpd: `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.001`,
     requestedBy: '',
     division: '',
-    function: 'Staf/Penanggung Jawab (PIC)',
+    function: 'Staf',
     date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     amount: 0,
     proposeFor: '',
@@ -245,7 +245,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       { id: Date.now(), budgetCode: '', classification: '', total: 0 }
     ],
     signers: {
-      staff: { name: '', role: 'Staf/Penanggung Jawab (PIC)' },
+      staff: { name: '', role: 'Staf' },
       kabid: { name: 'Andreas Supriadi, S.I.Kom', role: 'Kabid. PDP' },
       waka: { name: 'H. Sukijo', role: 'Waka II. PDP' },
       ketua: { name: 'H. Samparis Bin Tatan, S.Pd.I', role: 'Ketua' },
@@ -391,6 +391,24 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           if (parsed.labels.function === 'Jabatan :') parsed.labels.function = 'Jabatan';
         }
         
+        if (parsed.function && parsed.function.includes('Penanggung Jawab')) {
+          parsed.function = 'Staf';
+        }
+        if (parsed.signers) {
+          if (parsed.signers.staff && parsed.signers.staff.role && parsed.signers.staff.role.includes('Penanggung Jawab')) {
+            parsed.signers.staff.role = 'Staf';
+          }
+          if (parsed.signers.kabid && parsed.signers.kabid.role && parsed.signers.kabid.role.includes('Pendistribusian')) {
+            parsed.signers.kabid.role = 'Kabid. PDP';
+          }
+          if (parsed.signers.lampiranPembuatRole && parsed.signers.lampiranPembuatRole.includes('Penanggung Jawab')) {
+            parsed.signers.lampiranPembuatRole = 'Staf';
+          }
+          if (parsed.signers.lampiranPemeriksaRole && parsed.signers.lampiranPemeriksaRole.includes('Pendistribusian')) {
+            parsed.signers.lampiranPemeriksaRole = 'Kabid. PDP';
+          }
+        }
+
         // Always update lampiran from selection if it was provided, or if none exists
         if (lampiranItems && lampiranItems.length > 0) {
           parsed.lampiranRows = initialLampiranRows;
@@ -404,7 +422,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           noPpd: `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.001`,
           requestedBy: '',
           division: '',
-          function: 'Staf/Penanggung Jawab (PIC)',
+          function: 'Staf',
           date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           amount: 0,
           proposeFor: '',
@@ -417,8 +435,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             { id: Date.now(), budgetCode: '', classification: '', total: 0 }
           ],
           signers: {
-            staff: { name: '', role: 'Staf/Penanggung Jawab (PIC)' },
-            kabid: { name: 'Andreas Supriadi, S.IKom', role: 'Kepala Bidang Pendistribusian dan Pendayagunaan' },
+            staff: { name: '', role: 'Staf' },
+            kabid: { name: 'Andreas Supriadi, S.IKom', role: 'Kabid. PDP' },
             waka: { name: 'H. Sukijo', role: 'Waka II. PDP' },
             ketua: { name: 'H. Samparis Bin Tatan, S.Pd.I', role: 'Ketua' },
             finance1: { name: '', role: 'Pemeriksa' },
@@ -692,19 +710,6 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
 
           <button 
-            onClick={() => setIsEditing(!isEditing)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0",
-              isEditing 
-                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
-            )}
-          >
-            {isEditing ? <FileCheck className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-            {isEditing ? "Selesai Edit" : "Edit"}
-          </button>
-
-          <button 
             onClick={() => {
               setIsDesignMode(!isDesignMode);
               if (isEditing) setIsEditing(false);
@@ -737,13 +742,6 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             <Settings className="w-4 h-4" />
             Config
           </button>
-
-          <button 
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl text-xs font-bold transition-all shrink-0 border border-white/10"
-          >
-            <Printer className="w-4 h-4" /> Cetak
-          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -758,6 +756,26 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               </button>
             ))}
           </div>
+
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl text-xs font-bold transition-all shrink-0 border border-white/10"
+          >
+            <Printer className="w-4 h-4" /> Cetak
+          </button>
+
+          <button 
+            onClick={() => setIsEditing(!isEditing)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0",
+              isEditing 
+                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
+                : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
+            )}
+          >
+            {isEditing ? <FileCheck className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+            {isEditing ? "Selesai Edit" : "Edit"}
+          </button>
 
           <button 
             onClick={async () => {
@@ -882,7 +900,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     }}
                   >
                     <option value="">-- Pilih Jabatan --</option>
-                    <option value="Staff">Staff</option>
+                    <option value="Staf">Staf</option>
                     <option value="Kesubid">Kesubid</option>
                     <option value="Kabid">Kabid</option>
                   </select>
@@ -1395,19 +1413,19 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               <div className="border border-black p-1 text-[13px] text-center text-black font-bold">Normal</div>
               <div className="flex-1 flex flex-col gap-1">
                 <div className="border border-black flex-1 p-1 text-xs flex items-center gap-1">
-                  <span className="text-[11px] font-bold whitespace-nowrap">No</span>
+                  <span className="text-[10px] font-bold whitespace-nowrap">No</span>
                   {isEditing ? (
-                    <input className="flex-1 bg-amber-50 border-none outline-none text-[11px] font-bold whitespace-nowrap" value={ppdData.no} onChange={e => setPpdData({...ppdData, no: e.target.value})} />
+                    <input className="flex-1 bg-amber-50 border-none outline-none text-[10px] font-bold whitespace-nowrap" value={ppdData.no} onChange={e => setPpdData({...ppdData, no: e.target.value})} />
                   ) : (
-                    <span className="text-[11px] font-bold whitespace-nowrap">{ppdData.no}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">{ppdData.no}</span>
                   )}
                 </div>
                 <div className="border border-black flex-1 p-1 text-xs flex items-center gap-1">
-                  <span className="text-[11px] font-bold whitespace-nowrap">No PPD :</span>
+                  <span className="text-[10px] font-bold whitespace-nowrap">No PPD :</span>
                   {isEditing ? (
-                    <input className="flex-1 bg-amber-50 border-none outline-none text-[11px] font-bold whitespace-nowrap" value={ppdData.noPpd} onChange={e => setPpdData({...ppdData, noPpd: e.target.value})} />
+                    <input className="flex-1 bg-amber-50 border-none outline-none text-[10px] font-bold whitespace-nowrap" value={ppdData.noPpd} onChange={e => setPpdData({...ppdData, noPpd: e.target.value})} />
                   ) : (
-                    <span className="text-[11px] font-bold whitespace-nowrap">{ppdData.noPpd}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">{ppdData.noPpd}</span>
                   )}
                 </div>
               </div>
@@ -1418,7 +1436,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           <div className="border border-black text-base divide-y divide-black">
             {/* Baris 1: Pemohon - Nama - Divisi */}
             <div className="grid grid-cols-[180px_1fr_210px] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[13px] leading-tight group relative text-black">
+              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[12px] leading-tight group relative text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1432,7 +1450,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               <div className="border-r border-black px-3 py-2 flex items-center text-black">
                 {isEditing ? (
                   <select 
-                    className="bg-amber-50 outline-none w-full px-1 text-[13px] font-bold" 
+                    className="bg-amber-50 outline-none w-full px-1 text-[12px] font-bold" 
                     value={ppdData.requestedBy} 
                     onChange={e => {
                       setPpdData({...ppdData, requestedBy: e.target.value});
@@ -1446,14 +1464,14 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     <option value="Nanag Sujana, S.Hut">Nanag Sujana, S.Hut</option>
                   </select>
                 ) : (
-                  <span className="text-[13px] font-bold">{ppdData.requestedBy || '(Nama Pemohon)'}</span>
+                  <span className="text-[12px] font-bold">{ppdData.requestedBy || '(Nama Pemohon)'}</span>
                 )}
               </div>
-              <div className="grid grid-cols-[80px_1fr] h-full text-[13px] text-black">
+              <div className="grid grid-cols-[80px_1fr] h-full text-[12px] text-black">
                 <div className="border-r border-black px-2 py-2 flex items-center bg-white">
                   {isDesignMode ? (
                      <input 
-                      className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-left text-[11px]"
+                      className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-left text-[10px]"
                       value={ppdData.labels?.division || 'Divisi'}
                       onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, division: e.target.value}})}
                     />
@@ -1464,12 +1482,12 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 <div className="px-3 py-2 flex items-center justify-start text-left">
                   {isEditing ? (
                     <input 
-                      className="bg-amber-50 outline-none w-full text-left px-1 text-[13px] font-bold" 
+                      className="bg-amber-50 outline-none w-full text-left px-1 text-[12px] font-bold" 
                       value={ppdData.division} 
                       onChange={e => setPpdData({...ppdData, division: e.target.value})} 
                     />
                   ) : (
-                    <span className="text-[13px] font-bold">{ppdData.division}</span>
+                    <span className="text-[12px] font-bold">{ppdData.division}</span>
                   )}
                 </div>
               </div>
@@ -1477,7 +1495,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {/* Baris 2: Jabatan - Staff - Tanggal */}
             <div className="grid grid-cols-[180px_1fr_210px] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1491,7 +1509,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               <div className="border-r border-black px-3 py-2 flex items-center text-black">
                 {isEditing ? (
                   <select 
-                    className="bg-amber-50 outline-none w-full px-1 text-[13px] font-bold" 
+                    className="bg-amber-50 outline-none w-full px-1 text-[12px] font-bold" 
                     value={ppdData.function} 
                     onChange={e => {
                       setPpdData({...ppdData, function: e.target.value});
@@ -1499,19 +1517,19 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     }} 
                   >
                     <option value="">-- Pilih Jabatan --</option>
-                    <option value="Staff">Staff</option>
+                    <option value="Staf">Staf</option>
                     <option value="Kesubid">Kesubid</option>
                     <option value="Kabid">Kabid</option>
                   </select>
                 ) : (
-                  <span className="text-[13px] font-bold">{ppdData.function}</span>
+                  <span className="text-[12px] font-bold">{ppdData.function}</span>
                 )}
               </div>
-              <div className="grid grid-cols-[80px_1fr] h-full text-[13px] text-black">
+              <div className="grid grid-cols-[80px_1fr] h-full text-[12px] text-black">
                 <div className="border-r border-black px-2 py-2 flex items-center bg-white">
                   {isDesignMode ? (
                     <input 
-                      className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-left text-[11px]"
+                      className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-left text-[10px]"
                       value={ppdData.labels?.date || 'Tanggal'}
                       onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, date: e.target.value}})}
                     />
@@ -1522,12 +1540,12 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 <div className="px-3 py-2 flex items-center justify-start text-left">
                   {isEditing ? (
                     <input 
-                      className="bg-amber-50 outline-none w-full text-left px-1 text-[13px] font-bold" 
+                      className="bg-amber-50 outline-none w-full text-left px-1 text-[12px] font-bold" 
                       value={ppdData.date} 
                       onChange={e => setPpdData({...ppdData, date: e.target.value})} 
                     />
                   ) : (
-                     <span className="tracking-tighter text-[13px] font-bold">{ppdData.date}</span>
+                     <span className="tracking-tighter text-[12px] font-bold">{ppdData.date}</span>
                   )}
                 </div>
               </div>
@@ -1535,7 +1553,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {/* Baris 3: Jumlah Dana */}
             <div className="grid grid-cols-[180px_1fr] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1547,7 +1565,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 )}
               </div>
               <div className="px-4 py-2 flex items-center">
-                <span className="text-[13px] truncate text-black px-1 font-bold">
+                <span className="text-[12px] truncate text-black px-1 font-bold">
                   {terbilang(totalAmount)}
                 </span>
               </div>
@@ -1555,7 +1573,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {/* Baris 4: Tujuan Pengajuan */}
             <div className="grid grid-cols-[180px_1fr] min-h-[64px]">
-              <div className="border-r border-black px-2 py-2 flex items-start pt-3 bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 flex items-start pt-3 bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1577,7 +1595,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     }} 
                   />
                 ) : (
-                  <div className="leading-tight text-[13px] font-bold text-black whitespace-pre-wrap">
+                  <div className="leading-tight text-[12px] font-bold text-black whitespace-pre-wrap">
                     {ppdData.proposeFor}
                   </div>
                 )}
@@ -1587,7 +1605,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
           <div className="border-x border-b border-black text-base divide-y divide-black">
             <div className="grid grid-cols-[180px_1fr] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1598,7 +1616,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.paidFor || 'Dibayarkan kepada :'}</span>
                 )}
               </div>
-              <div className="px-3 py-2 flex items-center text-black text-[13px] font-bold">
+              <div className="px-3 py-2 flex items-center text-black text-[12px] font-bold">
                 {isEditing ? (
                   <input className="bg-amber-50 outline-none w-full px-1 font-bold" value={ppdData.paidFor} onChange={e => setPpdData({...ppdData, paidFor: e.target.value})} />
                 ) : (
@@ -1607,7 +1625,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               </div>
             </div>
             <div className="grid grid-cols-[180px_1fr] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1618,7 +1636,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.refNo || 'Mengacu pada NO. PPD :'}</span>
                 )}
               </div>
-              <div className="px-3 py-2 flex items-center font-bold text-[13px]">
+              <div className="px-3 py-2 flex items-center font-bold text-[12px]">
                 {isEditing ? (
                   <input className="bg-amber-50 outline-none w-full px-1 font-bold" value={ppdData.refNo} onChange={e => setPpdData({...ppdData, refNo: e.target.value})} />
                 ) : (
@@ -1627,7 +1645,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               </div>
             </div>
             <div className="grid grid-cols-[180px_1fr] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 italic"
@@ -1641,17 +1659,17 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               <div className="px-3 py-2 flex items-center text-black">
                 {isEditing ? (
                   <input 
-                    className="bg-amber-50 outline-none w-full px-1 text-[13px] text-black" 
+                    className="bg-amber-50 outline-none w-full px-1 text-[12px] text-black" 
                     value={ppdData.requestDisbursement} 
                     onChange={e => setPpdData({...ppdData, requestDisbursement: e.target.value})} 
                   />
                 ) : (
-                  <span className="text-[13px] underline text-black font-bold">{ppdData.requestDisbursement}</span>
+                  <span className="text-[12px] underline text-black font-bold">{ppdData.requestDisbursement}</span>
                 )}
               </div>
             </div>
             <div className="grid grid-cols-[180px_1fr] min-h-[44px]">
-              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[13px] leading-tight text-black">
+              <div className="border-r border-black px-2 py-2 h-full flex items-center bg-white text-[12px] leading-tight text-black">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1662,9 +1680,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.transfer || 'Transfer : No. Rek / Bank / Atas nama :'}</span>
                 )}
               </div>
-              <div className="px-3 py-2 flex items-center text-[13px] text-black font-bold">
+              <div className="px-3 py-2 flex items-center text-[12px] text-black font-bold">
                 {isEditing ? (
-                  <input className="bg-amber-50 outline-none w-full px-1 font-bold text-[13px]" value={ppdData.transferDetails} onChange={e => setPpdData({...ppdData, transferDetails: e.target.value})} />
+                  <input className="bg-amber-50 outline-none w-full px-1 font-bold text-[12px]" value={ppdData.transferDetails} onChange={e => setPpdData({...ppdData, transferDetails: e.target.value})} />
                 ) : (
                   <span className="font-bold">{ppdData.transferDetails}</span>
                 )}
@@ -1673,7 +1691,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
 
           {/* Checkboxes Area */}
-          <div className="border-x border-b border-black p-3 flex flex-wrap gap-6 text-[13px]">
+          <div className="border-x border-b border-black p-3 flex flex-wrap gap-6 text-[12px]">
             {transactionTypes.map(type => (
               <div 
                 key={type} 
@@ -1687,16 +1705,16 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
 
           {/* Table */}
-          <table className="w-full border-collapse border-l border-r border-b border-black text-[12px]">
+          <table className="w-full border-collapse border border-black text-[12px] mt-4">
             <thead>
               <tr className="bg-white">
-                <th rowSpan={2} className="border border-black p-2 w-12 text-center text-sm text-black font-normal">No</th>
-                <th colSpan={2} className="border border-black p-2 text-sm text-center text-black font-normal">Uraian/ Description</th>
-                <th rowSpan={2} className="border border-black p-2 w-40 text-center text-sm text-black font-normal">Total (Rp.)</th>
+                <th rowSpan={2} className="border border-black p-2 w-12 text-center text-[13px] text-black font-normal">No</th>
+                <th colSpan={2} className="border border-black p-2 text-[13px] text-center text-black font-normal">Uraian/ Description</th>
+                <th rowSpan={2} className="border border-black p-2 w-40 text-center text-[13px] text-black font-normal">Total (Rp.)</th>
               </tr>
               <tr className="bg-white">
-                <th className="border border-black p-2 text-[11px] text-center text-black font-normal">Kode Anggaran/ Budget Code</th>
-                <th className="border border-black p-2 text-[11px] text-center text-black font-normal">Nama Anggaran/ Budget Classification</th>
+                <th className="border border-black p-2 text-[10px] text-center text-black font-normal">Kode Anggaran/ Budget Code</th>
+                <th className="border border-black p-2 text-[10px] text-center text-black font-normal">Nama Anggaran/ Budget Classification</th>
               </tr>
             </thead>
             <tbody>
@@ -1756,13 +1774,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   </td>
                 </tr>
               ))}
-              {/* Padding rows */}
-              <tr>
-                <td className="border border-black p-2 h-20"></td>
-                <td className="border border-black p-2"></td>
-                <td className="border border-black p-2"></td>
-                <td className="border border-black p-2"></td>
-              </tr>
+              {/* Padding rows removed */}
               <tr className="bg-white">
                 <td colSpan={3} className="border border-black text-right pr-4 py-3 text-[11px] tracking-wider text-black">Total Rp</td>
                 <td className="border border-black p-3 text-right text-[11px] text-black font-bold">{totalAmount.toLocaleString('id-ID')}</td>
@@ -1771,9 +1783,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </table>
 
           {/* Footer Grid */}
-          <div className="grid grid-cols-[max-content_2fr_max-content_110px] border-x border-b border-black text-[12px]">
-            <div className="border-r border-black divide-y divide-black min-w-[90px]">
-              <div className="min-h-[44px] p-2 flex items-end text-black text-[11px] tracking-tight whitespace-nowrap">
+          <div className="grid grid-cols-[max-content_2fr_max-content_110px] border border-black text-[12px] mt-4">
+            <div className="border-r border-black divide-y divide-black w-[75px] shrink-0">
+              <div className="min-h-[44px] p-2 flex items-end justify-start text-black text-[11px] tracking-tight whitespace-nowrap">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1784,18 +1796,18 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.footerDate || 'Tanggal'}</span>
                 )}
               </div>
-              <div className="min-h-[100px] p-2 items-center flex text-black/40 text-[11px] whitespace-nowrap">
+              <div className="min-h-[100px] p-2 flex items-center justify-start text-black/40 text-[11px] leading-tight text-left">
                 {isDesignMode ? (
-                  <input 
-                    className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
-                    value={ppdData.labels?.footerSign || 'Tanda Tangan'}
+                  <textarea 
+                    className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-left resize-none h-10 overflow-hidden"
+                    value={ppdData.labels?.footerSign || 'Tanda\nTangan'}
                     onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, footerSign: e.target.value}})}
                   />
                 ) : (
-                  <span>{ppdData.labels?.footerSign || 'Tanda Tangan'}</span>
+                  <span className="text-left whitespace-pre-wrap break-words inline-block leading-[1.1]">{ppdData.labels?.footerSign || 'Tanda\nTangan'}</span>
                 )}
               </div>
-              <div className="min-h-[32px] p-2 items-center flex tracking-tight text-[11px] whitespace-nowrap">
+              <div className="min-h-[32px] p-2 items-center flex justify-start tracking-tight text-[10px] whitespace-nowrap">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1806,7 +1818,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.footerName || 'Nama'}</span>
                 )}
               </div>
-              <div className="min-h-[32px] p-2 items-center flex tracking-tight text-[11px] whitespace-nowrap">
+              <div className="min-h-[32px] p-2 items-center flex justify-start tracking-tight text-[11px] whitespace-nowrap">
                 {isDesignMode ? (
                   <input 
                     className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1"
@@ -1830,7 +1842,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     </div>
                   </div>
                   <div className="min-h-[100px] border-b border-black"></div>
-                  <div className="min-h-[32px] border-b border-black p-1.5 text-center flex items-center justify-center text-[11px] text-black whitespace-nowrap">
+                  <div className="min-h-[32px] border-b border-black p-1.5 text-center flex items-center justify-center text-[10px] text-black whitespace-nowrap">
                     {isEditing ? (
                       <input 
                         className="w-full bg-amber-50 text-center outline-none font-bold" 
@@ -1842,10 +1854,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                         }} 
                       />
                     ) : (
-                      <span className="font-bold">{ppdData.requestedBy}</span>
+                      <span className="font-bold text-[10px]">{ppdData.requestedBy}</span>
                     )}
                   </div>
-                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[12px] text-black whitespace-nowrap">
+                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[11px] text-black whitespace-nowrap">
                     {isEditing ? (
                       <input 
                         className="w-full bg-amber-50 text-center outline-none" 
@@ -1871,36 +1883,36 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <div className="grid grid-cols-[1fr_1.1fr_1.2fr] divide-x divide-black flex-1">
                     <div className="flex flex-col divide-y divide-black">
                       <div className="min-h-[100px] flex flex-col justify-end p-2 text-center"></div>
-                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[11px] whitespace-nowrap">
+                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[10px] whitespace-nowrap">
                         {isEditing ? (
                           <input className="w-full bg-amber-50 text-center outline-none font-bold" value={ppdData.signers.kabid.name} onChange={e => setPpdData({...ppdData, signers: {...ppdData.signers, kabid: {...ppdData.signers.kabid, name: e.target.value}}})} />
                         ) : (
-                          <span className="text-[11px] leading-tight text-black font-bold">{ppdData.signers.kabid.name}</span>
+                          <span className="text-[10px] leading-tight text-black font-bold">{ppdData.signers.kabid.name}</span>
                         )}
                       </div>
-                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[13px] text-black whitespace-nowrap">{ppdData.signers.kabid.role}</div>
+                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[12px] text-black whitespace-nowrap">{ppdData.signers.kabid.role}</div>
                     </div>
                     <div className="flex flex-col divide-y divide-black">
                       <div className="min-h-[100px] flex flex-col justify-end p-2 text-center"></div>
-                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[11px] whitespace-nowrap">
+                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[10px] whitespace-nowrap">
                          {isEditing ? (
                           <input className="w-full bg-amber-50 text-center outline-none font-bold" value={ppdData.signers.waka.name} onChange={e => setPpdData({...ppdData, signers: {...ppdData.signers, waka: {...ppdData.signers.waka, name: e.target.value}}})} />
                         ) : (
-                          <span className="text-[11px] leading-tight text-black font-bold">{ppdData.signers.waka.name}</span>
+                          <span className="text-[10px] leading-tight text-black font-bold">{ppdData.signers.waka.name}</span>
                         )}
                       </div>
-                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[13px] text-black whitespace-nowrap">{ppdData.signers.waka.role}</div>
+                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[12px] text-black whitespace-nowrap">{ppdData.signers.waka.role}</div>
                     </div>
                     <div className="flex flex-col divide-y divide-black">
                       <div className="min-h-[100px] flex flex-col justify-end p-2 text-center"></div>
-                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[11px] whitespace-nowrap">
+                      <div className="min-h-[32px] p-1.5 font-bold text-center flex items-center justify-center text-[10px] whitespace-nowrap">
                          {isEditing ? (
                           <input className="w-full bg-amber-50 text-center outline-none font-bold" value={ppdData.signers.ketua.name} onChange={e => setPpdData({...ppdData, signers: {...ppdData.signers, ketua: {...ppdData.signers.ketua, name: e.target.value}}})} />
                         ) : (
-                          <span className="text-[11px] text-center leading-tight text-black font-bold">{ppdData.signers.ketua.name}</span>
+                          <span className="text-[10px] text-center leading-tight text-black font-bold">{ppdData.signers.ketua.name}</span>
                         )}
                       </div>
-                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[13px] text-black whitespace-nowrap">{ppdData.signers.ketua.role}</div>
+                      <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[12px] text-black whitespace-nowrap">{ppdData.signers.ketua.role}</div>
                     </div>
                   </div>
                 </div>
@@ -1918,43 +1930,44 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <span>{ppdData.labels?.footerFinance || 'Divisi Keuangan'}</span>
                 )}
               </div>
-              <div className="grid grid-cols-2 divide-x divide-black h-[154px]">
+              <div className="grid grid-cols-2 divide-x divide-black flex-1">
                 <div className="flex flex-col min-w-[70px] divide-y divide-black">
-                  <div className="h-[22px] bg-white flex items-center justify-center text-center text-[11px] font-bold text-black">Pemeriksa</div>
+                  <div className="h-[22px] bg-white flex items-center justify-center text-center text-[11px] text-black tracking-tight">Pemeriksa</div>
                   <div className="flex-1"></div>
-                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[11px] font-bold text-black whitespace-nowrap">
-                    {isEditing && (
+                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[10px] font-bold text-black whitespace-nowrap">
+                    {isEditing ? (
                       <input className="w-full bg-amber-50 text-center outline-none font-bold" value={ppdData.signers.finance1.name} onChange={e => setPpdData({...ppdData, signers: {...ppdData.signers, finance1: {...ppdData.signers.finance1, name: e.target.value}}})} />
+                    ) : (
+                      <span className="text-[10px] leading-tight text-black font-bold">{ppdData.signers.finance1.name}</span>
                     )}
                   </div>
                 </div>
                 <div className="flex flex-col min-w-[70px] divide-y divide-black">
-                  <div className="h-[22px] bg-white flex items-center justify-center text-center text-[11px] font-bold text-black">Disetujui oleh</div>
+                  <div className="h-[22px] bg-white flex items-center justify-center text-center text-[11px] text-black tracking-tight">Disetujui oleh</div>
                   <div className="flex-1"></div>
-                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[11px] font-bold text-black whitespace-nowrap">
-                    {isEditing && (
+                  <div className="min-h-[32px] p-1.5 text-center flex items-center justify-center text-[10px] font-bold text-black whitespace-nowrap">
+                    {isEditing ? (
                       <input className="w-full bg-amber-50 text-center outline-none font-bold" value={ppdData.signers.finance2.name} onChange={e => setPpdData({...ppdData, signers: {...ppdData.signers, finance2: {...ppdData.signers.finance2, name: e.target.value}}})} />
+                    ) : (
+                      <span className="text-[10px] leading-tight text-black font-bold">{ppdData.signers.finance2.name}</span>
                     )}
                   </div>
                 </div>
               </div>
             </div>
             <div className="border-l border-black flex flex-col items-center">
-              <div className="h-[44px] divide-y divide-black bg-white w-full border-b border-black">
-                <div className="h-1/2 flex items-center justify-center p-1 text-[12px] text-black whitespace-nowrap">
-                  {isDesignMode ? (
-                    <input 
-                      className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-center"
-                      value={ppdData.labels?.footerAttachment || 'Lampiran'}
-                      onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, footerAttachment: e.target.value}})}
-                    />
-                  ) : (
-                    <span>{ppdData.labels?.footerAttachment || 'Lampiran'}</span>
-                  )}
-                </div>
-                <div className="h-1/2"></div>
+              <div className="h-[44px] bg-white w-full border-b border-black flex items-center justify-center p-1 text-[12px] text-black whitespace-nowrap">
+                {isDesignMode ? (
+                  <input 
+                    className="bg-indigo-50 border border-indigo-200 outline-none w-full px-1 text-center"
+                    value={ppdData.labels?.footerAttachment || 'Lampiran'}
+                    onChange={e => setPpdData({...ppdData, labels: {...ppdData.labels, footerAttachment: e.target.value}})}
+                  />
+                ) : (
+                  <span>{ppdData.labels?.footerAttachment || 'Lampiran'}</span>
+                )}
               </div>
-              <div className="flex-1 flex items-center justify-center text-center p-3 leading-tight overflow-hidden text-black">
+              <div className="flex-1 flex items-center justify-center text-center p-3 leading-tight overflow-hidden text-black w-full">
                 {isEditing ? (
                   <textarea 
                     className="w-full h-full bg-amber-50 outline-none text-[12px] resize-none" 
@@ -1962,7 +1975,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     onChange={e => setPpdData({...ppdData, attachment: e.target.value})} 
                   />
                 ) : (
-                  <span className="text-[11px] italic font-normal">{ppdData.attachment}</span>
+                  <span className="text-[11px] italic font-normal w-full overflow-hidden break-words whitespace-pre-wrap">{ppdData.attachment}</span>
                 )}
               </div>
             </div>
@@ -2149,17 +2162,17 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             <div className="grid grid-cols-2 mt-auto text-center text-sm pt-4">
               <div className="flex flex-col items-center justify-start h-32">
                 <span className="mb-auto">Pemeriksa</span>
-                <span className="font-bold border-b border-black w-64 mb-1 leading-none">
+                <div className="font-bold border-b border-black w-64 mb-1 leading-none pb-1 text-[13px]">
                   {isEditing ? <input className="w-full bg-amber-50 text-center outline-none" value={ppdData.signers?.lampiranPemeriksaName || 'Andreas Supriadi, S.IKom'} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPemeriksaName: e.target.value}})} /> : (ppdData.signers?.lampiranPemeriksaName || 'Andreas Supriadi, S.IKom')}
-                </span>
-                {isEditing ? <input className="w-64 bg-amber-50 text-center outline-none text-[11px]" value={ppdData.signers?.lampiranPemeriksaRole || 'Kepala Bidang Pendistribusian dan Pendayagunaan'} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPemeriksaRole: e.target.value}})} /> : <span className="text-[11px]">{ppdData.signers?.lampiranPemeriksaRole || 'Kepala Bidang Pendistribusian dan Pendayagunaan'}</span>}
+                </div>
+                {isEditing ? <input className="w-64 bg-amber-50 text-center outline-none text-[11px]" value={ppdData.signers?.lampiranPemeriksaRole || 'Kabid. PDP'} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPemeriksaRole: e.target.value}})} /> : <span className="text-[11px]">{ppdData.signers?.lampiranPemeriksaRole || 'Kabid. PDP'}</span>}
               </div>
               <div className="flex flex-col items-center justify-start h-32">
                 <span className="mb-auto">Pembuat</span>
-                <span className="font-bold border-b border-black w-48 mb-1 leading-none">
+                <div className="font-bold border-b border-black w-48 mb-1 leading-none pb-1 text-[13px]">
                   {isEditing ? <input className="w-full bg-amber-50 text-center outline-none" value={ppdData.signers?.lampiranPembuatName || ppdData.requestedBy} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPembuatName: e.target.value}})} /> : (ppdData.signers?.lampiranPembuatName || ppdData.requestedBy || '(Pembuat)')}
-                </span>
-                {isEditing ? <input className="w-48 bg-amber-50 text-center outline-none text-[11px]" value={ppdData.signers?.lampiranPembuatRole || 'Staf/Penanggung Jawab (PIC)'} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPembuatRole: e.target.value}})} /> : <span className="text-[11px]">{ppdData.signers?.lampiranPembuatRole || 'Staf/Penanggung Jawab (PIC)'}</span>}
+                </div>
+                {isEditing ? <input className="w-48 bg-amber-50 text-center outline-none text-[11px]" value={ppdData.signers?.lampiranPembuatRole || 'Staf'} onChange={(e) => setPpdData({...ppdData, signers: {...ppdData.signers, lampiranPembuatRole: e.target.value}})} /> : <span className="text-[11px]">{ppdData.signers?.lampiranPembuatRole || 'Staf'}</span>}
               </div>
             </div>
           </div>
