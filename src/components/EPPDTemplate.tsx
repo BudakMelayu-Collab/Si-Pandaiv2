@@ -3,7 +3,7 @@ import { Recipient } from '../types';
 import { 
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
-  FileCheck, ExternalLink, AlertCircle, ChevronRight, Download,
+  FileCheck, ExternalLink, AlertCircle, ChevronRight, Download, Eye,
   ClipboardList, Loader2, Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, Type,
   Layout, Save, FilePlus, Settings
 } from 'lucide-react';
@@ -38,6 +38,7 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 export default function EPPDTemplate({ recipient, lampiranItems, records, onSaveRecord, onDeleteRecord, onClose }: EPPDTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<'template' | 'scan'>('template');
   const [activeTab, setActiveTab] = useState<'eppd' | 'lampiran'>('eppd');
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
@@ -665,7 +666,29 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
         <div className="flex-1 flex items-center justify-center gap-2 max-w-xl px-4 overflow-x-auto scrollbar-hide">
           <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2 items-center">
-            
+            <button 
+              onClick={() => setViewMode('template')}
+              className={cn(
+                "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+                viewMode === 'template' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+              )}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Template
+            </button>
+            <button 
+              onClick={() => setViewMode('scan')}
+              className={cn(
+                "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all relative",
+                viewMode === 'scan' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+              )}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Scan Tertanda
+              {signedPdfUrl && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#111827]" />
+              )}
+            </button>
           </div>
 
           <button 
@@ -777,6 +800,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
       {/* Document View */}
       <div className="flex-1 flex overflow-hidden bg-slate-900/50 print:bg-white print:block print:overflow-visible">
+        {viewMode === 'template' ? (
+          <>
         {/* Form Panel (Left Side) */}
         {isEditing && (
           <div className="w-[400px] bg-slate-800 border-r border-white/10 overflow-y-auto p-4 flex flex-col gap-6 print:hidden">
@@ -2141,96 +2166,160 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         </div>
         ))}
 
-        {/* PDF Upload Section */}
-        <div className="w-full max-w-[950px] flex flex-col gap-8 mt-4 print:hidden">
-          {!signedPdfUrl ? (
-            <div className="p-12 border-4 border-dashed border-white/10 rounded-3xl flex flex-col items-center gap-6 bg-white/5 hover:bg-white/[0.07] transition-all group">
-              <div className="p-6 bg-indigo-500/20 rounded-full group-hover:scale-110 transition-transform">
-                <Upload className="w-12 h-12 text-indigo-400" />
-              </div>
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-white mb-2">Upload Hasil Scan PPD</h3>
-                <p className="text-white/40 text-sm max-w-sm mx-auto">
-                  Silahkan upload file PPD yang sudah dicetak dan ditandatangani basah dalam format PDF.
-                </p>
-              </div>
-              <label className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl cursor-pointer transition-all shadow-xl shadow-indigo-500/20 active:scale-95 flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                Pilih File PDF
-                <input type="file" className="hidden" accept="application/pdf" onChange={handlePdfUpload} />
-              </label>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between px-6 py-3 bg-slate-800 rounded-xl border border-white/10 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/20 rounded-lg">
-                    <FileCheck className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-white font-bold text-sm">HASIL SCAN PPD (SIGNED PDF)</p>
-                    <p className="text-white/40 text-[10px]">File tersimpan secara lokal di browser ini</p>
-                  </div>
+        {/* Instructions */}
+        {!isEditing && (
+          <p className="text-white/40 text-[10px] mt-6 italic print:hidden border border-white/10 px-4 py-2 rounded-full backdrop-blur-sm mx-auto mb-10 text-center">
+            Gunakan tombol "Edit" untuk menyesuaikan detail Permohonan
+          </p>
+        )}
+        </>
+        )}
+      </div>
+      </>
+    ) : viewMode === 'scan' ? (
+      <div className="flex-1 flex w-full h-full max-h-screen">
+        <div className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto bg-black/40 items-center justify-start relative w-full h-full">
+          <div className="w-full max-w-4xl flex flex-col gap-4 h-full">
+               {!signedPdfUrl ? (
+                 <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 border-2 border-dashed border-white/10 rounded-3xl text-center min-h-[400px]">
+                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/10">
+                     {isLoadingFile ? (
+                       <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent animate-spin rounded-full" />
+                     ) : (
+                       <Upload className="w-10 h-10 text-white/20" />
+                     )}
+                   </div>
+                   <h4 className="text-xl font-bold text-white mb-2">
+                     {isLoadingFile ? 'Memuat Dokumen dari Cloud...' : 'Belum Ada Scan PPD'}
+                   </h4>
+                   <p className="text-white/40 max-w-md mb-8">
+                     {isLoadingFile ? 'Mohon tunggu sebentar, file berukuran besar sedang diproses.' : 'Silakan upload scan Dokumen PPD yang sudah ditandatangani basah dalam format PDF.'}
+                   </p>
+                   {!isLoadingFile && (
+                     <label className={cn(
+                       "px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-xl flex items-center gap-2 cursor-pointer",
+                       isUploading ? "bg-slate-700 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                     )}>
+                       {isUploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" /> : <Upload className="w-4 h-4" />}
+                       Upload File PDF
+                       <input type="file" className="hidden" accept="application/pdf" onChange={handlePdfUpload} disabled={isUploading} />
+                     </label>
+                   )}
+                 </div>
+               ) : (
+                 <div className="flex-1 flex flex-col bg-white/5 rounded-3xl overflow-hidden border border-white/10 p-2 relative shadow-2xl min-h-[600px] h-full">
+                   {/* Action Header for PDF View */}
+                   <div className="flex items-center justify-between p-3 bg-black/40 border-b border-white/10 shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                         <FileCheck className="w-4 h-4 text-emerald-400" />
+                       </div>
+                       <span className="text-xs font-bold text-white">HASIL SCAN PPD</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <a 
+                         href={signedPdfUrl || ''} 
+                         download={`Scan_PPD_${recipient.registrationId}.pdf`}
+                         className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-500 transition-all"
+                       >
+                         <Download className="w-3.5 h-3.5" />
+                         Download
+                       </a>
+                       <button 
+                         onClick={() => {
+                           if(confirm('Hapus file scan dari Cloud?')) {
+                             setSignedPdfUrl(null);
+                             handleSavePdfToServer(null);
+                           }
+                         }}
+                         disabled={isUploading}
+                         className="flex items-center gap-2 px-4 py-1.5 bg-red-500 text-white rounded-lg text-[10px] font-bold hover:bg-red-600 transition-all disabled:opacity-50"
+                       >
+                         <Trash2 className="w-3.5 h-3.5" />
+                         Hapus
+                       </button>
+                     </div>
+                   </div>
+
+                    <object 
+                     data={signedPdfBlobUrl || signedPdfUrl || ''} 
+                     type="application/pdf"
+                     className="w-full h-full rounded-b-2xl bg-slate-100 flex-1"
+                   >
+                     <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-slate-800">
+                       <p className="text-white font-bold mb-2 text-lg">Pratinjau Gagal Dimuat</p>
+                       <p className="text-white/40 text-sm mb-8">Browser Anda mungkin memblokir pratinjau otomatis untuk file dari storage lokal.</p>
+                       <a 
+                         href={signedPdfUrl || ''} 
+                         download={`Scan_PPD_${recipient.registrationId}.pdf`}
+                         className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-xl shadow-indigo-500/20"
+                       >
+                         Download Untuk Dilihat
+                       </a>
+                     </div>
+                   </object>
+                 </div>
+               )}
+          </div>
+        </div>
+
+        {/* Sidebar Controls */}
+        <div className="w-[320px] shrink-0 bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Dokumen Cloud</h4>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  signedPdfUrl ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/20"
+                )}>
+                   <FileCheck className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-2">
+                <div>
+                  <p className="text-white text-xs font-bold leading-none mb-1">Scan Tertanda</p>
+                  <p className="text-[10px] text-white/40">{isLoadingFile ? 'Memuat...' : (signedPdfUrl ? 'Tersedia di Cloud' : 'Belum diunggah')}</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <label className={cn(
+                  "flex-1 flex items-center justify-center gap-2 text-[10px] font-bold py-2 rounded-lg cursor-pointer transition-all",
+                  isUploading ? "bg-slate-700 text-white/40 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                )}>
+                  {isUploading ? <div className="w-3 h-3 border-2 border-white/50 border-t-transparent animate-spin rounded-full" /> : <Upload className="w-3.5 h-3.5" />}
+                  Upload
+                  <input type="file" className="hidden" accept="application/pdf" onChange={handlePdfUpload} disabled={isUploading} />
+                </label>
+                
+                {signedPdfUrl && (
                   <button 
-                    onClick={openPdfInNewTab}
-                    className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 hover:text-white text-xs font-bold rounded-lg transition-all flex items-center gap-2"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Buka di Tab Baru
-                  </button>
-                  <label className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg cursor-pointer transition-all">
-                    Ganti File
-                    <input type="file" className="hidden" accept="application/pdf" onChange={handlePdfUpload} />
-                  </label>
-                  <button 
+                    disabled={isUploading}
                     onClick={() => {
-                      if(confirm('Hapus hasil scan ini?')) {
+                      if(confirm('Hapus file scan dari Cloud?')) {
                         setSignedPdfUrl(null);
                         handleSavePdfToServer(null);
                       }
                     }}
-                    className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                    className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all disabled:opacity-50"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                </div>
-              </div>
-              <div className="w-full h-[800px] border border-white/10 rounded-2xl overflow-hidden shadow-2xl bg-white/5 p-1 relative">
-                <object 
-                  data={signedPdfBlobUrl || signedPdfUrl || ''} 
-                  type="application/pdf"
-                  className="w-full h-full rounded-xl bg-slate-100"
-                >
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center bg-slate-800 rounded-xl">
-                    <FileText className="w-12 h-12 text-white/20 mb-4" />
-                    <p className="text-white font-bold mb-2">Pratinjau Tidak Tersedia</p>
-                    <p className="text-white/40 text-sm mb-6">Browser Anda memblokir pratinjau PDF otomatis atau file terlalu besar.</p>
-                    <a 
-                      href={signedPdfUrl || ''} 
-                      download={`PPD_Signed_${recipient.registrationId}.pdf`}
-                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all shadow-lg"
-                    >
-                      Unduh & Lihat PDF
-                    </a>
-                  </div>
-                </object>
+                ) }
               </div>
             </div>
-          )}
+          </div>
+          <div className="mt-auto">
+            <button 
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-2xl text-xs font-bold transition-all border border-white/5"
+            >
+              Tutup Pratinjau
+            </button>
+          </div>
         </div>
-
-        {/* Instructions */}
-        {!isEditing && (
-          <p className="text-white/40 text-[10px] mt-6 italic print:hidden border border-white/10 px-4 py-2 rounded-full backdrop-blur-sm">
-            Gunakan tombol "Edit PPD" untuk menyesuaikan detail Permohonan Pengeluaran Dana
-          </p>
-        )}
-      </>
-    )}
+      </div>
+    ) : null}
       </div>
     </div>
-  </div>
   );
 }
