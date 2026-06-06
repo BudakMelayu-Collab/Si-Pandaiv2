@@ -4,7 +4,7 @@ import {
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, Download, Loader2, ChevronRight,
-  Settings, Save, Eye
+  Settings, Save, Eye, RotateCcw
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
@@ -112,12 +112,23 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
       if (savedMemo) {
         const parsed = typeof savedMemo === 'string' ? JSON.parse(savedMemo) : savedMemo;
         
+        const getPICName = (sector: string) => {
+          switch(sector?.toLowerCase()) {
+            case 'siak cerdas': return 'Satriyanda, SE';
+            case 'siak dakwah': return 'Satriyanda';
+            case 'siak peduli': return 'Muslikun Thohari, S.Ikom';
+            case 'siak sehat': return 'Dina Alvinda';
+            case 'siak sejahtera': return 'Ikhlasul Amal';
+            default: return 'Satriyanda, SE';
+          }
+        };
+
         // Normalize column labels if they are the old uppercase ones
         if (parsed.columns) {
           const defaultsMap: {[key: string]: string} = {
             'URAIAN': 'Uraian',
             'NAMA': 'Nama',
-            'IDENTITAS/NIK': 'Identitas/nik',
+            'IDENTITAS/NIK': 'Identitas',
             'REKENING/BANK/NAMA REKENING': 'Rekening/bank/nama rekening/bank',
             'JUMLAH BANTUAN': 'Jumlah bantuan'
           };
@@ -125,8 +136,31 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             .filter((col: any) => col.key !== 'bank')
             .map((col: any) => ({
               ...col,
-              label: defaultsMap[col.label] || col.label
+              label: (col.label === 'Identitas/nik') ? 'Identitas' : (defaultsMap[col.label] || col.label)
             }));
+        }
+
+        if (parsed.signersTop) {
+          parsed.signersTop = parsed.signersTop.map((s: any) => {
+            if (s.role === 'Pic program' || s.role === 'PIC Program') {
+              s.role = 'PIC Program';
+              if (s.name === 'Rina Wasih') {
+                s.name = getPICName(recipient.sector || '');
+              }
+            }
+            if (s.role === 'Kabid. pendistribusian dan pendayagunaan' || s.role === 'Kabid. Pendistribusian') s.role = 'Kabid. Pendistribusian dan Pendayagunaan';
+            if (s.role === 'Kepala pelaksana') s.role = 'Kepala Pelaksana';
+            return s;
+          });
+        }
+        if (parsed.signersBottom) {
+          parsed.signersBottom = parsed.signersBottom.map((s: any) => {
+            if (s.role === 'Wakil ketua 1') s.role = 'Wakil Ketua I';
+            if (s.role === 'Wakil ketua 2') s.role = 'Wakil Ketua II';
+            if (s.role === 'Wakil ketua 3') s.role = 'Wakil Ketua III';
+            if (s.role === 'Wakil ketua 4') s.role = 'Wakil Ketua IV';
+            return s;
+          });
         }
 
         // Apply new rules to existing saved data
@@ -134,11 +168,17 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         if (parsed.classification?.startsWith('Baznas ')) {
           parsed.classification = recipient.sector || 'Siak Sejahtera';
         }
-        // 2. Clear old hardcoded purposes / ashnaf / source
+        // 2. Clear old hardcoded purposes / ashnaf / source / description
         if (parsed.purpose?.startsWith('Melaksanakan program ')) parsed.purpose = '';
         if (parsed.ashnaf === 'Miskin') parsed.ashnaf = '';
         if (parsed.source === 'Zakat / Infaq / Shadaqah') parsed.source = '';
         if (parsed.budgetPost === recipient.aidType) parsed.budgetPost = '';
+        if (parsed.rows) {
+          parsed.rows = parsed.rows.map((row: any) => {
+            row.description = '';
+            return row;
+          });
+        }
         
         // Fix old `nomor` format dynamically if it contains the old pattern
         if (!parsed.nomor?.includes('/001/MPZIS/') && !parsed.nomor?.includes('/000/MPZIS/')) {
@@ -400,6 +440,17 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
     }
   };
 
+  const getPICName = (sector: string) => {
+    switch (sector?.toLowerCase()) {
+      case 'siak cerdas': return 'Satriyanda, SE';
+      case 'siak dakwah': return 'Satriyanda';
+      case 'siak peduli': return 'Muslikun Thohari, S.Ikom';
+      case 'siak sehat': return 'Dina Alvinda';
+      case 'siak sejahtera': return 'Ikhlasul Amal';
+      default: return 'Satriyanda, SE';
+    }
+  };
+
   const getRomanMonth = (month: number) => {
     const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
     return romans[month - 1] || 'I';
@@ -419,29 +470,29 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
     columns: [
       { key: 'description', label: 'Uraian' },
       { key: 'name', label: 'Nama' },
-      { key: 'nik', label: 'Identitas/nik' },
+      { key: 'nik', label: 'Identitas' },
       { key: 'amount', label: 'Jumlah bantuan' }
     ],
     rows: [
       { 
         id: Date.now(), 
-        description: recipient.aidType, 
+        description: '', 
         name: recipient.name, 
         nik: recipient.nik,
         amount: Number(recipient.amountProposed) 
       }
     ],
     signersTop: [
-      { label: 'Disiapkan', name: 'Rina Wasih', role: 'Pic program' },
-      { label: 'Diperiksa', name: 'Andreas Supriadi, S.I.Kom', role: 'Kabid. pendistribusian dan pendayagunaan' },
-      { label: 'Disetujui', name: 'Sutarno Nurdianto, SE', role: 'Kepala pelaksana' }
+      { label: 'Disiapkan', name: getPICName(recipient.sector || ''), role: 'PIC Program' },
+      { label: 'Diperiksa', name: 'Andreas Supriadi, S.I.Kom', role: 'Kabid. Pendistribusian dan Pendayagunaan' },
+      { label: 'Disetujui', name: 'Sutarno Nurdianto, SE', role: 'Kepala Pelaksana' }
     ],
     signersBottom: [
       { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" },
-      { name: "Syukron Wahib, M.Pd.I", role: "Wakil ketua 1" },
-      { name: "H. Sukijo", role: "Wakil ketua 2" },
-      { name: "KH. Moch Sowwam Amin, SH", role: "Wakil ketua 3" },
-      { name: "H. Rojikin, S.Ag, MH", role: "Wakil ketua 4" }
+      { name: "Syukron Wahib, M.Pd.I", role: "Wakil Ketua I" },
+      { name: "H. Sukijo", role: "Wakil Ketua II" },
+      { name: "KH. Moch Sowwam Amin, SH", role: "Wakil Ketua III" },
+      { name: "H. Rojikin, S.Ag, MH", role: "Wakil Ketua IV" }
     ]
   });
   
@@ -503,6 +554,18 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
       ...memoData,
       columns: [...memoData.columns, { key: newKey, label: 'KOLOM BARU' }],
       rows: memoData.rows.map(row => ({ ...row, [newKey]: '' }))
+    });
+  };
+
+  const resetColumns = () => {
+    setMemoData({
+      ...memoData,
+      columns: [
+        { key: 'description', label: 'Uraian' },
+        { key: 'name', label: 'Nama' },
+        { key: 'nik', label: 'Identitas' },
+        { key: 'amount', label: 'Jumlah bantuan' }
+      ]
     });
   };
 
@@ -646,30 +709,20 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 {isEditing ? <FileCheck className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                 {isEditing ? "Selesai Edit" : "Edit"}
               </button>
-
-              <button 
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-bold transition-all shrink-0 border border-emerald-500/20"
-              >
-                <Printer className="w-4 h-4" />
-                Cetak Memo
-              </button>
             </>
           )}
 
-          {activeTab === 'scan' && (
-            <label className={cn(
-              "px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-purple-500 transition-all shadow-lg shadow-purple-500/20 active:scale-95 cursor-pointer shrink-0",
-              (isSaving || isLoadingFile) && "opacity-50 animate-pulse pointer-events-none"
-            )}>
-              <Upload className="w-4 h-4" />
-              {isSaving || isLoadingFile ? "Memproses..." : "Upload Scan Baru"}
-              <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleMpzisUpload} />
-            </label>
-          )}
+
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <button 
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 border border-indigo-500/20"
+          >
+            <Printer className="w-4 h-4" />
+            Cetak
+          </button>
           <button 
             onClick={async () => {
               setSaveStatus('saving');
@@ -890,6 +943,14 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             <p className="text-base font-normal tracking-wide">7. Penerima dana :</p>
             {isEditing && (
               <div className="flex gap-2">
+                <button 
+                  onClick={resetColumns}
+                  className="flex items-center gap-1 px-2 py-1 bg-amber-500 text-white rounded text-[10px] font-bold hover:bg-amber-600 transition-colors shadow-sm"
+                  title="Kembalikan ke kolom default"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
                 <button 
                   onClick={addColumn}
                   className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-[10px] font-bold hover:bg-blue-600 transition-colors shadow-sm"
@@ -1324,7 +1385,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         {/* Sidebar Controls */}
         <div className="w-[320px] bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
           <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Dokumen Cloud</h4>
+
             <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
               <div className="flex items-center gap-3 mb-4">
                 <div className={cn(
@@ -1365,15 +1426,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           </div>
 
           <div className="mt-auto">
-             <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 mb-4">
-              <h5 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                <Printer className="w-3 h-3" />
-                Instruksi Cetak
-              </h5>
-              <p className="text-[10px] text-indigo-300/60 leading-relaxed italic">
-                Aplikasi telah diatur untuk mencetak 2 rangkap (Pemohon & Arsip) dalam satu lembar. Pilih format F4 pada pengaturan printer browser.
-              </p>
-            </div>
+
             <button 
               onClick={onClose}
               className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold transition-all border border-white/10"

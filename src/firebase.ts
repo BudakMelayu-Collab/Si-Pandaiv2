@@ -67,10 +67,7 @@ const app = initializeApp(finalConfig);
 console.log('Using Firestore Database Instance:', dbId);
 
 // Initialize Firestore with experimentalForceLongPolling to bypass iframe WebSocket issues
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  useFetchStreams: false,
-} as any, dbId === '(default)' ? undefined : dbId);
+export const db = initializeFirestore(app, {}, dbId === '(default)' ? undefined : dbId);
 
 export const auth = getAuth(app);
 
