@@ -4,7 +4,7 @@ import {
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, Download, Loader2, ChevronRight,
-  Settings, Save
+  Settings, Save, Eye
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
@@ -590,49 +590,41 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         </div>
 
         <div className="flex-1 flex items-center justify-center gap-2 max-w-2xl px-4 overflow-x-auto scrollbar-hide">
-          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2">
-            <button
-              onClick={() => setActiveTab('template')}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                activeTab === 'template' 
-                  ? "bg-emerald-600 text-white shadow-lg" 
-                  : "text-white/40 hover:text-white/60"
-              )}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Template
-            </button>
-            <button
-              onClick={() => setActiveTab('scan')}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 relative",
-                activeTab === 'scan' 
-                  ? "bg-purple-600 text-white shadow-lg" 
-                  : "text-white/40 hover:text-white/60"
-              )}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Hasil Scan
-              {mpzisFiles.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] flex items-center justify-center rounded-full border border-black group-hover:scale-110 transition-transform">
-                  {mpzisFiles.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('config')}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                activeTab === 'config' 
-                  ? "bg-amber-600 text-white shadow-lg" 
-                  : "text-white/40 hover:text-white/60"
-              )}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Config
-            </button>
-          </div>
+        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mx-4">
+          <button 
+            onClick={() => setActiveTab('template')}
+            className={cn(
+              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+              activeTab === 'template' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+            )}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Template
+          </button>
+          <button 
+            onClick={() => setActiveTab('scan')}
+            className={cn(
+              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all relative",
+              activeTab === 'scan' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+            )}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Scan Tertanda
+            {mpzisFiles.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#111827]" />
+            )}
+          </button>
+          <button 
+            onClick={() => setActiveTab('config')}
+            className={cn(
+              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+              activeTab === 'config' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
+            )}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Config
+          </button>
+        </div>
 
           <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2 items-center">
             
@@ -700,8 +692,11 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         </div>
       </div>
 
-      {/* Document View */}
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900/50 flex flex-col items-center print:p-0 print:bg-white overflow-x-hidden">
+      {/* Document View & Sidebar Container */}
+      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px] print:block bg-slate-950">
+        
+        {/* Main Document View */}
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-950/20 flex flex-col items-center print:p-0 print:bg-white overflow-x-hidden scroll-smooth relative">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
@@ -1106,92 +1101,89 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           </div>
         ) : activeTab === 'scan' ? (
           /* Scan Results Tab */
-          <div className="w-full max-w-4xl space-y-6 pb-20">
+          <div className="w-full h-full max-w-4xl flex flex-col gap-4">
             {mpzisFiles.length === 0 ? (
-              <div className="bg-white/5 border-2 border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-400 mb-6">
-                  <Upload className="w-10 h-10" />
+              <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/5 border-2 border-dashed border-white/10 rounded-3xl text-center min-h-[400px]">
+                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/10">
+                  {isSaving ? (
+                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent animate-spin rounded-full" />
+                  ) : (
+                    <Upload className="w-10 h-10 text-white/20" />
+                  )}
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Belum ada Scan MPZIS</h3>
-                <p className="text-white/40 text-sm max-w-xs">
-                  Silakan unggah berkas MPZIS yang sudah ditandatangani untuk arsip digital.
+                <h4 className="text-xl font-bold text-white mb-2">
+                  {isSaving ? 'Memuat Dokumen dari Cloud...' : 'Belum Ada Scan MPZIS'}
+                </h4>
+                <p className="text-white/40 max-w-md mb-8">
+                  {isSaving ? 'Mohon tunggu sebentar, file berukuran besar sedang diproses.' : 'Silakan upload scan Dokumen MPZIS yang sudah ditandatangani untuk arsip digital.'}
                 </p>
-                <label className="mt-8 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold cursor-pointer hover:bg-purple-500 transition-all flex items-center gap-2 shadow-xl shadow-purple-500/20">
-                  <Plus className="w-5 h-5" />
-                  Unggah Sekarang
-                  <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleMpzisUpload} />
-                </label>
+                {!isSaving && (
+                  <label className={cn(
+                    "px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-xl flex items-center gap-2 cursor-pointer",
+                    "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  )}>
+                    <Upload className="w-4 h-4" />
+                    Upload File Scan
+                    <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleMpzisUpload} disabled={isSaving} />
+                  </label>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-6 w-full pb-20">
                 {mpzisFiles.map((file, idx) => (
-                  <div 
-                    key={idx} 
-                    className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-purple-400 transition-all"
-                  >
-                    <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                      {file.data.startsWith('data:application/pdf') ? (
-                        <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <FileText className="w-12 h-12" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider">PDF Document</span>
+                  <div key={idx} className="flex-1 flex flex-col bg-white/5 rounded-3xl overflow-hidden border border-white/10 p-2 relative shadow-2xl min-h-[600px] h-[800px]">
+                    <div className="flex items-center justify-between p-3 bg-black/40 border-b border-white/10 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                          <FileCheck className="w-4 h-4 text-emerald-400" />
                         </div>
-                      ) : (
-                        <img 
-                          src={file.data} 
-                          alt={file.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      
-                      {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-black/60 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                        <button 
-                          onClick={() => openInNewTab(file.data)}
-                          className="p-3 bg-white text-black rounded-full hover:bg-purple-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0"
-                          title="Buka di tab baru"
-                        >
-                          <ExternalLink className="w-5 h-5" />
-                        </button>
+                        <span className="text-xs font-bold text-white uppercase">HASIL SCAN MPZIS {mpzisFiles.length > 1 ? `(HLM ${idx + 1})` : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <button 
                           onClick={() => downloadFile(file.data, file.name)}
-                          className="p-3 bg-white text-black rounded-full hover:bg-emerald-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 delay-75"
-                          title="Unduh"
+                          className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-500 transition-all"
                         >
-                          <Download className="w-5 h-5" />
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if(confirm(`Hapus Halaman ${idx+1} dari Cloud?`)) removeMpzisFile(idx);
+                          }}
+                          disabled={isSaving}
+                          className="flex items-center gap-2 px-4 py-1.5 bg-red-500 text-white rounded-lg text-[10px] font-bold hover:bg-red-600 transition-all disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Hapus
                         </button>
                       </div>
                     </div>
-                    
-                    <div className="p-4 flex items-center justify-between border-t border-slate-100">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col overflow-hidden">
-                          <span className="text-xs font-bold text-slate-900 truncate">{file.name}</span>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Hlm {idx + 1} • Scan MPZIS</span>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        onClick={() => removeMpzisFile(idx)}
-                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                        title="Hapus"
+
+                    {file.data.startsWith('data:application/pdf') ? (
+                      <object 
+                        data={file.data} 
+                        type="application/pdf"
+                        className="w-full h-full rounded-b-2xl bg-white"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                          <p className="text-white font-bold mb-2 text-lg">Pratinjau Gagal Dimuat</p>
+                          <p className="text-white/40 text-sm mb-8">Browser Anda mungkin memblokir pratinjau otomatis untuk file PDF.</p>
+                          <button 
+                            onClick={() => downloadFile(file.data, file.name)}
+                            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-xl shadow-indigo-500/20"
+                          >
+                            Unduh Dokumen Secara Manual
+                          </button>
+                        </div>
+                      </object>
+                    ) : (
+                      <div className="w-full h-full rounded-b-2xl bg-black/50 p-4 flex items-center justify-center overflow-auto">
+                        <img src={file.data} alt={file.name} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" />
+                      </div>
+                    )}
                   </div>
                 ))}
-                
-                {/* Add More Card */}
-                <label className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-purple-400/50 hover:bg-white/5 transition-all group">
-                  <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-white/20 mb-4 group-hover:scale-110 group-hover:text-purple-400 transition-all">
-                    <Plus className="w-6 h-6" />
-                  </div>
-                  <span className="text-sm font-bold text-white/40 group-hover:text-white transition-colors">Tambah Scan Lagi</span>
-                  <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleMpzisUpload} />
-                </label>
               </div>
             )}
           </div>
@@ -1327,6 +1319,70 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </div>
           </div>
         )}
+        </div>
+
+        {/* Sidebar Controls */}
+        <div className="w-[320px] bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Dokumen Cloud</h4>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  mpzisFiles.length > 0 ? "bg-green-500/20 text-green-400" : "bg-white/5 text-white/20"
+                )}>
+                   <FileCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-white text-xs font-bold leading-none mb-1">Scan Tertanda</p>
+                  <p className="text-[10px] text-white/40">{isSaving ? 'Memuat...' : (mpzisFiles.length > 0 ? 'Tersedia di Cloud' : 'Belum diunggah')}</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <label className={cn(
+                  "flex-1 flex items-center justify-center gap-2 text-[10px] font-bold py-2 rounded-lg cursor-pointer transition-all",
+                  isSaving ? "bg-slate-700 text-white/40 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                )}>
+                  {isSaving ? <div className="w-3 h-3 border-2 border-white/50 border-t-transparent animate-spin rounded-full" /> : <Upload className="w-3.5 h-3.5" />}
+                  Upload
+                  <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={handleMpzisUpload} disabled={isSaving} />
+                </label>
+                
+                {mpzisFiles.length > 0 && (
+                  <button 
+                    disabled={isSaving}
+                    onClick={() => {
+                      if(confirm('Hapus halaman terakhir dari Cloud?')) removeMpzisFile(mpzisFiles.length - 1);
+                    }}
+                    className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                ) }
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto">
+             <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 mb-4">
+              <h5 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <Printer className="w-3 h-3" />
+                Instruksi Cetak
+              </h5>
+              <p className="text-[10px] text-indigo-300/60 leading-relaxed italic">
+                Aplikasi telah diatur untuk mencetak 2 rangkap (Pemohon & Arsip) dalam satu lembar. Pilih format F4 pada pengaturan printer browser.
+              </p>
+            </div>
+            <button 
+              onClick={onClose}
+              className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold transition-all border border-white/10"
+            >
+              Tutup Pratinjau
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );

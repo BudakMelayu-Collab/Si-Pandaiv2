@@ -52,7 +52,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
   const [templateConfig, setTemplateConfig] = useState({
     logo: '',
-    institution: 'BAZNAS',
+    institution: '',
     region: 'KABUPATEN SIAK',
     subText: 'Badan Amil Zakat Nasional',
     fontSize: 9,
@@ -429,7 +429,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             {templateConfig.subText || "BADAN AMIL ZAKAT NASIONAL"}
           </h1>
           <p className="font-bold uppercase tracking-tight mb-0" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>
-            {templateConfig.institution} {templateConfig.region}
+            {templateConfig.region || "KABUPATEN SIAK"}
           </p>
           <p className="leading-tight mb-0" style={{ fontSize: `${templateConfig.fontSize - 1}pt` }}>
             Gedung Graha Baznas Kabupaten Siak, Jl Sultan Syarif Ali
@@ -443,7 +443,15 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       {/* Title */}
       <div className="text-center mb-1 relative">
         <h2 className="text-lg font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
-        <p className="text-[11px] mt-0.5 font-bold">Nomor: {recipient.id.substring(0, 8).toUpperCase()}/TT/BAZ-SIAK/{new Date().getFullYear()}</p>
+        <p className="text-[11px] mt-0.5 font-bold">
+          Nomor: {recipient.registrationId}/TT/{
+            recipient.sector === 'Siak Cerdas' ? 'SC' :
+            recipient.sector === 'Siak Dakwah' ? 'SD' :
+            recipient.sector === 'Siak Peduli' ? 'SP' :
+            recipient.sector === 'Siak Sehat' ? 'SS' :
+            recipient.sector === 'Siak Sejahtera' ? 'SJ' : 'SC'
+          }/{['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][new Date().getMonth()]}/{new Date().getFullYear()}
+        </p>
         <div className="absolute top-0 right-0 px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold tracking-widest text-black border border-slate-200 uppercase print:border-black print:bg-white">
           {type} COPY
         </div>
@@ -459,7 +467,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
           { label: 'Jumlah Berkas', value: receiptData.docCount, key: 'docCount' },
-          { label: 'Identitas / NIK', value: receiptData.identity, key: 'identity' },
+          { label: 'NIK/No.KK', value: receiptData.identity, key: 'identity' },
           { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
           { label: 'Alamat Lengkap', value: receiptData.address, key: 'address', multiline: true }
         ].map((item) => (
