@@ -866,12 +866,12 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
           {/* Date removed as per request */}
 
-          <p className="text-[15px] mb-6 leading-relaxed text-black">
+          <p className="text-[12px] mb-6 leading-relaxed text-black font-sans">
             Kami yang bertanda tangan dibawah ini Komite Pendistribusian dan Pendayagunaan menyetujui dan memutuskan penyaluran sebagai berikut :
           </p>
 
           {/* List Details */}
-          <div className="space-y-3 text-[15px] mb-8 text-black font-sans">
+          <div className="space-y-3 text-[12px] mb-8 text-black font-sans">
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">1. Klasifikasi program</span>
               <span>:</span>
@@ -939,7 +939,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 text-black font-sans">
             <p className="text-[12px] font-normal tracking-wide">7. Penerima dana :</p>
             {isEditing && (
               <div className="flex gap-2">
