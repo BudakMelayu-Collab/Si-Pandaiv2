@@ -1128,7 +1128,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
         )}
 
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible pb-32">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:pb-0 print:bg-white print:overflow-visible pb-32">
           <style dangerouslySetInnerHTML={{ __html: `
             .eppd-print-page, .lampiran-print-page {
               background-color: white;
@@ -1188,13 +1188,13 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               }
               
               .eppd-print-page {
-                width: 100% !important;
+                width: 950px !important;
                 height: auto !important;
                 min-height: 0 !important;
               }
 
               .lampiran-print-page {
-                width: 100% !important;
+                width: 1300px !important;
                 height: auto !important;
                 min-height: 0 !important;
               }
@@ -1352,7 +1352,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {activeTab === 'eppd' && (
             <div className={cn(
-              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
+              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:mb-0 mb-16 shrink-0 overflow-hidden flex flex-col",
               isEditing && "ring-4 ring-amber-500/30"
             )}
             style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
@@ -2010,7 +2010,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         {/* Lampiran Section */}
         {activeTab === 'lampiran' && chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
         <div key={`lampiran-page-${pageIndex}`} className={cn(
-          "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
+          "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:mb-0 mb-16 shrink-0 overflow-hidden flex flex-col",
           pageIndex > 0 && "print:break-before-page",
           isEditing && "ring-4 ring-amber-500/30"
         )}
