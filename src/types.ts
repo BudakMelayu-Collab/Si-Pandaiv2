@@ -10,17 +10,6 @@ export interface Recipient {
   headOfFamilyName: string;
   headOfFamilyDob: string;
   
-  // KTP & KK Additional Fields
-  religion?: string;
-  education?: string;
-  job?: string;
-  maritalStatus?: string;
-  citizenship?: string;
-  passportNo?: string;
-  kitasNo?: string;
-  fatherName?: string;
-  motherName?: string;
-  
   // Domicile
   address: string;
   rt: string;

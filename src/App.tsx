@@ -25,7 +25,6 @@ import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
 import EditRecipientModal from './components/EditRecipientModal';
-import MobileScanner from './components/MobileScanner';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
@@ -144,16 +143,6 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-
-  const isMobileScanRoute = typeof window !== 'undefined' && (
-    window.location.pathname === '/scan-docs' ||
-    window.location.search.includes('scan-docs=true') ||
-    window.location.hash.includes('scan-docs')
-  );
-
-  if (isMobileScanRoute) {
-    return <MobileScanner />;
-  }
 
   const handleLoginWithGoogle = async () => {
     try {

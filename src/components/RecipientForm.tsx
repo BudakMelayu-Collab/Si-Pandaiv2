@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, X, Upload, FileText, Image as ImageIcon, 
   MapPin, User, Hash, Phone, Calendar, DollarSign,
-  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2, QrCode, Smartphone,
-  Sparkles, Cpu, CheckCircle2
+  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2, QrCode, Smartphone
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
-import QRCode from 'react-qr-code';
 import { AidDocument, Recipient } from '../types';
 
 interface RecipientFormProps {
@@ -56,15 +54,6 @@ const DEFAULT_RECIPIENT_INPUT = {
   familyStatus: '',
   headOfFamilyName: '',
   headOfFamilyDob: '',
-  religion: '',
-  education: '',
-  job: '',
-  maritalStatus: '',
-  citizenship: 'WNI',
-  passportNo: '',
-  kitasNo: '',
-  fatherName: '',
-  motherName: '',
   contact: '',
   address: '',
   rt: '',
@@ -140,428 +129,12 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   const [mergingIdx, setMergingIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // AI OCR States
-  const [ocrLoading, setOcrLoading] = useState<Record<string, boolean>>({});
-  const [ocrResults, setOcrResults] = useState<Record<string, {
-    nik: string;
-    nama: string;
-    tempat_lahir: string;
-    tanggal_lahir: string;
-    alamat: string;
-    rt_rw: string;
-    kel_desa: string;
-    kecamatan: string;
-  }>>({});
-
-  const [ocrKkResults, setOcrKkResults] = useState<Record<string, {
-    no_kk: string;
-    nama_kepala_keluarga: string;
-    alamat: string;
-    rt_rw: string;
-    kode_pos: string;
-    desa_kelurahan: string;
-    kecamatan: string;
-    kabupaten_kota: string;
-    provinsi: string;
-    anggota_keluarga: {
-      no: number;
-      nama_lengkap: string;
-      nik: string;
-      jenis_kelamin: string;
-      tempat_lahir: string;
-      tanggal_lahir: string;
-      agama: string;
-      pendidikan: string;
-      jenis_pekerjaan: string;
-      status_perkawinan: string;
-      status_hubungan_keluarga: string;
-      kewarganegaraan: string;
-      no_paspor: string;
-      no_kitas_kitap: string;
-      nama_ayah: string;
-      nama_ibu: string;
-    }[];
-  }>>({});
-
-  const formatOcrDob = (dobStr: string) => {
-    if (!dobStr) return '';
-    // standard DD-MM-YYYY check (or with dots/slashes)
-    const match = dobStr.match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
-    if (match) {
-      const [_, d, m, y] = match;
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    }
-    // standard YYYY-MM-DD
-    if (dobStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dobStr;
-    }
-    return dobStr;
-  };
-
-  const handleExtractKTPAI = async (docId: string, dataUrl: string) => {
-    setOcrLoading(prev => ({ ...prev, [docId]: true }));
-    try {
-      const response = await fetch('/api/gemini/ocr-ktp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageData: dataUrl })
-      });
-      
-      if (!response.ok) {
-        let errMsg = 'Gagal mengekstrak KTP menggunakan server Gemini AI.';
-        try {
-          const errData = await response.json();
-          if (errData && errData.error) {
-            errMsg = `${errMsg} Detail: ${errData.error}`;
-          }
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-      
-      const data = await response.json();
-      if (data) {
-        setOcrResults(prev => ({ ...prev, [docId]: data }));
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Gagal mengekstrak data dari gambar.');
-    } finally {
-      setOcrLoading(prev => ({ ...prev, [docId]: false }));
-    }
-  };
-
-  const handleExtractKKAI = async (docId: string, dataUrl: string) => {
-    setOcrLoading(prev => ({ ...prev, [docId]: true }));
-    try {
-      const response = await fetch('/api/gemini/ocr-kk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageData: dataUrl })
-      });
-      
-      if (!response.ok) {
-        let errMsg = 'Gagal mengekstrak Kartu Keluarga menggunakan server Gemini AI.';
-        try {
-          const errData = await response.json();
-          if (errData && errData.error) {
-            errMsg = `${errMsg} Detail: ${errData.error}`;
-          }
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-      
-      const data = await response.json();
-      if (data) {
-        setOcrKkResults(prev => ({ ...prev, [docId]: data }));
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Gagal mengekstrak data dari Kartu Keluarga.');
-    } finally {
-      setOcrLoading(prev => ({ ...prev, [docId]: false }));
-    }
-  };
-
-  const handleApplyKkMetaToFields = (kkOcr: any) => {
-    if (!kkOcr) return;
-
-    // Parse RT/RW
-    let rtStr = '';
-    let rwStr = '';
-    if (kkOcr.rt_rw && kkOcr.rt_rw.includes('/')) {
-      const parts = kkOcr.rt_rw.split('/');
-      rtStr = parts[0]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-      rwStr = parts[1]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-    } else if (kkOcr.rt_rw) {
-      const sanitized = kkOcr.rt_rw.replace(/\D/g, '');
-      if (sanitized.length >= 6) {
-        rtStr = sanitized.substring(0, 3);
-        rwStr = sanitized.substring(3, 6);
-      } else {
-        rtStr = sanitized.substring(0, 3);
-      }
-    }
-
-    // Try to auto-match Kampung and Kecamatan
-    let foundKampung = '';
-    let foundDistrict = '';
-    const sanitizedKelDesa = (kkOcr.desa_kelurahan || '').toLowerCase().replace(/kelurahan|desa|kampung/g, '').trim();
-    const sanitizedKecamatan = (kkOcr.kecamatan || '').toLowerCase().replace(/kecamatan/g, '').trim();
-
-    for (const [district, villages] of Object.entries(SIAK_REGIONAL_DATA)) {
-      if (sanitizedKecamatan && district.toLowerCase().includes(sanitizedKecamatan)) {
-        foundDistrict = district;
-      }
-      for (const v of villages) {
-        if (sanitizedKelDesa && v.toLowerCase().includes(sanitizedKelDesa)) {
-          foundKampung = v;
-          foundDistrict = district;
-          break;
-        }
-      }
-    }
-
-    // Find Kepala Keluarga member in members of family, to fill individual fields
-    const headMember = kkOcr.anggota_keluarga?.find(
-      (m: any) => {
-        const status = (m.status_hubungan_keluarga || '').toUpperCase();
-        return status === 'KEPALA KELUARGA' || (m.nama_lengkap || '').toUpperCase() === (kkOcr.nama_kepala_keluarga || '').toUpperCase();
-      }
-    ) || kkOcr.anggota_keluarga?.[0];
-
-    const isPerempuan = headMember?.jenis_kelamin && headMember?.jenis_kelamin.toLowerCase().includes('perempuan');
-
-    setRecipientInput(prev => ({
-      ...prev,
-      name: headMember?.nama_lengkap || prev.name,
-      nik: headMember?.nik ? headMember.nik.toString().replace(/\D/g, '').substring(0, 16) : prev.nik,
-      pob: headMember?.tempat_lahir || prev.pob,
-      dob: headMember?.tanggal_lahir ? formatOcrDob(headMember.tanggal_lahir) : prev.dob,
-      gender: headMember ? (isPerempuan ? 'Perempuan' : 'Laki-laki') : prev.gender,
-      familyStatus: headMember?.status_hubungan_keluarga || 'KEPALA KELUARGA',
-      religion: headMember?.religion || headMember?.agama || prev.religion,
-      education: headMember?.education || headMember?.pendidikan || prev.education,
-      job: headMember?.job || headMember?.jenis_pekerjaan || prev.job,
-      maritalStatus: headMember?.maritalStatus || headMember?.status_perkawinan || prev.maritalStatus,
-      citizenship: headMember?.citizenship || headMember?.kewarganegaraan || 'WNI',
-      passportNo: headMember?.passportNo || headMember?.no_paspor || prev.passportNo,
-      kitasNo: headMember?.kitasNo || headMember?.no_kitas_kitap || prev.kitasNo,
-      fatherName: headMember?.fatherName || headMember?.nama_ayah || prev.fatherName,
-      motherName: headMember?.motherName || headMember?.nama_ibu || prev.motherName,
-      kk: kkOcr.no_kk || prev.kk,
-      headOfFamilyName: kkOcr.nama_kepala_keluarga || prev.headOfFamilyName,
-      headOfFamilyDob: headMember?.tanggal_lahir ? formatOcrDob(headMember.tanggal_lahir) : prev.headOfFamilyDob,
-      address: kkOcr.alamat || prev.address,
-      rt: rtStr || prev.rt,
-      rw: rwStr || prev.rw,
-      kampung: foundKampung || prev.kampung,
-      district: foundDistrict || prev.district
-    }));
-
-    setIsAddingToSub(true);
-    setTimeout(() => {
-      document.getElementById('form-input-penerima')?.scrollIntoView({ behavior: 'smooth' });
-    }, 120);
-  };
-
-  const handleImportKkMembersToSub = (kkOcr: any) => {
-    if (!kkOcr || !kkOcr.anggota_keluarga || kkOcr.anggota_keluarga.length === 0) return;
-
-    // Parse RT/RW
-    let rtStr = '';
-    let rwStr = '';
-    if (kkOcr.rt_rw && kkOcr.rt_rw.includes('/')) {
-      const parts = kkOcr.rt_rw.split('/');
-      rtStr = parts[0]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-      rwStr = parts[1]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-    } else if (kkOcr.rt_rw) {
-      const sanitized = kkOcr.rt_rw.replace(/\D/g, '');
-      if (sanitized.length >= 6) {
-        rtStr = sanitized.substring(0, 3);
-        rwStr = sanitized.substring(3, 6);
-      } else {
-        rtStr = sanitized.substring(0, 3);
-      }
-    }
-
-    // Try to auto-match Kampung and Kecamatan
-    let foundKampung = '';
-    let foundDistrict = '';
-    const sanitizedKelDesa = (kkOcr.desa_kelurahan || '').toLowerCase().replace(/kelurahan|desa|kampung/g, '').trim();
-    const sanitizedKecamatan = (kkOcr.kecamatan || '').toLowerCase().replace(/kecamatan/g, '').trim();
-
-    for (const [district, villages] of Object.entries(SIAK_REGIONAL_DATA)) {
-      if (sanitizedKecamatan && district.toLowerCase().includes(sanitizedKecamatan)) {
-        foundDistrict = district;
-      }
-      for (const v of villages) {
-        if (sanitizedKelDesa && v.toLowerCase().includes(sanitizedKelDesa)) {
-          foundKampung = v;
-          foundDistrict = district;
-          break;
-        }
-      }
-    }
-
-    // Find Head of Family Birth Date if any
-    const headMember = kkOcr.anggota_keluarga.find(
-      (m: any) => (m.status_hubungan_keluarga || '').toUpperCase() === 'KEPALA KELUARGA'
-    );
-    const headDobStr = headMember ? formatOcrDob(headMember.tanggal_lahir) : '';
-
-    const newRecipients = kkOcr.anggota_keluarga.map((member: any) => {
-      const isPerempuan = member.jenis_kelamin && member.jenis_kelamin.toLowerCase().includes('perempuan');
-      return {
-        ...DEFAULT_RECIPIENT_INPUT,
-        name: member.nama_lengkap || '',
-        nik: member.nik ? member.nik.toString().replace(/\D/g, '').substring(0, 16) : '',
-        kk: kkOcr.no_kk || '',
-        pob: member.tempat_lahir || '',
-        dob: formatOcrDob(member.tanggal_lahir),
-        gender: isPerempuan ? 'Perempuan' : 'Laki-laki',
-        familyStatus: member.status_hubungan_keluarga || '',
-        headOfFamilyName: kkOcr.nama_kepala_keluarga || '',
-        headOfFamilyDob: headDobStr,
-        religion: member.agama || '',
-        education: member.pendidikan || '',
-        job: member.jenis_pekerjaan || '',
-        maritalStatus: member.status_perkawinan || '',
-        citizenship: member.kewarganegaraan || 'WNI',
-        passportNo: member.no_paspor || '',
-        kitasNo: member.no_kitas_kitap || '',
-        fatherName: member.nama_ayah || '',
-        motherName: member.nama_ibu || '',
-        address: kkOcr.alamat || '',
-        rt: rtStr,
-        rw: rwStr,
-        kampung: foundKampung,
-        district: foundDistrict,
-        notes: `Diimpor otomatis via OCR Kartu Keluarga No. ${kkOcr.no_kk || '-'}`
-      };
-    });
-
-    setSubRecipients(prev => {
-      // Avoid duplicate members if they already exist based on NIK
-      const existingNiks = new Set(prev.map(r => r.nik).filter(Boolean));
-      const filteredNew = newRecipients.filter((r: any) => !r.nik || !existingNiks.has(r.nik));
-      return [...prev, ...filteredNew];
-    });
-    alert(`Berhasil mengimpor ${newRecipients.length} anggota keluarga ke daftar penerima.`);
-  };
-
-  const handleApplyOcrToFields = (ocr: any) => {
-    if (!ocr) return;
-    
-    // Parse RT/RW
-    let rtStr = '';
-    let rwStr = '';
-    if (ocr.rt_rw && ocr.rt_rw.includes('/')) {
-      const parts = ocr.rt_rw.split('/');
-      rtStr = parts[0]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-      rwStr = parts[1]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-    } else if (ocr.rt_rw) {
-      const sanitized = ocr.rt_rw.replace(/\D/g, '');
-      if (sanitized.length >= 6) {
-        rtStr = sanitized.substring(0, 3);
-        rwStr = sanitized.substring(3, 6);
-      } else {
-        rtStr = sanitized.substring(0, 3);
-      }
-    }
-
-    // Try to auto-match Kampung and Kecamatan (village/district)
-    let foundKampung = '';
-    let foundDistrict = '';
-    
-    const sanitizedKelDesa = (ocr.kel_desa || '').toLowerCase().replace(/kelurahan|desa|kampung/g, '').trim();
-    const sanitizedKecamatan = (ocr.kecamatan || '').toLowerCase().replace(/kecamatan/g, '').trim();
-
-    for (const [district, villages] of Object.entries(SIAK_REGIONAL_DATA)) {
-      if (sanitizedKecamatan && district.toLowerCase().includes(sanitizedKecamatan)) {
-        foundDistrict = district;
-      }
-      for (const v of villages) {
-        if (sanitizedKelDesa && v.toLowerCase().includes(sanitizedKelDesa)) {
-          foundKampung = v;
-          foundDistrict = district; // Match overrides
-          break;
-        }
-      }
-    }
-
-    setRecipientInput(prev => ({
-      ...prev,
-      name: ocr.nama || prev.name,
-      nik: ocr.nik ? ocr.nik.toString().replace(/\D/g, '').substring(0, 16) : prev.nik,
-      pob: ocr.tempat_lahir || prev.pob,
-      dob: ocr.tanggal_lahir || prev.dob,
-      address: ocr.alamat || prev.address,
-      rt: rtStr || prev.rt,
-      rw: rwStr || prev.rw,
-      kampung: foundKampung || prev.kampung,
-      district: foundDistrict || prev.district
-    }));
-
-    setIsAddingToSub(true);
-    setTimeout(() => {
-      document.getElementById('form-input-penerima')?.scrollIntoView({ behavior: 'smooth' });
-    }, 120);
-  };
-
   // States for adding custom dropdown options
   const [customSubSectors, setCustomSubSectors] = useState<Record<string, string[]>>({});
   const [customAidTypes, setCustomAidTypes] = useState<Record<string, string[]>>({});
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
   const [customCompanions, setCustomCompanions] = useState<string[]>([]);
   const [customPersonInCharge, setCustomPersonInCharge] = useState<string[]>([]);
-
-  const [inputMode, setInputMode] = useState<'manual' | 'hp'>('manual');
-  const [hpSessionId] = useState(() => `HP-${Math.random().toString(36).substring(2, 10)}`);
-  
-  useEffect(() => {
-    if (inputMode !== 'hp') return;
-    
-    let unsubscribe: () => void;
-    let isMounted = true;
-    
-    const initListener = async () => {
-      try {
-        const { db } = await import('../firebase');
-        const { doc, onSnapshot, setDoc, getDoc } = await import('firebase/firestore');
-        
-        const ref = doc(db, 'ocr_sessions', hpSessionId);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
-          await setDoc(ref, { 
-            createdAt: new Date().toISOString(),
-            documents: []
-          });
-        }
-        
-        if (!isMounted) return;
-        
-        unsubscribe = onSnapshot(ref, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.documents && Array.isArray(data.documents)) {
-              setRegistrationData(prev => {
-                // Ensure unique documents
-                const currDocs = [...prev.documents];
-                let hasNew = false;
-                
-                data.documents.forEach((remoteDoc: any) => {
-                  if (!currDocs.find(d => d.id === remoteDoc.id)) {
-                    currDocs.push({
-                      id: remoteDoc.id || `DOC-${Math.random().toString(36).substring(2,8)}`,
-                      name: remoteDoc.name || remoteDoc.type || 'Dokumen HP',
-                      fileUrl: remoteDoc.fileUrl || remoteDoc.dataUrl,
-                      type: remoteDoc.type || 'Lainnya',
-                      uploadedAt: remoteDoc.uploadedAt || new Date().toISOString()
-                    } as any);
-                    hasNew = true;
-                  }
-                });
-                
-                if (hasNew) {
-                  return { ...prev, documents: currDocs };
-                }
-                return prev;
-              });
-            }
-          }
-        });
-      } catch (err) {
-        console.error("Firebase hp listener error", err);
-      }
-    };
-    
-    initListener();
-    
-    return () => {
-      isMounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [inputMode, hpSessionId]);
 
   useEffect(() => {
     if (initialGroupRecipients && initialGroupRecipients.length > 0) {
@@ -1015,7 +588,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       ...groupSettings,
       amountProposed: Number(registrationData.amountProposed),
       amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
-      documents: [...(r.documents || []), ...(groupDocs || [])]
     }));
 
     setIsSavingAll(true);
@@ -1028,551 +600,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
   return (
     <div className="space-y-10 pb-36">
-      <div className="flex gap-4 border-b border-slate-200 mb-6 px-1">
-        <button
-          className={cn("pb-2 px-4 font-black text-sm border-b-2 transition-all duration-300 transform outline-none", inputMode === 'manual' ? "border-indigo-600 text-indigo-700 pointer-events-none" : "border-transparent text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer")}
-          onClick={() => setInputMode('manual')}
-        >
-          Input Manual
-        </button>
-        <button
-          className={cn("pb-2 px-4 font-black text-sm border-b-2 transition-all duration-300 transform outline-none", inputMode === 'hp' ? "border-indigo-600 text-indigo-700 pointer-events-none" : "border-transparent text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer")}
-          onClick={() => setInputMode('hp')}
-        >
-          Input via HP
-        </button>
-      </div>
-
-      {inputMode === 'hp' ? (
-        <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-6">
-            <div className="bg-white p-6 rounded-2xl border-2 border-dashed border-indigo-200 shadow-sm inline-block relative">
-               <div className="relative z-10 bg-white p-2 w-[200px] h-[200px] rounded-lg">
-                 <QRCode value={(() => {
-                   if (typeof window === 'undefined') {
-                     return `https://baznas-siak.vercel.app/?scan-docs=true&session=${hpSessionId}`;
-                   }
-                   let cleanPath = window.location.pathname;
-                   if (cleanPath.endsWith('index.html')) {
-                     cleanPath = cleanPath.slice(0, -10);
-                   }
-                   if (!cleanPath.endsWith('/')) {
-                     cleanPath += '/';
-                   }
-                   return `${window.location.origin}${cleanPath}?scan-docs=true&session=${hpSessionId}`;
-                 })()} size={184} className="w-full h-full" />
-               </div>
-            </div>
-            
-            <div className="space-y-2">
-               <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">Pindai dengan HP Anda</h3>
-               <p className="text-slate-500 text-sm leading-relaxed">
-                 Buka kamera HP Anda (atau Google Lens) dan scan QR di atas. Dokumen seperti KTP dan KK akan otomatis dikirim ke sini saat Anda ambil foti dari HP.
-               </p>
-            </div>
-          </div>
-          
-          {registrationData.documents.length > 0 && (
-            <div className="mt-8 pt-8 border-t border-slate-200 w-full text-left">
-              <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Check className="w-5 h-5 text-emerald-500" />
-                Dokumen Terscan ({registrationData.documents.length})
-              </h4>
-              <div className="flex flex-wrap gap-4">
-                {registrationData.documents.map((doc, idx) => {
-                  const docId = doc.id || doc.name || idx.toString();
-                  const isLoading = ocrLoading[docId];
-                  const ocrResult = ocrResults[docId];
-                  const ocrKkResult = ocrKkResults[docId];
-                  const isKtp = doc.type === 'KTP' || doc.name.toLowerCase().includes('ktp');
-                  const isKk = doc.type === 'KK' || doc.name.toLowerCase().includes('kk') || doc.name.toLowerCase().includes('keluarga');
-                  const isImage = doc.fileUrl && (doc.fileUrl.startsWith('data:image/') || isKtp || isKk);
-
-                  return (
-                    <div 
-                      key={doc.id || idx} 
-                      className={cn(
-                        "bg-white p-3 rounded-xl border border-slate-200 shadow-sm shrink-0 hover:border-indigo-400 group relative transition-all flex flex-col justify-between",
-                        ocrResult || ocrKkResult ? "w-[340px]" : "w-72"
-                      )}
-                    >
-                      <div>
-                        <div className="relative overflow-hidden rounded-lg mb-2 bg-slate-50 border border-slate-100 flex items-center justify-center aspect-[1.58/1] w-full">
-                          <img 
-                            src={doc.fileUrl || undefined} 
-                            alt={doc.name} 
-                            className="max-w-full max-h-full object-contain transform group-hover:scale-105 transition-transform duration-300" 
-                          />
-                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 duration-200 rounded-lg">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewDoc({ name: doc.name, url: doc.fileUrl })}
-                              className="bg-white text-slate-800 p-1.5 rounded-lg shadow-md font-bold text-xs flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              Pratinjau
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-700 truncate text-left" title={doc.name}>{doc.name}</p>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 font-bold text-slate-500 rounded uppercase tracking-wider">{doc.type}</span>
-                            <span className="text-[9px] text-slate-400">Terunduh</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* AI OCR Actions & Forms */}
-                      {isImage && (
-                        <div className="mt-3 pt-3 border-t border-slate-100">
-                          {isKk ? (
-                            <>
-                              {!ocrKkResult && !isLoading && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleExtractKKAI(docId, doc.fileUrl)}
-                                  className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-colors border border-indigo-100 cursor-pointer"
-                                >
-                                  <Sparkles className="w-3 h-3 text-indigo-600 animate-pulse" />
-                                  Ekstrak KK dengan AI Gemini
-                                </button>
-                              )}
-
-                              {isLoading && (
-                                <div className="w-full py-2 flex flex-col items-center justify-center gap-1 bg-indigo-50/50 rounded-lg border border-indigo-100/50">
-                                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                                  <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-wider animate-pulse font-mono">Memproses KK...</span>
-                                </div>
-                              )}
-
-                              {ocrKkResult && (
-                                <div className="mt-2.5 p-2 bg-emerald-50 rounded-lg border border-emerald-200 text-center space-y-1">
-                                  <div className="flex items-center justify-between pb-1 border-b border-emerald-200/60">
-                                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-800 flex items-center gap-1">
-                                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> KK Teridentifikasi
-                                    </span>
-                                    <button 
-                                      type="button"
-                                      onClick={() => setOcrKkResults(prev => {
-                                        const copy = { ...prev };
-                                        delete copy[docId];
-                                        return copy;
-                                      })}
-                                      className="text-[9px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
-                                    >
-                                      Reset
-                                    </button>
-                                  </div>
-                                  <p className="text-[10px] text-slate-700 font-medium text-left leading-normal">
-                                    No KK: <span className="font-mono font-bold text-slate-900">{ocrKkResult.no_kk || '-'}</span>
-                                  </p>
-                                  <p className="text-[10px] text-slate-700 font-medium text-left leading-normal truncate">
-                                    Kepala: <span className="font-bold text-slate-900">{ocrKkResult.nama_kepala_keluarga || '-'}</span>
-                                  </p>
-                                  <div className="pt-2 grid grid-cols-2 gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleApplyKkMetaToFields(ocrKkResult)}
-                                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 px-1 rounded text-[9px] transition-all cursor-pointer"
-                                    >
-                                      Gunakan Profil
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleImportKkMembersToSub(ocrKkResult)}
-                                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1 px-1 rounded text-[9px] transition-all cursor-pointer"
-                                    >
-                                      Impor Anggota
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {!ocrResult && !isLoading && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleExtractKTPAI(docId, doc.fileUrl)}
-                                  className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-colors border border-indigo-100 cursor-pointer"
-                                >
-                                  <Sparkles className="w-3 h-3 text-indigo-600 animate-pulse" />
-                                  Ekstrak KTP dengan AI Gemini
-                                </button>
-                              )}
-
-                              {isLoading && (
-                                <div className="w-full py-2 flex flex-col items-center justify-center gap-1 bg-indigo-50/50 rounded-lg border border-indigo-100/50">
-                                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                                  <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-wider animate-pulse">Menghubungi Gemini AI...</span>
-                                </div>
-                              )}
-
-                              {ocrResult && (
-                                <div className="mt-2.5 p-2 bg-slate-50 rounded-lg border border-slate-200/80 space-y-2 text-left">
-                                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-                                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-700 flex items-center gap-1">
-                                      <Cpu className="w-2.5 h-2.5" /> Form Ekstraksi KTP
-                                    </span>
-                                    <button 
-                                      type="button"
-                                      onClick={() => setOcrResults(prev => {
-                                        const copy = { ...prev };
-                                        delete copy[docId];
-                                        return copy;
-                                      })}
-                                      className="text-[9px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
-                                    >
-                                      Reset
-                                    </button>
-                                  </div>
-
-                                  <div className="space-y-1.5">
-                                    <div className="space-y-0.5">
-                                      <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">NIK</label>
-                                      <input 
-                                        type="text" 
-                                        value={ocrResult.nik}
-                                        onChange={(e) => setOcrResults(prev => ({
-                                          ...prev,
-                                          [docId]: { ...ocrResult, nik: e.target.value }
-                                        }))}
-                                        className="w-full bg-white border border-slate-200 px-1.5 py-0.5 text-[10px] rounded font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                      />
-                                    </div>
-
-                                    <div className="space-y-0.5">
-                                      <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Nama Lengkap</label>
-                                      <input 
-                                        type="text" 
-                                        value={ocrResult.nama}
-                                        onChange={(e) => setOcrResults(prev => ({
-                                          ...prev,
-                                          [docId]: { ...ocrResult, nama: e.target.value }
-                                        }))}
-                                        className="w-full bg-white border border-slate-200 px-1.5 py-0.5 text-[10px] rounded font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                      />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-1">
-                                      <div className="space-y-0.5">
-                                        <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Tempat Lahir</label>
-                                        <input 
-                                          type="text" 
-                                          value={ocrResult.tempat_lahir}
-                                          onChange={(e) => setOcrResults(prev => ({
-                                            ...prev,
-                                            [docId]: { ...ocrResult, tempat_lahir: e.target.value }
-                                          }))}
-                                          className="w-full bg-white border border-slate-200 px-1 py-0.5 text-[10px] rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                      </div>
-                                      <div className="space-y-0.5">
-                                        <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Tgl Lahir</label>
-                                        <input 
-                                          type="text" 
-                                          value={ocrResult.tanggal_lahir}
-                                          onChange={(e) => setOcrResults(prev => ({
-                                            ...prev,
-                                            [docId]: { ...ocrResult, tanggal_lahir: e.target.value }
-                                          }))}
-                                          className="w-full bg-white border border-slate-200 px-1 py-0.5 text-[10px] rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-0.5">
-                                      <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Alamat</label>
-                                      <input 
-                                        type="text" 
-                                        value={ocrResult.alamat}
-                                        onChange={(e) => setOcrResults(prev => ({
-                                          ...prev,
-                                          [docId]: { ...ocrResult, alamat: e.target.value }
-                                        }))}
-                                        className="w-full bg-white border border-slate-200 px-1.5 py-0.5 text-[10px] rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                      />
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-1">
-                                      <div className="space-y-0.5">
-                                        <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">RT/RW</label>
-                                        <input 
-                                          type="text" 
-                                          value={ocrResult.rt_rw}
-                                          onChange={(e) => setOcrResults(prev => ({
-                                            ...prev,
-                                            [docId]: { ...ocrResult, rt_rw: e.target.value }
-                                          }))}
-                                          className="w-full bg-white border border-slate-200 px-1 py-0.5 text-[9px] rounded text-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                      </div>
-                                      <div className="space-y-0.5">
-                                        <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Kel/Desa</label>
-                                        <input 
-                                          type="text" 
-                                          value={ocrResult.kel_desa}
-                                          onChange={(e) => setOcrResults(prev => ({
-                                            ...prev,
-                                            [docId]: { ...ocrResult, kel_desa: e.target.value }
-                                          }))}
-                                          className="w-full bg-white border border-slate-200 px-1 py-0.5 text-[9px] rounded text-slate-700 truncate focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                      </div>
-                                      <div className="space-y-0.5">
-                                        <label className="text-[8px] font-bold text-slate-500 uppercase block leading-none">Kecamatan</label>
-                                        <input 
-                                          type="text" 
-                                          value={ocrResult.kecamatan}
-                                          onChange={(e) => setOcrResults(prev => ({
-                                            ...prev,
-                                            [docId]: { ...ocrResult, kecamatan: e.target.value }
-                                          }))}
-                                          className="w-full bg-white border border-slate-200 px-1 py-0.5 text-[9px] rounded text-slate-700 truncate focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApplyOcrToFields(ocrResult)}
-                                    className="w-full mt-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white py-1 px-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:shadow-md"
-                                  >
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    Gunakan Data Ini
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* KK EXTRACTED FAMILY TABLES VIEW */}
-              {(Object.entries(ocrKkResults) as [string, any][]).map(([docId, kkOcr]) => {
-                if (!kkOcr) return null;
-                return (
-                  <div key={docId} className="mt-8 bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 shadow-inner">
-                          <Check className="w-6 h-6 text-emerald-600 stroke-[3]" />
-                        </div>
-                        <div>
-                          <h5 className="font-extrabold text-slate-800 text-base">Hasil Ekstraksi Kartu Keluarga: <span className="font-mono text-indigo-700">{kkOcr.no_kk || '-'}</span></h5>
-                          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Kepala Keluarga: <span className="text-slate-700 font-bold">{kkOcr.nama_kepala_keluarga || '-'}</span></p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleApplyKkMetaToFields(kkOcr)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:shadow-md"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          Gunakan Identitas & Alamat KK
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleImportKkMembersToSub(kkOcr)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:shadow-md"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Impor Semua sebagai Penerima ({kkOcr.anggota_keluarga?.length || 0})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setOcrKkResults(prev => {
-                            const copy = { ...prev };
-                            delete copy[docId];
-                            return copy;
-                          })}
-                          className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded-xl transition-all border border-rose-100 cursor-pointer"
-                        >
-                          Reset KK
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-slate-600 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-white p-4 rounded-xl border border-slate-200/60 shadow-inner">
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">Alamat Rumah</strong> <span className="text-sm font-semibold text-slate-800">{kkOcr.alamat || '-'}</span></div>
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">RT / RW</strong> <span className="text-sm font-semibold text-slate-800 font-mono">{kkOcr.rt_rw || '-'}</span></div>
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">Desa / Kelurahan</strong> <span className="text-sm font-semibold text-slate-800">{kkOcr.desa_kelurahan || '-'}</span></div>
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">Kecamatan</strong> <span className="text-sm font-semibold text-slate-800">{kkOcr.kecamatan || '-'}</span></div>
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">Kabupaten / Kota</strong> <span className="text-sm font-semibold text-slate-800">{kkOcr.kabupaten_kota || '-'}</span></div>
-                      <div><strong className="text-slate-500 uppercase text-[9px] block">Provinsi</strong> <span className="text-sm font-semibold text-slate-800">{kkOcr.provinsi || '-'}</span></div>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 text-slate-700 uppercase font-bold text-[9px] tracking-wider border-b border-slate-200">
-                          <tr>
-                            <th className="p-3 w-12 text-center">No</th>
-                            <th className="p-3">Nama Lengkap</th>
-                            <th className="p-3">NIK</th>
-                            <th className="p-3">JK</th>
-                            <th className="p-3">Tempat, Tgl Lahir</th>
-                            <th className="p-3">Hubungan</th>
-                            <th className="p-3">Pekerjaan</th>
-                            <th className="p-3">Silsilah Ortu</th>
-                            <th className="p-3 text-right">Aksi</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {kkOcr.anggota_keluarga?.map((member, mIdx) => {
-                            const isPerempuan = member.jenis_kelamin && member.jenis_kelamin.toLowerCase().includes('perempuan');
-                            
-                            // Build standard recipient structure for individual import
-                            const headOfFamilyMember = kkOcr.anggota_keluarga.find(
-                              (m: any) => (m.status_hubungan_keluarga || '').toUpperCase() === 'KEPALA KELUARGA'
-                            );
-                            const headDobStr = headOfFamilyMember ? formatOcrDob(headOfFamilyMember.tanggal_lahir) : '';
-
-                            // Parse RT/RW
-                            let rtStr = '';
-                            let rwStr = '';
-                            if (kkOcr.rt_rw && kkOcr.rt_rw.includes('/')) {
-                              const parts = kkOcr.rt_rw.split('/');
-                              rtStr = parts[0]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-                              rwStr = parts[1]?.trim().replace(/\D/g, '').substring(0, 3).padStart(3, '0') || '';
-                            } else if (kkOcr.rt_rw) {
-                              const sanitized = kkOcr.rt_rw.replace(/\D/g, '');
-                              if (sanitized.length >= 6) {
-                                rtStr = sanitized.substring(0, 3);
-                                rwStr = sanitized.substring(3, 6);
-                              } else {
-                                rtStr = sanitized.substring(0, 3);
-                              }
-                            }
-
-                            // Auto-match regional data
-                            let foundKampung = '';
-                            let foundDistrict = '';
-                            const fdKel = (kkOcr.desa_kelurahan || '').toLowerCase().replace(/kelurahan|desa|kampung/g, '').trim();
-                            const fdKec = (kkOcr.kecamatan || '').toLowerCase().replace(/kecamatan/g, '').trim();
-                            for (const [district, villages] of Object.entries(SIAK_REGIONAL_DATA)) {
-                              if (fdKec && district.toLowerCase().includes(fdKec)) {
-                                foundDistrict = district;
-                              }
-                              for (const v of villages) {
-                                if (fdKel && v.toLowerCase().includes(fdKel)) {
-                                  foundKampung = v;
-                                  foundDistrict = district;
-                                  break;
-                                }
-                              }
-                            }
-
-                            const memberRecipient = {
-                              ...DEFAULT_RECIPIENT_INPUT,
-                              name: member.nama_lengkap || '',
-                              nik: member.nik ? member.nik.toString().replace(/\D/g, '').substring(0, 16) : '',
-                              kk: kkOcr.no_kk || '',
-                              pob: member.tempat_lahir || '',
-                              dob: formatOcrDob(member.tanggal_lahir),
-                              gender: isPerempuan ? 'Perempuan' : 'Laki-laki',
-                              familyStatus: member.status_hubungan_keluarga || '',
-                              headOfFamilyName: kkOcr.nama_kepala_keluarga || '',
-                              headOfFamilyDob: headDobStr,
-                              religion: member.agama || '',
-                              education: member.pendidikan || '',
-                              job: member.jenis_pekerjaan || '',
-                              maritalStatus: member.status_perkawinan || '',
-                              citizenship: member.kewarganegaraan || 'WNI',
-                              passportNo: member.no_paspor || '',
-                              kitasNo: member.no_kitas_kitap || '',
-                              fatherName: member.nama_ayah || '',
-                              motherName: member.nama_ibu || '',
-                              address: kkOcr.alamat || '',
-                              rt: rtStr,
-                              rw: rwStr,
-                              kampung: foundKampung,
-                              district: foundDistrict,
-                              notes: `Diimpor tunggal via OCR Kartu Keluarga No. ${kkOcr.no_kk || '-'}`
-                            };
-
-                             const handleImportIndividual = () => {
-                              setSubRecipients(prev => {
-                                const exists = prev.some(r => r.nik && r.nik === memberRecipient.nik);
-                                if (exists) {
-                                  alert(`Anggota keluarga "${member.nama_lengkap}" sudah ada di daftar.`);
-                                  return prev;
-                                }
-                                return [...prev, memberRecipient];
-                              });
-                              alert(`Berhasil mengimpor "${member.nama_lengkap}" ke daftar.`);
-                            };
-
-                            const handleApplyIndividualToForm = () => {
-                              setRecipientInput(memberRecipient);
-                              setIsAddingToSub(true);
-                              setTimeout(() => {
-                                document.getElementById('form-input-penerima')?.scrollIntoView({ behavior: 'smooth' });
-                              }, 120);
-                            };
-
-                            return (
-                              <tr key={member.no || mIdx} className="hover:bg-slate-50 transition-colors">
-                                <td className="p-3 font-medium text-slate-400 text-center">{member.no || mIdx + 1}</td>
-                                <td className="p-3 font-semibold text-slate-800 leading-tight text-xs">{member.nama_lengkap || '-'}</td>
-                                <td className="p-3 font-mono font-medium text-slate-500 text-xs">{member.nik || '-'}</td>
-                                <td className="p-3 text-[10px]">
-                                  <span className={cn(
-                                    "px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px]",
-                                    isPerempuan ? "bg-pink-50 text-pink-700 border border-pink-100" : "bg-blue-50 text-blue-700 border border-blue-100"
-                                  )}>
-                                    {isPerempuan ? "Perempuan" : "Laki-laki"}
-                                  </span>
-                                </td>
-                                <td className="p-3 leading-tight text-xs">
-                                  <div className="font-semibold text-slate-700">{member.tempat_lahir || '-'}</div>
-                                  <div className="text-[10px] text-slate-400 font-mono">{member.tanggal_lahir || '-'}</div>
-                                </td>
-                                <td className="p-3"><span className="px-1.5 py-0.5 bg-slate-100 rounded font-bold text-[10px] text-slate-600 uppercase tracking-wide border border-slate-200">{member.status_hubungan_keluarga || '-'}</span></td>
-                                <td className="p-3 text-slate-600 text-xs max-w-[140px] truncate" title={member.jenis_pekerjaan}>{member.jenis_pekerjaan || '-'}</td>
-                                <td className="p-3 text-[11px] leading-tight text-slate-600">
-                                  <div><strong className="text-slate-400">A:</strong> {member.nama_ayah || '-'}</div>
-                                  <div><strong className="text-slate-400">I:</strong> {member.nama_ibu || '-'}</div>
-                                </td>
-                                <td className="p-3 text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={handleApplyIndividualToForm}
-                                      className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[10px] rounded-lg border border-amber-200 transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-                                    >
-                                      <Check className="w-3 h-3 text-amber-600" />
-                                      Gunakan Identitas & Isi Form
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={handleImportIndividual}
-                                      className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] rounded-lg border border-indigo-100 hover:border-indigo-200 transition-all cursor-pointer"
-                                    >
-                                      Impor Anggota
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : null}
-
       <form onSubmit={e => e.preventDefault()} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
         
         {/* SECTION 1: TABEL UTAMA - PARAMETER REGISTRASI & PENGAJUAN */}
@@ -1966,336 +993,115 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             )}
           </div>
 
-          <div className="space-y-8">
-            {/* GABUNGAN FORM KTP & KARTU KELUARGA */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {/* PANEL BLUE (KARTU TANDA PENDUDUK - KTP) */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-inner space-y-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                <div className="border-b border-indigo-100 pb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg shadow-sm">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 text-sm tracking-wide">KARTU TANDA PENDUDUK (KTP)</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Identitas Kependudukan Mandiri</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 font-extrabold px-2.5 py-0.5 rounded border border-indigo-100/50 uppercase tracking-widest font-mono">REPUBLIK INDONESIA</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">NIK (Nomor Induk Kependudukan) *</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Hash className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="text" 
-                        maxLength={16} 
-                        className="form-input-custom pl-9 font-mono font-bold text-indigo-900 placeholder-slate-300" 
-                        value={recipientInput.nik} 
-                        onChange={e => setRecipientInput({...recipientInput, nik: e.target.value.replace(/\D/g, '')})} 
-                        placeholder="317XXXXXXXXXXXXXXXX" 
-                      />
-                    </div>
-                    {recipientInput.nik.length > 0 && recipientInput.nik.length < 16 && (
-                      <p className="text-[10px] text-rose-500 font-bold bg-rose-50/50 px-2 py-0.5 rounded border border-rose-100/40 inline-block">
-                        Digit NIK kurang {(16 - recipientInput.nik.length)} angka (Harus 16 angka)
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Nama Lengkap (Sesuai KTP) *</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="text" 
-                        className="form-input-custom pl-9 font-bold text-slate-800 placeholder-slate-300 capitalize" 
-                        value={recipientInput.name} 
-                        onChange={e => setRecipientInput({...recipientInput, name: e.target.value})} 
-                        placeholder="NAMA LENGKAP PENERIMA" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Tempat Lahir</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-semibold text-slate-800" 
-                      value={recipientInput.pob} 
-                      onChange={e => setRecipientInput({...recipientInput, pob: e.target.value})} 
-                      placeholder="Kabupaten / Kota" 
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Tanggal Lahir</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Calendar className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="text" 
-                        className="form-input-custom pl-9 font-semibold text-slate-800" 
-                        placeholder="DD-MM-YYYY atau Tgl-Bln-Thn" 
-                        value={recipientInput.dob} 
-                        onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Jenis Kelamin</label>
-                    <select 
-                      className="form-input-custom font-semibold text-slate-800" 
-                      value={recipientInput.gender} 
-                      onChange={e => setRecipientInput({...recipientInput, gender: e.target.value as any})}
-                    >
-                      <option value="Laki-laki">Laki-Laki</option>
-                      <option value="Perempuan">Perempuan</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Agama</label>
-                    <select 
-                      className="form-input-custom font-semibold text-slate-800" 
-                      value={recipientInput.religion || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, religion: e.target.value})}
-                    >
-                      <option value="">Pilih Agama</option>
-                      <option value="ISLAM">ISLAM</option>
-                      <option value="KRISTEN">KRISTEN</option>
-                      <option value="KATOLIK">KATOLIK</option>
-                      <option value="HINDU">HINDU</option>
-                      <option value="BUDHA">BUDHA</option>
-                      <option value="KHONGHUCU">KHONGHUCU</option>
-                      <option value="LAINNYA">LAINNYA</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Status Perkawinan</label>
-                    <select 
-                      className="form-input-custom font-semibold text-slate-800" 
-                      value={recipientInput.maritalStatus || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, maritalStatus: e.target.value})}
-                    >
-                      <option value="">Pilih Status</option>
-                      <option value="BELUM KAWIN">BELUM KAWIN</option>
-                      <option value="KAWIN">KAWIN</option>
-                      <option value="CERAI HIDUP">CERAI HIDUP</option>
-                      <option value="CERAI MATI">CERAI MATI</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Pekerjaan</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-semibold text-slate-800 capitalize" 
-                      value={recipientInput.job || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, job: e.target.value})} 
-                      placeholder="Contoh: Wiraswasta, Buruh" 
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Kewarganegaraan</label>
-                    <select 
-                      className="form-input-custom font-semibold text-slate-800" 
-                      value={recipientInput.citizenship || 'WNI'} 
-                      onChange={e => setRecipientInput({...recipientInput, citizenship: e.target.value})}
-                    >
-                      <option value="WNI">WNI (WARGA NEGARA INDONESIA)</option>
-                      <option value="WNA">WNA (WARGA NEGARA ASING)</option>
-                    </select>
-                  </div>
-                </div>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">Nama Penerima *</label>
+                <input type="text" className="form-input-custom font-medium" value={recipientInput.name} onChange={e => setRecipientInput({...recipientInput, name: e.target.value})} placeholder="Nama lengkap sesuai KTP" />
               </div>
 
-              {/* PANEL GREEN (KARTU KELUARGA - KK) */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-inner space-y-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-                <div className="border-b border-emerald-100 pb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg shadow-sm">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 text-sm tracking-wide">KARTU KELUARGA (KK)</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Silsilah & Hubungan Keluarga</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-extrabold px-2.5 py-0.5 rounded border border-emerald-100/50 uppercase tracking-widest font-mono">NO. BLANGKO KK</span>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">NIK *</label>
+                <input type="text" maxLength={16} className="form-input-custom font-mono" value={recipientInput.nik} onChange={e => setRecipientInput({...recipientInput, nik: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit NIK" />
+                {recipientInput.nik.length > 0 && recipientInput.nik.length < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    NIK kurang {(16 - recipientInput.nik.length)} digit
+                  </p>
+                )}
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Nomor KK (Kartu Keluarga) *</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Hash className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="text" 
-                        maxLength={16} 
-                        className="form-input-custom pl-9 font-mono font-bold text-emerald-900 placeholder-slate-300" 
-                        value={recipientInput.kk} 
-                        onChange={e => setRecipientInput({...recipientInput, kk: e.target.value.replace(/\D/g, '')})} 
-                        placeholder="140XXXXXXXXXXXXXXXX" 
-                      />
-                    </div>
-                    {recipientInput.kk.length > 0 && recipientInput.kk.length < 16 && (
-                      <p className="text-[10px] text-rose-500 font-bold bg-rose-50/50 px-2 py-0.5 rounded border border-rose-100/40 inline-block">
-                        Digit No KK kurang {(16 - recipientInput.kk.length)} angka (Harus 16 angka)
-                      </p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Nomor KK *</label>
+                <input type="text" maxLength={16} className="form-input-custom font-mono" value={recipientInput.kk} onChange={e => setRecipientInput({...recipientInput, kk: e.target.value.replace(/\D/g, '')})} placeholder="16 Digit No KK" />
+                {recipientInput.kk.length > 0 && recipientInput.kk.length < 16 && (
+                  <p className="text-xs text-rose-500 font-medium">
+                    Nomor KK kurang {(16 - recipientInput.kk.length)} digit
+                  </p>
+                )}
+              </div>
 
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Nama Kepala Keluarga *</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-bold text-slate-800 capitalize placeholder-slate-300" 
-                      value={recipientInput.headOfFamilyName} 
-                      onChange={e => setRecipientInput({...recipientInput, headOfFamilyName: e.target.value})} 
-                      placeholder="NAMA KEPALA KELUARGA" 
-                    />
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tempat Lahir</label>
+                <input type="text" className="form-input-custom font-medium" value={recipientInput.pob} onChange={e => setRecipientInput({...recipientInput, pob: e.target.value})} />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Tgl Lahir Kepala Keluarga (Opsional)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <Calendar className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="text" 
-                        className="form-input-custom pl-9 font-semibold text-slate-800 placeholder-slate-300" 
-                        placeholder="DD-MM-YYYY" 
-                        value={recipientInput.headOfFamilyDob} 
-                        onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} 
-                      />
-                    </div>
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
+                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Status Hubungan Keluarga *</label>
-                    <select 
-                      className="form-input-custom font-semibold text-indigo-700 bg-indigo-50/50 border-indigo-200" 
-                      value={recipientInput.familyStatus} 
-                      onChange={e => setRecipientInput({...recipientInput, familyStatus: e.target.value})}
-                    >
-                      <option value="">Pilih Hubungan</option>
-                      <option value="KEPALA KELUARGA">KEPALA KELUARGA</option>
-                      <option value="ISTRI">ISTRI</option>
-                      <option value="ANAK">ANAK</option>
-                      <option value="MENANTU">MENANTU</option>
-                      <option value="CUCU">CUCU</option>
-                      <option value="ORANG TUA">ORANG TUA</option>
-                      <option value="MERTUA">MERTUA</option>
-                      <option value="FAMILI LAIN">FAMILI LAIN</option>
-                      <option value="PEMBANTU">PEMBANTU</option>
-                      <option value="LAINNYA">LAINNYA</option>
-                    </select>
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Jenis Kelamin</label>
+                <select className="form-input-custom font-medium" value={recipientInput.gender} onChange={e => setRecipientInput({...recipientInput, gender: e.target.value as any})}>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
+                </select>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Nama Lengkap Ayah Kandung</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-semibold text-slate-800 capitalize" 
-                      value={recipientInput.fatherName || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, fatherName: e.target.value})} 
-                      placeholder="NAMA AYAH KANDUNG" 
-                    />
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Status Hubungan Keluarga</label>
+                <select className="form-input-custom font-medium" value={recipientInput.familyStatus} onChange={e => setRecipientInput({...recipientInput, familyStatus: e.target.value})}>
+                  <option value="">Pilih Status</option>
+                  <option value="Kepala Keluarga">Kepala Keluarga</option>
+                  <option value="Istri">Istri</option>
+                  <option value="Anak">Anak</option>
+                  <option value="Famili Lain">Famili Lain</option>
+                </select>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Nama Lengkap Ibu Kandung</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-semibold text-slate-800 capitalize" 
-                      value={recipientInput.motherName || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, motherName: e.target.value})} 
-                      placeholder="NAMA IBU KANDUNG" 
-                    />
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Nama Kepala Keluarga</label>
+                <input type="text" className="form-input-custom font-medium" value={recipientInput.headOfFamilyName} onChange={e => setRecipientInput({...recipientInput, headOfFamilyName: e.target.value})} />
+              </div>
 
-                  <div className="space-y-1.5 text-xs text-slate-500">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">No. Paspor (Bila Ada)</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-mono text-slate-700 uppercase" 
-                      value={recipientInput.passportNo || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, passportNo: e.target.value})} 
-                      placeholder="- / No Paspor Aktif" 
-                    />
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
+                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
+              </div>
 
-                  <div className="space-y-1.5 text-xs text-slate-500">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">No. KITAS / KITAP (Bila Ada)</label>
-                    <input 
-                      type="text" 
-                      className="form-input-custom font-mono text-slate-700 uppercase" 
-                      value={recipientInput.kitasNo || ''} 
-                      onChange={e => setRecipientInput({...recipientInput, kitasNo: e.target.value})} 
-                      placeholder="- / No Kartu Imigrasi" 
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">No Handphone</label>
+                <input 
+                  type="tel" 
+                  placeholder="+62"
+                  className="form-input-custom font-medium" 
+                  value={recipientInput.contact} 
+                  onChange={e => {
+                    let val = e.target.value.replace(/[^\d+]/g, '');
+                    if (val.startsWith('0')) {
+                      val = '+62' + val.substring(1);
+                    } else if (val.startsWith('62')) {
+                      val = '+' + val;
+                    }
+                    setRecipientInput({...recipientInput, contact: val});
+                  }} 
+                />
               </div>
             </div>
 
-            {/* DOMISILI & KONTAK PANEL */}
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-inner">
-              <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-widest flex items-center gap-1.5 mb-5 pb-3 border-b border-slate-200">
-                <MapPin className="w-4 h-4 text-rose-500" /> Domisili Rumah & Kontak Aktif
+            {/* DOMISILI BLOK */}
+            <hr className="border-slate-100" />
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-indigo-500" /> Wilayah Domisili Penerima
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="space-y-1.5 lg:col-span-4">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Alamat Lengkap (Jalan, No Rumah, Dusun) *</label>
-                  <textarea 
-                    className="form-input-custom min-h-[60px] font-medium text-slate-800" 
-                    value={recipientInput.address} 
-                    onChange={e => setRecipientInput({...recipientInput, address: e.target.value})} 
-                    placeholder="Contoh: Jl. Diponegoro No. 12, RT 002/RW 001" 
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-2 lg:col-span-4">
+                  <label className="text-sm font-semibold text-slate-700">Alamat Lengkap *</label>
+                  <textarea className="form-input-custom min-h-[60px]" value={recipientInput.address} onChange={e => setRecipientInput({...recipientInput, address: e.target.value})} placeholder="Jalan" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">RT</label>
-                  <input 
-                    type="text" 
-                    maxLength={3} 
-                    className="form-input-custom font-mono font-bold text-center text-slate-800" 
-                    value={recipientInput.rt} 
-                    onChange={e => setRecipientInput({...recipientInput, rt: e.target.value.replace(/\D/g, '')})} 
-                    placeholder="000" 
-                  />
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">RT</label>
+                  <input type="text" maxLength={3} className="form-input-custom font-mono" value={recipientInput.rt} onChange={e => setRecipientInput({...recipientInput, rt: e.target.value.replace(/\D/g, '')})} placeholder="000" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">RW</label>
-                  <input 
-                    type="text" 
-                    maxLength={3} 
-                    className="form-input-custom font-mono font-bold text-center text-slate-800" 
-                    value={recipientInput.rw} 
-                    onChange={e => setRecipientInput({...recipientInput, rw: e.target.value.replace(/\D/g, '')})} 
-                    placeholder="000" 
-                  />
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">RW</label>
+                  <input type="text" maxLength={3} className="form-input-custom font-mono" value={recipientInput.rw} onChange={e => setRecipientInput({...recipientInput, rw: e.target.value.replace(/\D/g, '')})} placeholder="000" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Kampung / Kelurahan *</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Kampung / Kelurahan</label>
                   <select 
-                    className="form-input-custom font-semibold text-slate-800" 
+                    className="form-input-custom font-medium" 
                     value={recipientInput.kampung} 
                     onChange={e => {
                       const selectedKampung = e.target.value;
@@ -2318,11 +1124,11 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Kecamatan *</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Kecamatan *</label>
                   <select 
                     required 
-                    className="form-input-custom font-bold text-indigo-700 bg-indigo-50/50 border-indigo-200" 
+                    className="form-input-custom font-medium" 
                     value={recipientInput.district} 
                     onChange={e => setRecipientInput({...recipientInput, district: e.target.value, kampung: ''})}
                   >
@@ -2331,30 +1137,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
-                </div>
-
-                <div className="space-y-1.5 md:col-span-4">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">No Handphone Kontak Penerima</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Smartphone className="w-4 h-4 text-indigo-500" />
-                    </div>
-                    <input 
-                      type="tel" 
-                      placeholder="+62 atau 08XXXXXXXXXX"
-                      className="form-input-custom pl-9 font-semibold text-slate-800" 
-                      value={recipientInput.contact} 
-                      onChange={e => {
-                        let val = e.target.value.replace(/[^\d+]/g, '');
-                        if (val.startsWith('0')) {
-                          val = '+62' + val.substring(1);
-                        } else if (val.startsWith('62')) {
-                          val = '+' + val;
-                        }
-                        setRecipientInput({...recipientInput, contact: val});
-                      }} 
-                    />
-                  </div>
                 </div>
               </div>
             </div>
