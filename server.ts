@@ -245,7 +245,7 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
               kel_desa: { type: Type.STRING, description: "Kelurahan or Desa / Kel/Desa" },
               kecamatan: { type: Type.STRING, description: "Kecamatan" }
             },
-            required: ["nik", "nama", "tempat_lahir", "tanggal_lahir", "alamat", "rt_rw", "kel_desa", "kecamatan"]
+            required: ["nik", "nama"]
           }
         }
       });
@@ -352,16 +352,13 @@ If any field or column is empty or contains a hyphen (-), represent its value wi
                     nama_ibu: { type: Type.STRING, description: "Nama Lengkap Ibu" }
                   },
                   required: [
-                    "no", "nama_lengkap", "nik", "jenis_kelamin", "tempat_lahir", "tanggal_lahir",
-                    "agama", "pendidikan", "jenis_pekerjaan", "status_perkawinan", "status_hubungan_keluarga",
-                    "kewarganegaraan", "no_paspor", "no_kitas_kitap", "nama_ayah", "nama_ibu"
+                    "no", "nama_lengkap"
                   ]
                 }
               }
             },
             required: [
-              "no_kk", "nama_kepala_keluarga", "alamat", "rt_rw", "kode_pos", "desa_kelurahan", 
-              "kecamatan", "kabupaten_kota", "provinsi", "anggota_keluarga"
+              "no_kk", "anggota_keluarga"
             ]
           }
         }
