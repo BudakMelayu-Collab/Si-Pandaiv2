@@ -225,47 +225,91 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
 
       const promptString = `Please extract values from this Indonesian national ID card (KTP) image and return them as JSON matching the requested schema. If a field is illegible or not present on the card, keep it empty or write "".`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data,
+      let response;
+      try {
+        console.log("Trying KTP OCR extraction with gemini-3.5-flash...");
+        response = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                }
+              },
+              {
+                text: promptString
               }
-            },
-            {
-              text: promptString
+            ]
+          },
+          config: {
+            // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                nik: { type: Type.STRING, description: "Nomor Induk Kependudukan (NIK) of 16 digits" },
+                nama: { type: Type.STRING, description: "Full name / Nama" },
+                tempat_lahir: { type: Type.STRING, description: "Place of birth / Tempat Lahir" },
+                tanggal_lahir: { type: Type.STRING, description: "Birth date in standard DD-MM-YYYY format / Tanggal Lahir" },
+                alamat: { type: Type.STRING, description: "Main street/neighborhood address / Alamat" },
+                rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+                kel_desa: { type: Type.STRING, description: "Kelurahan or Desa / Kel/Desa" },
+                kecamatan: { type: Type.STRING, description: "Kecamatan" }
+              }
             }
-          ]
-        },
-        config: {
-          // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
-          ],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              nik: { type: Type.STRING, description: "Nomor Induk Kependudukan (NIK) of 16 digits" },
-              nama: { type: Type.STRING, description: "Full name / Nama" },
-              tempat_lahir: { type: Type.STRING, description: "Place of birth / Tempat Lahir" },
-              tanggal_lahir: { type: Type.STRING, description: "Birth date in standard DD-MM-YYYY format / Tanggal Lahir" },
-              alamat: { type: Type.STRING, description: "Main street/neighborhood address / Alamat" },
-              rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
-              kel_desa: { type: Type.STRING, description: "Kelurahan or Desa / Kel/Desa" },
-              kecamatan: { type: Type.STRING, description: "Kecamatan" }
-            },
-            required: ["nik", "nama"]
           }
-        }
-      });
+        });
+      } catch (firstErr: any) {
+        console.warn("First KTP OCR attempt with gemini-3.5-flash failed. Retrying with gemini-flash-latest...", firstErr.message || firstErr);
+        response = await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                }
+              },
+              {
+                text: promptString
+              }
+            ]
+          },
+          config: {
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                nik: { type: Type.STRING, description: "Nomor Induk Kependudukan (NIK) of 16 digits" },
+                nama: { type: Type.STRING, description: "Full name / Nama" },
+                tempat_lahir: { type: Type.STRING, description: "Place of birth / Tempat Lahir" },
+                tanggal_lahir: { type: Type.STRING, description: "Birth date in standard DD-MM-YYYY format / Tanggal Lahir" },
+                alamat: { type: Type.STRING, description: "Main street/neighborhood address / Alamat" },
+                rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+                kel_desa: { type: Type.STRING, description: "Kelurahan or Desa / Kel/Desa" },
+                kecamatan: { type: Type.STRING, description: "Kecamatan" }
+              }
+            }
+          }
+        });
+      }
 
       res.setHeader("Content-Type", "application/json");
       res.send(response.text);
@@ -326,77 +370,141 @@ Merge the upper table and lower table data perfectly based on the row number / s
 Extract the values and return them as JSON exactly matching the requested schema.
 If any field or column is empty or contains a hyphen (-), represent its value with an empty string "" only.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data,
+      let response;
+      try {
+        console.log("Trying KK OCR extraction with gemini-3.5-flash...");
+        response = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                }
+              },
+              {
+                text: promptString
               }
-            },
-            {
-              text: promptString
-            }
-          ]
-        },
-        config: {
-          // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
-          ],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              no_kk: { type: Type.STRING, description: "Nomor Kartu Keluarga" },
-              nama_kepala_keluarga: { type: Type.STRING, description: "Nama Kepala Keluarga" },
-              alamat: { type: Type.STRING, description: "Alamat Jalan/Rumah" },
-              rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
-              kode_pos: { type: Type.STRING, description: "Kode Pos" },
-              desa_kelurahan: { type: Type.STRING, description: "Desa atau Kelurahan" },
-              kecamatan: { type: Type.STRING, description: "Kecamatan" },
-              kabupaten_kota: { type: Type.STRING, description: "Kabupaten atau Kota" },
-              provinsi: { type: Type.STRING, description: "Provinsi" },
-              anggota_keluarga: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    no: { type: Type.INTEGER, description: "Nomor urut anggota keluarga mulai dari 1" },
-                    nama_lengkap: { type: Type.STRING, description: "Nama Lengkap" },
-                    nik: { type: Type.STRING, description: "NIK (16 digit)" },
-                    jenis_kelamin: { type: Type.STRING, description: "Jenis Kelamin (LAKI-LAKI / PEREMPUAN)" },
-                    tempat_lahir: { type: Type.STRING, description: "Tempat Lahir" },
-                    tanggal_lahir: { type: Type.STRING, description: "Tanggal Lahir (DD-MM-YYYY)" },
-                    agama: { type: Type.STRING, description: "Agama" },
-                    pendidikan: { type: Type.STRING, description: "Pendidikan terakhir" },
-                    jenis_pekerjaan: { type: Type.STRING, description: "Jenis Pekerjaan" },
-                    status_perkawinan: { type: Type.STRING, description: "Status Perkawinan" },
-                    status_hubungan_keluarga: { type: Type.STRING, description: "Status Hubungan Keluarga (KEPALA KELUARGA, ISTERI, ANAK, dll)" },
-                    kewarganegaraan: { type: Type.STRING, description: "Kewarganegaraan e.g. WNI" },
-                    no_paspor: { type: Type.STRING, description: "Nomor Paspor" },
-                    no_kitas_kitap: { type: Type.STRING, description: "Nomor KITAS/KITAP" },
-                    nama_ayah: { type: Type.STRING, description: "Nama Lengkap Ayah" },
-                    nama_ibu: { type: Type.STRING, description: "Nama Lengkap Ibu" }
-                  },
-                  required: [
-                    "no", "nama_lengkap"
-                  ]
+            ]
+          },
+          config: {
+            // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                no_kk: { type: Type.STRING, description: "Nomor Kartu Keluarga" },
+                nama_kepala_keluarga: { type: Type.STRING, description: "Nama Kepala Keluarga" },
+                alamat: { type: Type.STRING, description: "Alamat Jalan/Rumah" },
+                rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+                kode_pos: { type: Type.STRING, description: "Kode Pos" },
+                desa_kelurahan: { type: Type.STRING, description: "Desa atau Kelurahan" },
+                kecamatan: { type: Type.STRING, description: "Kecamatan" },
+                kabupaten_kota: { type: Type.STRING, description: "Kabupaten atau Kota" },
+                provinsi: { type: Type.STRING, description: "Provinsi" },
+                anggota_keluarga: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      no: { type: Type.INTEGER, description: "Nomor urut anggota keluarga mulai dari 1" },
+                      nama_lengkap: { type: Type.STRING, description: "Nama Lengkap" },
+                      nik: { type: Type.STRING, description: "NIK (16 digit)" },
+                      jenis_kelamin: { type: Type.STRING, description: "Jenis Kelamin (LAKI-LAKI / PEREMPUAN)" },
+                      tempat_lahir: { type: Type.STRING, description: "Tempat Lahir" },
+                      tanggal_lahir: { type: Type.STRING, description: "Tanggal Lahir (DD-MM-YYYY)" },
+                      agama: { type: Type.STRING, description: "Agama" },
+                      pendidikan: { type: Type.STRING, description: "Pendidikan terakhir" },
+                      jenis_pekerjaan: { type: Type.STRING, description: "Jenis Pekerjaan" },
+                      status_perkawinan: { type: Type.STRING, description: "Status Perkawinan" },
+                      status_hubungan_keluarga: { type: Type.STRING, description: "Status Hubungan Keluarga (KEPALA KELUARGA, ISTERI, ANAK, dll)" },
+                      kewarganegaraan: { type: Type.STRING, description: "Kewarganegaraan e.g. WNI" },
+                      no_paspor: { type: Type.STRING, description: "Nomor Paspor" },
+                      no_kitas_kitap: { type: Type.STRING, description: "Nomor KITAS/KITAP" },
+                      nama_ayah: { type: Type.STRING, description: "Nama Lengkap Ayah" },
+                      nama_ibu: { type: Type.STRING, description: "Nama Lengkap Ibu" }
+                    }
+                  }
                 }
               }
-            },
-            required: [
-              "no_kk", "anggota_keluarga"
-            ]
+            }
           }
-        }
-      });
+        });
+      } catch (firstErr: any) {
+        console.warn("First KK OCR attempt with gemini-3.5-flash failed. Retrying with gemini-flash-latest...", firstErr.message || firstErr);
+        response = await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                }
+              },
+              {
+                text: promptString
+              }
+            ]
+          },
+          config: {
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                no_kk: { type: Type.STRING, description: "Nomor Kartu Keluarga" },
+                nama_kepala_keluarga: { type: Type.STRING, description: "Nama Kepala Keluarga" },
+                alamat: { type: Type.STRING, description: "Alamat Jalan/Rumah" },
+                rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+                kode_pos: { type: Type.STRING, description: "Kode Pos" },
+                desa_kelurahan: { type: Type.STRING, description: "Desa atau Kelurahan" },
+                kecamatan: { type: Type.STRING, description: "Kecamatan" },
+                kabupaten_kota: { type: Type.STRING, description: "Kabupaten atau Kota" },
+                provinsi: { type: Type.STRING, description: "Provinsi" },
+                anggota_keluarga: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      no: { type: Type.INTEGER, description: "Nomor urut anggota keluarga mulai dari 1" },
+                      nama_lengkap: { type: Type.STRING, description: "Nama Lengkap" },
+                      nik: { type: Type.STRING, description: "NIK (16 digit)" },
+                      jenis_kelamin: { type: Type.STRING, description: "Jenis Kelamin (LAKI-LAKI / PEREMPUAN)" },
+                      tempat_lahir: { type: Type.STRING, description: "Tempat Lahir" },
+                      tanggal_lahir: { type: Type.STRING, description: "Tanggal Lahir (DD-MM-YYYY)" },
+                      agama: { type: Type.STRING, description: "Agama" },
+                      pendidikan: { type: Type.STRING, description: "Pendidikan terakhir" },
+                      jenis_pekerjaan: { type: Type.STRING, description: "Jenis Pekerjaan" },
+                      status_perkawinan: { type: Type.STRING, description: "Status Perkawinan" },
+                      status_hubungan_keluarga: { type: Type.STRING, description: "Status Hubungan Keluarga (KEPALA KELUARGA, ISTERI, ANAK, dll)" },
+                      kewarganegaraan: { type: Type.STRING, description: "Kewarganegaraan e.g. WNI" },
+                      no_paspor: { type: Type.STRING, description: "Nomor Paspor" },
+                      no_kitas_kitap: { type: Type.STRING, description: "Nomor KITAS/KITAP" },
+                      nama_ayah: { type: Type.STRING, description: "Nama Lengkap Ayah" },
+                      nama_ibu: { type: Type.STRING, description: "Nama Lengkap Ibu" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
 
       res.setHeader("Content-Type", "application/json");
       res.send(response.text);
