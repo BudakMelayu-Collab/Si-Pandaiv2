@@ -54,7 +54,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
   ];
 
   return (
-    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col p-4 overflow-y-auto hidden-scrollbar">
+    <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col p-4 overflow-y-auto hidden-scrollbar print:hidden">
       <div className="flex items-center gap-3 px-2 mb-10 mt-2">
         <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center overflow-hidden">
           {settings?.logoUrl ? (
@@ -165,7 +165,7 @@ export function Header({
   notificationCount?: number;
 }) {
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10">
+    <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 print:hidden">
       <h2 className="text-xl font-semibold text-slate-800">{title}</h2>
       
       <div className="flex items-center gap-4">

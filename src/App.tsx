@@ -767,7 +767,7 @@ export default function App() {
   const activeAnnouncements = announcements.filter(a => a.isActive);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex print:bg-white print:block">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -775,7 +775,7 @@ export default function App() {
         settings={appSettings}
       />
       
-      <main className="flex-1 ml-64 min-h-screen">
+      <main className="flex-1 ml-64 min-h-screen print:ml-0 print:min-h-0">
         <Header 
           title={getHeaderTitle()} 
           user={user}
@@ -784,7 +784,7 @@ export default function App() {
           notificationCount={activeAnnouncements.length}
         />
         
-        <div className="p-8 pt-24 max-w-7xl mx-auto">
+        <div className="p-8 pt-24 max-w-7xl mx-auto print:hidden">
           {connectionWarning && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-xs flex items-start gap-3 shadow-sm">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />

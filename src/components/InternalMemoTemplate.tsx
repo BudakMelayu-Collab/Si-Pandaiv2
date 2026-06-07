@@ -219,8 +219,8 @@ export default function InternalMemoTemplate({ recipient, onClose }: InternalMem
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-slate-900/60 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
-      <div className="bg-white md:rounded-2xl w-full h-full md:h-[95vh] md:max-w-5xl shadow-2xl flex flex-col flex-1 overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-slate-900/60 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200 print:absolute print:inset-0 print:p-0 print:bg-white print:overflow-visible print:block">
+      <div className="bg-white md:rounded-2xl w-full h-full md:h-[95vh] md:max-w-5xl shadow-2xl flex flex-col flex-1 overflow-hidden relative print:shadow-none print:h-auto print:max-w-none print:overflow-visible print:block">
         <div className="p-4 px-6 border-b border-slate-100 flex items-center gap-4 bg-white shrink-0 shadow-sm print:hidden">
           <div className="flex-1 flex items-center gap-3">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -290,9 +290,9 @@ export default function InternalMemoTemplate({ recipient, onClose }: InternalMem
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-100 p-8 print:p-0 print:bg-white custom-scrollbar flex justify-center">
+        <div className="flex-1 overflow-y-auto bg-slate-100 p-8 print:p-0 print:bg-white custom-scrollbar flex justify-center print:overflow-visible print:block">
           {viewMode === 'template' ? (
-            <div className="w-[800px] bg-white border border-slate-200 shadow-sm print:border-none print:shadow-none min-h-[1131px] p-12 print:p-0 relative font-sans text-black origin-top transform scale-100 print:scale-100">
+            <div className="w-[800px] bg-white border border-slate-200 shadow-sm print:border-none print:shadow-none min-h-[1131px] p-12 print:p-0 relative font-sans text-black origin-top transform scale-100 print:scale-100 print:w-full">
               
               {/* Header */}
             <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
