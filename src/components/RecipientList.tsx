@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Search, Filter, 
   ExternalLink, Download, FileText, ChevronRight, ChevronDown,
-  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload,
+  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload, Check,
   Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle, Plus, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -315,6 +315,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Program</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Jenis Bantuan</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Status</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Keterangan</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Sumber Berkas</th>
                           {showInstitutionColumns && (
                             <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Nama Lembaga</th>
@@ -398,6 +399,38 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                     )}>
                                       {item.status}
                                     </span>
+                                  </td>
+
+                                  {/* Keterangan */}
+                                  <td className="px-3 py-4 text-xs align-top">
+                                    {(() => {
+                                      if (['Selesai', 'Ditolak'].includes(item.status)) return <span className="text-slate-500 font-normal">-</span>;
+
+                                      const docs = [
+                                        { name: 'Receipt', uploaded: isRecipientFileTracked(item, 'receipt') },
+                                        { name: 'MPZIS', uploaded: isRecipientFileTracked(item, 'mpzis') },
+                                        { name: 'E-PPD', uploaded: isRecipientFileTracked(item, 'eppd') },
+                                        { name: 'Lm. Verifikasi', uploaded: isRecipientFileTracked(item, 'survey') },
+                                      ];
+
+                                      const isAllUploaded = docs.every(d => d.uploaded);
+
+                                      return isAllUploaded ? (
+                                        <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit">
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span className="font-semibold text-[11px] uppercase tracking-wider">Lengkap</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col gap-1 min-w-[130px]">
+                                          {docs.map(d => (
+                                            <div key={d.name} className={cn("flex items-center gap-1.5", d.uploaded ? "text-slate-400" : "text-rose-600")}>
+                                              {d.uploaded ? <Check className="w-3.5 h-3.5 shrink-0" /> : <X className="w-3.5 h-3.5 shrink-0" />}
+                                              <span className={cn("leading-none", d.uploaded ? "font-normal" : "font-semibold")}>{d.name}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
 
                                   {/* Sumber Berkas */}
@@ -572,7 +605,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                   animate={{ opacity: 1 }}
                                   transition={{ duration: 0.2 }}
                                 >
-                                  <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
+                                  <td colSpan={showInstitutionColumns ? 10 : 9} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
                                     <div className="border border-slate-200/80 rounded-2xl shadow-xs bg-white overflow-hidden">
                                       <div className="px-4.5 py-3 bg-slate-50 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
