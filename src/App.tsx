@@ -25,7 +25,7 @@ import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
 import EditRecipientModal from './components/EditRecipientModal';
-import MobileOcrScanner from './components/MobileOcrScanner';
+import MobileScanner from './components/MobileScanner';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
@@ -145,10 +145,10 @@ export default function App() {
   const [displayName, setDisplayName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  const isOcrRoute = typeof window !== 'undefined' && window.location.pathname === '/ocr-scan';
+  const isMobileScanRoute = typeof window !== 'undefined' && window.location.pathname === '/scan-docs';
 
-  if (isOcrRoute) {
-    return <MobileOcrScanner />;
+  if (isMobileScanRoute) {
+    return <MobileScanner />;
   }
 
   const handleLoginWithGoogle = async () => {

@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -69,7 +69,7 @@ Petunjuk Tambahan:
       }));
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: contents,
         config: {
           systemInstruction: systemInstruction,
@@ -162,7 +162,7 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.0-flash-lite",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -180,10 +180,10 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
     }
   });
 
-  // OCR API endpoint using Gemini Vision
-  app.post("/api/gemini/ocr", async (req: express.Request, res: express.Response) => {
+  // KTP OCR API endpoint using Gemini-3.5-flash
+  app.post("/api/gemini/ocr-ktp", async (req: express.Request, res: express.Response) => {
     try {
-      const { imageBase64 } = req.body;
+      const { imageData } = req.body;
       const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
@@ -192,8 +192,17 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
         });
       }
 
-      if (!imageBase64) {
-        return res.status(400).json({ error: "No image provided" });
+      if (!imageData) {
+        return res.status(400).json({ error: "Parameter 'imageData' required" });
+      }
+
+      // Strip out potential data URL prefix
+      let mimeType = "image/jpeg";
+      let base64Data = imageData;
+      const match = imageData.match(/^data:([^;]+);base64,(.*)$/);
+      if (match) {
+        mimeType = match[1];
+        base64Data = match[2];
       }
 
       const ai = new GoogleGenAI({
@@ -205,68 +214,39 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
         }
       });
 
-      // Remove the data:image/jpeg;base64, prefix if it exists
-      const base64Data = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-
-      const prompt = `
-Anda adalah sistem ekstraksi teks pintar (OCR) untuk KTP (Kartu Tanda Penduduk) dan KK (Kartu Keluarga) Indonesia.
-Tolong ekstrak informasi dari gambar/foto dokumen kependudukan yang diberikan dan kembalikan ke dalam format JSON.
-
-Jika itu KTP, ekstrak selengkap mungkin:
-- NIK (16 digit angka) -> nik
-- Nama -> name
-- Tempat Lahir -> pob
-- Tanggal Lahir (dd-mm-yyyy) -> dob
-- Jenis Kelamin (Laki-laki / Perempuan) -> gender
-- Golongan Darah -> bloodType
-- Alamat -> address
-- RT -> rt
-- RW -> rw
-- Kel/Desa -> kampung
-- Kecamatan -> district
-- Agama -> religion
-- Status Perkawinan -> maritalStatus
-- Pekerjaan -> occupation
-- Kewarganegaraan -> citizenship
-- Berlaku Hingga -> validUntil
-
-Jika gambar tidak jelas atau nilai tidak ditemukan, isikan dengan string kosong "".
-
-Format JSON yang diwajibkan:
-{
-  "nik": "16 digit angka",
-  "name": "nama lengkap",
-  "pob": "tempat lahir",
-  "dob": "tanggal lahir",
-  "gender": "Laki-laki atau Perempuan",
-  "bloodType": "A/B/AB/O/-",
-  "address": "alamat lengkap",
-  "rt": "rt",
-  "rw": "rw",
-  "kampung": "nama desa/kelurahan",
-  "district": "nama kecamatan",
-  "religion": "agama",
-  "maritalStatus": "status perkawinan",
-  "occupation": "pekerjaan",
-  "citizenship": "WNI/WNA",
-  "validUntil": "Seumur Hidup atau tanggal"
-}
-`;
+      const promptString = `Please extract values from this Indonesian national ID card (KTP) image and return them as JSON matching the requested schema. If a field is illegible or not present on the card, keep it empty or write "".`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [
-           prompt,
-           {
-             inlineData: {
-               data: base64Data,
-               mimeType: "image/jpeg"
-             }
-           }
-        ],
+        model: "gemini-3.5-flash",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              }
+            },
+            {
+              text: promptString
+            }
+          ]
+        },
         config: {
           responseMimeType: "application/json",
-          temperature: 0.1,
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              nik: { type: Type.STRING, description: "Nomor Induk Kependudukan (NIK) of 16 digits" },
+              nama: { type: Type.STRING, description: "Full name / Nama" },
+              tempat_lahir: { type: Type.STRING, description: "Place of birth / Tempat Lahir" },
+              tanggal_lahir: { type: Type.STRING, description: "Birth date in standard DD-MM-YYYY format / Tanggal Lahir" },
+              alamat: { type: Type.STRING, description: "Main street/neighborhood address / Alamat" },
+              rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+              kel_desa: { type: Type.STRING, description: "Kelurahan or Desa / Kel/Desa" },
+              kecamatan: { type: Type.STRING, description: "Kecamatan" }
+            },
+            required: ["nik", "nama", "tempat_lahir", "tanggal_lahir", "alamat", "rt_rw", "kel_desa", "kecamatan"]
+          }
         }
       });
 
@@ -274,18 +254,125 @@ Format JSON yang diwajibkan:
       res.send(response.text);
     } catch (err: any) {
       console.error("Gemini OCR Error:", err);
-      if (err.status === 429 || (err.message && err.message.includes("429"))) {
-        return res.status(429).json({
-          error: "Quota limits exceeded. Mohon tunggu sekitar 1 menit sebelum mencoba scan KTP lagi."
-        });
-      }
-      if (err.status === 503 || (err.message && err.message.includes("503"))) {
-        return res.status(503).json({
-          error: "Sistem AI sedang sibuk (High Demand). Silakan coba lagi dalam beberapa saat atau gunakan input manual."
-        });
-      }
       res.status(500).json({ 
-        error: err.message || "Terjadi kesalahan ketika melakukan OCR." 
+        error: err.message || "Terjadi kesalahan ketika mengekstrak data KTP menggunakan Gemini AI." 
+      });
+    }
+  });
+
+  // KK OCR API endpoint using Gemini-3.5-flash
+  app.post("/api/gemini/ocr-kk", async (req: express.Request, res: express.Response) => {
+    try {
+      const { imageData } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ 
+          error: "GEMINI_API_KEY environment variable is not defined on the Server side. Silakan isi API Key di Settings." 
+        });
+      }
+
+      if (!imageData) {
+        return res.status(400).json({ error: "Parameter 'imageData' required" });
+      }
+
+      // Strip out potential data URL prefix
+      let mimeType = "image/jpeg";
+      let base64Data = imageData;
+      const match = imageData.match(/^data:([^;]+);base64,(.*)$/);
+      if (match) {
+        mimeType = match[1];
+        base64Data = match[2];
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: apiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          }
+        }
+      });
+
+      const promptString = `Please perform high-precision OCR on this Indonesian Family Card (Kartu Keluarga - KK) image. 
+Identify the UPPER TABLE (containing Nama, NIK, Jenis Kelamin, Tempat Lahir, Tanggal Lahir, Agama, Pendidikan, Jenis Pekerjaan) and the LOWER TABLE (containing Status Perkawinan, Status Hubungan Keluarga, Kewarganegaraan, No Paspor, No KITAP, Nama Ayah, Nama Ibu).
+Merge the upper table and lower table data perfectly based on the row number / serial number (No.).
+Extract the values and return them as JSON exactly matching the requested schema.
+If any field or column is empty or contains a hyphen (-), represent its value with an empty string "" only.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              }
+            },
+            {
+              text: promptString
+            }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              no_kk: { type: Type.STRING, description: "Nomor Kartu Keluarga" },
+              nama_kepala_keluarga: { type: Type.STRING, description: "Nama Kepala Keluarga" },
+              alamat: { type: Type.STRING, description: "Alamat Jalan/Rumah" },
+              rt_rw: { type: Type.STRING, description: "RT/RW format e.g. 003/002" },
+              kode_pos: { type: Type.STRING, description: "Kode Pos" },
+              desa_kelurahan: { type: Type.STRING, description: "Desa atau Kelurahan" },
+              kecamatan: { type: Type.STRING, description: "Kecamatan" },
+              kabupaten_kota: { type: Type.STRING, description: "Kabupaten atau Kota" },
+              provinsi: { type: Type.STRING, description: "Provinsi" },
+              anggota_keluarga: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    no: { type: Type.INTEGER, description: "Nomor urut anggota keluarga mulai dari 1" },
+                    nama_lengkap: { type: Type.STRING, description: "Nama Lengkap" },
+                    nik: { type: Type.STRING, description: "NIK (16 digit)" },
+                    jenis_kelamin: { type: Type.STRING, description: "Jenis Kelamin (LAKI-LAKI / PEREMPUAN)" },
+                    tempat_lahir: { type: Type.STRING, description: "Tempat Lahir" },
+                    tanggal_lahir: { type: Type.STRING, description: "Tanggal Lahir (DD-MM-YYYY)" },
+                    agama: { type: Type.STRING, description: "Agama" },
+                    pendidikan: { type: Type.STRING, description: "Pendidikan terakhir" },
+                    jenis_pekerjaan: { type: Type.STRING, description: "Jenis Pekerjaan" },
+                    status_perkawinan: { type: Type.STRING, description: "Status Perkawinan" },
+                    status_hubungan_keluarga: { type: Type.STRING, description: "Status Hubungan Keluarga (KEPALA KELUARGA, ISTERI, ANAK, dll)" },
+                    kewarganegaraan: { type: Type.STRING, description: "Kewarganegaraan e.g. WNI" },
+                    no_paspor: { type: Type.STRING, description: "Nomor Paspor" },
+                    no_kitas_kitap: { type: Type.STRING, description: "Nomor KITAS/KITAP" },
+                    nama_ayah: { type: Type.STRING, description: "Nama Lengkap Ayah" },
+                    nama_ibu: { type: Type.STRING, description: "Nama Lengkap Ibu" }
+                  },
+                  required: [
+                    "no", "nama_lengkap", "nik", "jenis_kelamin", "tempat_lahir", "tanggal_lahir",
+                    "agama", "pendidikan", "jenis_pekerjaan", "status_perkawinan", "status_hubungan_keluarga",
+                    "kewarganegaraan", "no_paspor", "no_kitas_kitap", "nama_ayah", "nama_ibu"
+                  ]
+                }
+              }
+            },
+            required: [
+              "no_kk", "nama_kepala_keluarga", "alamat", "rt_rw", "kode_pos", "desa_kelurahan", 
+              "kecamatan", "kabupaten_kota", "provinsi", "anggota_keluarga"
+            ]
+          }
+        }
+      });
+
+      res.setHeader("Content-Type", "application/json");
+      res.send(response.text);
+    } catch (err: any) {
+      console.error("Gemini KK OCR Error:", err);
+      res.status(500).json({ 
+        error: err.message || "Terjadi kesalahan ketika mengekstrak data Kartu Keluarga menggunakan Gemini AI." 
       });
     }
   });
