@@ -208,7 +208,14 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       });
       
       if (!response.ok) {
-        throw new Error('Gagal mengekstrak data menggunakan server Gemini AI.');
+        let errMsg = 'Gagal mengekstrak KTP menggunakan server Gemini AI.';
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) {
+            errMsg = `${errMsg} Detail: ${errData.error}`;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
       }
       
       const data = await response.json();
@@ -233,7 +240,14 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       });
       
       if (!response.ok) {
-        throw new Error('Gagal mengekstrak Kartu Keluarga menggunakan server Gemini AI.');
+        let errMsg = 'Gagal mengekstrak Kartu Keluarga menggunakan server Gemini AI.';
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) {
+            errMsg = `${errMsg} Detail: ${errData.error}`;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
       }
       
       const data = await response.json();
