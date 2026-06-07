@@ -22,6 +22,10 @@
 }
 
 @layer base {
+  html {
+    font-size: 80%;
+  }
+
   ::-webkit-scrollbar {
     width: 12px;
     height: 12px;

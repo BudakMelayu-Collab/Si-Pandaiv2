@@ -1418,7 +1418,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             )}
           </div>
 
-          <div className="overflow-x-auto border border-slate-200/60 rounded-xl">
+          <div className="overflow-hidden border border-slate-200/60 rounded-xl">
             {subRecipients.length === 0 ? (
               <div className="p-10 text-center space-y-2 bg-slate-50/50">
                 <p className="text-slate-400 font-bold text-sm">Belum Ada Penerima dalam Sub-Tabel</p>
@@ -1427,9 +1427,10 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 </p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse table-auto text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200 text-black">
-                  <tr>
+              <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+                <table className="w-full text-left border-collapse table-auto text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-black sticky top-0 z-10 shadow-sm">
+                    <tr>
                     <th className="px-3.5 py-3 text-center border-r border-slate-200 w-12 font-bold">No</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nama Penerima</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">NIK</th>
@@ -1543,7 +1544,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             )}
           </div>
         </div>

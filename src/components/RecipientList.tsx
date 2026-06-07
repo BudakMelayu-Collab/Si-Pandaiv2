@@ -573,7 +573,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                   transition={{ duration: 0.2 }}
                                 >
                                   <td colSpan={showInstitutionColumns ? 9 : 8} className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40">
-                                    <div className="overflow-x-auto border border-slate-200/80 rounded-2xl shadow-xs bg-white">
+                                    <div className="border border-slate-200/80 rounded-2xl shadow-xs bg-white overflow-hidden">
                                       <div className="px-4.5 py-3 bg-slate-50 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                           <FileStack className="w-4 h-4 text-indigo-600" />
@@ -615,8 +615,9 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                           </button>
                                         </div>
                                       </div>
-                                      <table className="w-full text-left border-collapse table-auto">
-                                        <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal">
+                                      <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+                                        <table className="w-full text-left border-collapse table-auto">
+                                          <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal sticky top-0 z-10 shadow-sm">
                                           <tr>
                                             <th className="px-3.5 py-2.5 text-center text-black w-16 border-r border-slate-200/40 font-normal">
                                               <div className="flex items-center justify-center gap-2">
@@ -798,7 +799,8 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                             );
                                           })}
                                         </tbody>
-                                      </table>
+                                        </table>
+                                      </div>
                                     </div>
                                   </td>
                                 </motion.tr>
