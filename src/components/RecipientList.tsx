@@ -233,7 +233,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
       </div>
 
       {/* Recipient Queue Table grouped inside a single unified scrollable wrapper */}
-      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-260px)]">
+      <div className="overflow-x-auto pb-8">
         {filteredData.length > 0 ? (
           <div className="min-w-[1200px] divide-y divide-slate-200">
             {(() => {
@@ -340,7 +340,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                             registrationGroupsMap[regId].push(item);
                           });
 
-                          return registrationIdsOrder.map((regId, index) => {
+                          const dataRows = registrationIdsOrder.map((regId, index) => {
                             const groupItems = registrationGroupsMap[regId];
                             const item = groupItems[0];
                             const { relative, timeStr } = getRelativeTimeDetails(item.createdAt, item.submissionDate, currentTime);
@@ -844,6 +844,34 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                               </React.Fragment>
                             );
                           });
+
+                          const blankRows = [];
+                          for (let i = dataRows.length; i < 10; i++) {
+                            blankRows.push(
+                              <tr key={`blank-${i}`} className="hover:bg-slate-50/80 transition-colors h-[72px]">
+                                <td className="pl-6 pr-3 py-4 text-sm font-normal text-slate-400 whitespace-nowrap text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="w-4 h-4" /> {/* Spacer for toggle icon placeholder */}
+                                    <span>{i + 1}</span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                {showInstitutionColumns && (
+                                  <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                )}
+                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">-</td>
+                                <td className="pr-6 pl-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center lg:p-0 lg:w-0 lg:border-none lg:text-left">-</td>
+                              </tr>
+                            );
+                          }
+
+                          return [...dataRows, ...blankRows];
                         })()}
                       </tbody>
                     </table>

@@ -759,7 +759,7 @@ export default function App() {
       case 'atm-beras': return 'Program Khusus: ATM Beras';
       case 'rumah-singgah': return 'Program Khusus: Rumah Singgah';
       case 'bnba-recap': return 'Rekap BNBA (By Name By Address)';
-      case 'e-ppd': return 'Elektronik Permohonan Pengeluaran Dana (E-PPD)';
+      case 'e-ppd': return 'Rekap Pencairan (E-PPD)';
       case 'profile': return 'Profil Pengguna';
       case 'settings': return 'Pengaturan Aplikasi';
       case 'assessment': return 'Asessment dan Prensentasi';

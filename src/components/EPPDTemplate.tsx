@@ -779,18 +779,25 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
           <button 
             onClick={async () => {
+              let asnafValue = recipient.familyStatus || '-';
               try {
                 setSaveStatus('saving');
-                const { saveRecipientTemplateData } = await import('../firebase');
+                const { saveRecipientTemplateData, getRecipientTemplateData } = await import('../firebase');
                 await saveRecipientTemplateData(recipient.id, 'eppd', ppdData);
                 await storage.setItem(`ppd_data_${recipient.id}`, ppdData);
+                
+                const mpzisData = await getRecipientTemplateData(recipient.id, 'mpzis');
+                if (mpzisData && mpzisData.ashnaf) {
+                  asnafValue = mpzisData.ashnaf;
+                }
+
                 setSaveStatus('saved');
               } catch (e) {
                 console.error("Save failed", e);
               }
               
               onSaveRecord({
-                no: ppdData.no,
+                no: ppdData.noPpd,
                 date: ppdData.date,
                 requestedBy: ppdData.requestedBy,
                 amount: totalAmount,
@@ -798,7 +805,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 recipientId: recipient.id,
                 recipientName: recipient.name,
                 recipientNik: recipient.nik,
-                asnaf: recipient.familyStatus || '-', // Mapping asnaf to familyStatus as best guess
+                asnaf: asnafValue,
                 programName: recipient.programName,
                 kampung: recipient.kampung,
                 district: recipient.district,

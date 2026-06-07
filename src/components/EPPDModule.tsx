@@ -66,8 +66,8 @@ export default function EPPDModule({
               <FileText className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Manajemen E-PPD</h2>
-              <p className="text-slate-500 text-sm mt-1">Elektronik Permohonan Pengeluaran Dana</p>
+              <h2 className="text-2xl font-bold text-black tracking-tight">Manajemen Rekap Pencairan</h2>
+              <p className="text-black font-normal text-sm mt-1">Elektronik Permohonan Pengeluaran Dana (E-PPD)</p>
             </div>
           </div>
           
@@ -106,48 +106,48 @@ export default function EPPDModule({
               </div>
               <div className="relative z-10">
                 <div className="p-3 bg-white/20 rounded-2xl w-fit backdrop-blur-sm mb-4">
-                  <span className="font-bold text-sm">Bulan Ini</span>
+                  <span className="font-bold text-sm text-black">Bulan Ini</span>
                 </div>
-                <h3 className="text-5xl font-black mb-2">{currentMonthRecords}</h3>
-                <p className="text-indigo-100 font-medium">Dokumen PPD Diterbitkan</p>
+                <h3 className="text-5xl font-black mb-2 text-black">{currentMonthRecords}</h3>
+                <p className="text-black font-medium">Dokumen PPD Diterbitkan</p>
               </div>
             </div>
 
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center">
               <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-slate-100 rounded-2xl text-slate-500">
-                  <ClipboardList className="w-6 h-6" />
+                <div className="p-3 bg-slate-100 rounded-2xl text-slate-500 border border-slate-200">
+                  <ClipboardList className="w-6 h-6 text-black" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm font-medium">Total Dokumen</p>
-                  <h3 className="text-3xl font-bold text-slate-800">{totalRecords}</h3>
+                  <p className="text-black text-sm font-medium">Total Dokumen</p>
+                  <h3 className="text-3xl font-bold text-black">{totalRecords}</h3>
                 </div>
               </div>
               <button 
                 onClick={() => setActiveTab('history')}
-                className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-slate-200"
+                className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-black rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-slate-200"
               >
                 Lihat Semua Riwayat
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 text-black" />
               </button>
             </div>
 
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center">
                <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-amber-50 rounded-2xl text-amber-500">
-                  <PlusCircle className="w-6 h-6" />
+                <div className="p-3 bg-amber-50 rounded-2xl text-amber-500 border border-amber-200">
+                  <PlusCircle className="w-6 h-6 text-black" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm font-medium">Aksi Cepat</p>
-                  <h3 className="text-lg font-bold text-slate-800">Buat Baru</h3>
+                  <p className="text-black text-sm font-medium">Aksi Cepat</p>
+                  <h3 className="text-lg font-bold text-black">Buat Baru</h3>
                 </div>
               </div>
               <button 
                 onClick={() => setActiveTab('create')}
-                className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-indigo-200"
+                className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-black rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-indigo-200"
               >
                 Buat E-PPD Baru
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 text-black" />
               </button>
             </div>
           </motion.div>
@@ -162,8 +162,8 @@ export default function EPPDModule({
             className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden"
           >
              <div className="bg-indigo-50/50 p-6 border-b border-indigo-100/50">
-              <h3 className="text-lg font-bold text-indigo-900 mb-1">Pilih Penerima Bantuan</h3>
-              <p className="text-indigo-600/70 text-sm">Pilih penerima bantuan dari tabel di bawah ini untuk membuat dokumen E-PPD.</p>
+              <h3 className="text-lg font-bold text-black mb-1">Pilih Penerima Bantuan</h3>
+              <p className="text-black font-normal text-sm">Pilih penerima bantuan dari tabel di bawah ini untuk membuat dokumen E-PPD.</p>
             </div>
             <RecipientList 
               data={recipients} 
@@ -188,8 +188,8 @@ export default function EPPDModule({
             className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden"
           >
             <div className="bg-slate-50 p-6 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800 mb-1">Riwayat & Rekapitulasi E-PPD</h3>
-              <p className="text-slate-500 text-sm">Seluruh dokumen E-PPD yang telah berhasil diterbitkan.</p>
+              <h3 className="text-lg font-bold text-black mb-1">Riwayat & Rekapitulasi E-PPD</h3>
+              <p className="text-black font-normal text-sm">Seluruh dokumen E-PPD yang telah berhasil diterbitkan.</p>
             </div>
             {/* We render PPDRecap, removing its own internal header and background if necessary, but PPDRecap has its own layout. 
                 Let's use it directly or pass properties. PPDRecap might have its own close button we should hide. */}

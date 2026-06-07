@@ -49,7 +49,7 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
     { id: 'atm-beras', label: 'ATM Beras', icon: Package },
     { id: 'rumah-singgah', label: 'Rumah Singgah', icon: Home },
     { id: 'assessment', label: 'Asessment', icon: ClipboardCheck },
-    { id: 'e-ppd', label: 'E-PPD', icon: FileText },
+    { id: 'e-ppd', label: 'Rekap Pencairan', icon: FileText },
     { id: 'gemini-ai', label: 'Asisten AI Gemini', icon: BrainCircuit },
   ];
 
