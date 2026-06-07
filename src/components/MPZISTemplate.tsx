@@ -4,7 +4,7 @@ import {
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, Download, Loader2, ChevronRight,
-  Settings, Save, Eye, RotateCcw
+  Settings, Save, Eye, RotateCcw, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
@@ -13,14 +13,19 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface MPZISTemplateProps {
   recipient: Recipient;
+  lampiranItems?: Recipient[];
   onClose: () => void;
 }
 
-export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps) {
+function chunkArray<T>(array: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size));
+}
+
+export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZISTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config'>('template');
+  const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config' | 'lampiran'>('template');
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
 
   const [templateConfig, setTemplateConfig] = useState({
@@ -29,7 +34,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
     region: 'KABUPATEN SIAK',
     subText: 'Badan Amil Zakat Nasional',
     fontSize: 9,
-    logoSize: 48
+    logoSize: 64
   });
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -38,6 +43,15 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedRecipientId, setLoadedRecipientId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [showExitEditWarning, setShowExitEditWarning] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{title: string; message: string; type: 'success'|'error'} | null>(null);
+
+  React.useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
   
   // Load saved data from storage on mount
   React.useEffect(() => {
@@ -173,12 +187,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         if (parsed.ashnaf === 'Miskin') parsed.ashnaf = '';
         if (parsed.source === 'Zakat / Infaq / Shadaqah') parsed.source = '';
         if (parsed.budgetPost === recipient.aidType) parsed.budgetPost = '';
-        if (parsed.rows) {
-          parsed.rows = parsed.rows.map((row: any) => {
-            row.description = '';
-            return row;
-          });
-        }
+
         
         // Fix old `nomor` format dynamically if it contains the old pattern
         if (!parsed.nomor?.includes('/001/MPZIS/') && !parsed.nomor?.includes('/000/MPZIS/')) {
@@ -199,6 +208,20 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           parsed.nomor = `${recipient.registrationId}/001/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`;
         }
         
+        // Always update rows from selection if it was provided
+        if (lampiranItems && lampiranItems.length > 0) {
+          parsed.rows = lampiranItems.map(r => {
+            const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
+            return {
+              id: existingRow ? existingRow.id : (Date.now() + Math.random()),
+              description: existingRow ? existingRow.description : '',
+              name: r.name || '',
+              nik: r.nik || '',
+              amount: existingRow ? Number(existingRow.amount) : (Number(r.amountProposed) || 0)
+            };
+          });
+        }
+
         setMemoData(parsed);
       }
       setLoadedRecipientId(recipient.id);
@@ -250,7 +273,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           ...prev,
           ...data,
           fontSize: data.fontSize || 9,
-          logoSize: data.logoSize || 48
+          logoSize: data.logoSize || 64
         }));
       }
     });
@@ -303,11 +326,11 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         ...templateConfig,
         updatedAt: new Date().toISOString()
       });
-      alert('Konfigurasi template berhasil disimpan secara global!');
+      setToastMessage({ title: "Berhasil", message: "Konfigurasi template berhasil disimpan secara global!", type: 'success' });
       setActiveTab('template');
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Gagal menyimpan konfigurasi. Pastikan Anda memiliki izin.');
+      setToastMessage({ title: "Gagal", message: "Gagal menyimpan konfigurasi. Pastikan Anda memiliki izin.", type: 'error' });
     } finally {
       setIsSavingConfig(false);
     }
@@ -473,7 +496,15 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
       { key: 'nik', label: 'Identitas' },
       { key: 'amount', label: 'Jumlah bantuan' }
     ],
-    rows: [
+    rows: lampiranItems && lampiranItems.length > 0 
+      ? lampiranItems.map(r => ({
+          id: Date.now() + Math.random(),
+          description: '',
+          name: r.name || '',
+          nik: r.nik || '',
+          amount: Number(r.amountProposed) || 0
+        }))
+      : [
       { 
         id: Date.now(), 
         description: '', 
@@ -626,6 +657,32 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
   return (
     <div className="mpzis-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+      
+      {showExitEditWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 print:hidden">
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+            <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">Keluar Mode Edit</h3>
+            <p className="text-slate-300 text-sm mb-6">Pastikan Anda telah menyimpan perubahan sebelum keluar agar data tidak hilang.</p>
+            <div className="flex gap-3 w-full">
+                <button onClick={() => setShowExitEditWarning(false)} className="flex-1 py-2 text-sm font-bold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all">Kembali</button>
+                <button onClick={() => { setShowExitEditWarning(false); setIsEditing(false); }} className="flex-1 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-400 text-white rounded-xl transition-all">Selesai Edit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-2xl print:hidden animate-in slide-in-from-top-4 fade-in duration-300">
+          {toastMessage.type === 'success' ? <CheckCircle className="w-6 h-6 text-emerald-500" /> : <AlertTriangle className="w-6 h-6 text-red-500" />}
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-sm">{toastMessage.title}</span>
+            <span className="text-white/60 text-xs">{toastMessage.message}</span>
+          </div>
+          <button onClick={() => setToastMessage(null)} className="ml-4 text-white/40 hover:text-white"><X className="w-4 h-4"/></button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="bg-[#0f2a24] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -642,7 +699,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
               <FileText className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="hidden sm:block">
-              <h3 className="font-bold text-white text-sm leading-tight">MPZIS</h3>
+              <h3 className="font-bold text-white text-[10px] leading-tight">MPZIS</h3>
               <div className="flex items-center gap-2">
                 {saveStatus === 'saving' && <span className="text-white/40 animate-pulse text-[8px] uppercase tracking-tighter bg-white/5 px-1.5 py-0.5 rounded border border-white/5">● Menyimpan...</span>}
                 {saveStatus === 'saved' && <span className="text-emerald-400 text-[8px] uppercase tracking-tighter bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/10">● Tersimpan</span>}
@@ -657,7 +714,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           <button 
             onClick={() => setActiveTab('template')}
             className={cn(
-              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+              "px-6 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2 transition-all",
               activeTab === 'template' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
             )}
           >
@@ -667,7 +724,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           <button 
             onClick={() => setActiveTab('scan')}
             className={cn(
-              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all relative",
+              "px-6 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2 transition-all relative",
               activeTab === 'scan' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
             )}
           >
@@ -680,13 +737,26 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           <button 
             onClick={() => setActiveTab('config')}
             className={cn(
-              "px-6 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+              "px-6 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2 transition-all",
               activeTab === 'config' ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white"
             )}
           >
             <Settings className="w-3.5 h-3.5" />
             Config
           </button>
+          
+          {memoData.rows.length > 10 && (
+            <button 
+              onClick={() => setActiveTab('lampiran')}
+              className={cn(
+                "px-6 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2 transition-all text-amber-300",
+                activeTab === 'lampiran' ? "bg-amber-500/20 text-amber-300 shadow-xl border border-amber-500/30" : "hover:text-amber-200"
+              )}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Lampiran Penerima
+            </button>
+          )}
         </div>
 
           <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shrink-0 mr-2 items-center">
@@ -698,9 +768,15 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           {activeTab === 'template' && (
             <>
               <button 
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => {
+                  if (isEditing) {
+                    setShowExitEditWarning(true);
+                  } else {
+                    setIsEditing(true);
+                  }
+                }}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0",
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold transition-all shrink-0",
                   isEditing 
                     ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
                     : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
@@ -718,7 +794,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         <div className="flex items-center gap-3 shrink-0">
           <button 
             onClick={handlePrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 border border-indigo-500/20"
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 border border-indigo-500/20"
           >
             <Printer className="w-4 h-4" />
             Cetak
@@ -731,13 +807,15 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 await saveRecipientTemplateData(recipient.id, 'mpzis', memoData);
                 await storage.setItem(`mpzis_memo_${recipient.id}`, memoData);
                 setSaveStatus('saved');
+                setToastMessage({ title: "Berhasil", message: "Data berhasil disimpan!", type: 'success' });
               } catch (e) {
                 console.error("Manual save failed", e);
                 setSaveStatus('error');
+                setToastMessage({ title: "Gagal", message: "Gagal menyimpan data!", type: 'error' });
               }
             }}
             disabled={saveStatus === 'saving'}
-            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
           >
             {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
             Simpan
@@ -753,7 +831,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
-              size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
+              size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
               margin: 10mm;
             }
             #root > div > *:not(.mpzis-template-overlay) {
@@ -796,9 +874,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           <div className="grid grid-cols-[150px_1fr_170px] gap-2 mb-6">
             <div className="border border-black p-2 flex items-center justify-center relative group">
               {templateConfig.logo ? (
-                <img src={templateConfig.logo} alt="Logo" className="max-h-20 object-contain" />
+                <img src={templateConfig.logo} alt="Logo" className="object-contain" style={{ maxHeight: `${templateConfig.logoSize + 32}px` }} />
               ) : logo ? (
-                <img src={logo} alt="Logo" className="max-h-20 object-contain" />
+                <img src={logo} alt="Logo" className="object-contain" style={{ maxHeight: `${templateConfig.logoSize + 32}px` }} />
               ) : (
                 <div className="text-center p-2">
                   <ImageIcon className="w-8 h-8 text-slate-300 mx-auto" />
@@ -826,7 +904,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </div>
 
             <div className="flex flex-col gap-1">
-              <div className="border border-black p-1 text-center text-black font-bold text-sm bg-slate-50 uppercase">
+              <div className="border border-black p-1 text-center text-black font-bold text-[10px] bg-slate-50 uppercase">
                 {recipient.sector?.toLowerCase().startsWith('siak') ? recipient.sector : recipient.sector || 'SIAK SEHAT'}
               </div>
               <div className="border border-black flex-1 p-2 text-[11px] leading-snug text-black flex flex-col justify-center gap-1">
@@ -866,55 +944,55 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
           {/* Date removed as per request */}
 
-          <p className="text-[12px] mb-6 leading-relaxed text-black font-sans">
+          <p className="text-[10px] mb-6 leading-relaxed text-black font-sans">
             Kami yang bertanda tangan dibawah ini Komite Pendistribusian dan Pendayagunaan menyetujui dan memutuskan penyaluran sebagai berikut :
           </p>
 
           {/* List Details */}
-          <div className="space-y-3 text-[12px] mb-8 text-black font-sans">
+          <div className="space-y-3 text-[10px] mb-8 text-black font-sans">
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">1. Klasifikasi program</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.classification} onChange={e => setMemoData({...memoData, classification: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.classification} onChange={e => setMemoData({...memoData, classification: e.target.value})} />
               ) : (
-                <span className="text-[12px] font-bold">{memoData.classification}</span>
+                <span className="text-[10px] font-bold">{memoData.classification}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">2. Tujuan penyaluran</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.purpose} onChange={e => setMemoData({...memoData, purpose: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.purpose} onChange={e => setMemoData({...memoData, purpose: e.target.value})} />
               ) : (
-                <span className="text-[12px] font-bold">{memoData.purpose}</span>
+                <span className="text-[10px] font-bold">{memoData.purpose}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">3. Ashnaf</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.ashnaf} onChange={e => setMemoData({...memoData, ashnaf: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.ashnaf} onChange={e => setMemoData({...memoData, ashnaf: e.target.value})} />
               ) : (
-                <span className="text-[12px] font-bold">{memoData.ashnaf}</span>
+                <span className="text-[10px] font-bold">{memoData.ashnaf}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">4. Sumber dana</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.source} onChange={e => setMemoData({...memoData, source: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.source} onChange={e => setMemoData({...memoData, source: e.target.value})} />
               ) : (
-                <span className="text-[12px] font-bold">{memoData.source}</span>
+                <span className="text-[10px] font-bold">{memoData.source}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">5. Post anggaran rkat</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.budgetPost} onChange={e => setMemoData({...memoData, budgetPost: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.budgetPost} onChange={e => setMemoData({...memoData, budgetPost: e.target.value})} />
               ) : (
-                <span className="text-[12px] font-bold">{memoData.budgetPost}</span>
+                <span className="text-[10px] font-bold">{memoData.budgetPost}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
@@ -926,21 +1004,21 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   onClick={() => isEditing && setMemoData({...memoData, transactionType: 'CASH'})}
                 >
                   {memoData.transactionType === 'CASH' ? <CheckSquare className="w-5 h-5 text-emerald-600" /> : <Square className="w-5 h-5 text-slate-400" />}
-                  <span className="text-[12px] font-bold">Cash</span>
+                  <span className="text-[10px] font-bold">Cash</span>
                 </div>
                 <div 
                   className={cn("flex items-center gap-1.5 cursor-pointer", isEditing && "hover:text-emerald-600")}
                   onClick={() => isEditing && setMemoData({...memoData, transactionType: 'TRANSFER'})}
                 >
                   {memoData.transactionType === 'TRANSFER' ? <CheckSquare className="w-5 h-5 text-emerald-600" /> : <Square className="w-5 h-5 text-slate-400" />}
-                  <span className="text-[12px] font-bold">Transfer</span>
+                  <span className="text-[10px] font-bold">Transfer</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-3 text-black font-sans">
-            <p className="text-[12px] font-normal tracking-wide">7. Penerima dana :</p>
+            <p className="text-[10px] font-normal tracking-wide">7. Penerima dana :</p>
             {isEditing && (
               <div className="flex gap-2">
                 <button 
@@ -969,16 +1047,18 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             )}
           </div>
           
-          <table className="w-full border-collapse border border-black text-[12px] mb-6 text-black font-sans">
+          <table className="w-full border-collapse border border-black text-[10px] mb-6 text-black font-sans">
             <thead>
               <tr className="bg-slate-100">
-                <th className="border border-black p-3 w-12 font-bold text-[12px]">No</th>
+                <th className="border border-black p-3 w-12 font-bold text-[10px]">No</th>
                 {memoData.columns.map((col) => (
                   <th 
                     key={col.key} 
                     className={cn(
-                      "border border-black p-3 relative group font-bold text-center tracking-tight text-[12px]",
-                      col.key === 'description' ? "w-[30%] min-w-[200px]" : ""
+                      "border border-black p-3 relative group font-bold text-center tracking-tight text-[10px]",
+                      isEditing 
+                        ? (col.key === 'description' ? "w-auto min-w-[120px]" : "w-auto min-w-[100px]") 
+                        : (col.key === 'description' ? "w-auto min-w-[150px]" : "w-[1%] whitespace-nowrap px-4")
                     )}
                   >
                     {isEditing ? (
@@ -1007,46 +1087,71 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
               </tr>
             </thead>
             <tbody>
-              {memoData.rows.map((row, idx) => (
-                <tr key={row.id}>
-                  <td className="border border-black p-3 text-center align-top">{idx + 1}</td>
+              {memoData.rows.length > 10 ? (
+                <tr key="terlampir">
+                  <td className="border border-black p-3 text-center align-top">1</td>
                   {memoData.columns.map((col) => (
-                    <td key={col.key} className={cn("border border-black p-3 align-top", col.key === 'amount' ? "text-right" : "")}>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1">
-                          {col.key === 'amount' && <span>Rp.</span>}
-                          <input 
-                            className={cn(
-                              "w-full outline-none bg-transparent",
-                              col.key === 'amount' ? "text-right" : ""
-                            )}
-                            type={col.key === 'amount' ? 'number' : 'text'}
-                            value={(row as any)[col.key]} 
-                            onChange={e => updateRow(row.id, col.key, e.target.value)} 
-                          />
-                        </div>
-                      ) : (
-                        col.key === 'amount' 
-                          ? `Rp. ${Number((row as any)[col.key]).toLocaleString('id-ID')},-`
-                          : (row as any)[col.key]
-                      )}
+                    <td key={col.key} className={cn("border border-black p-3 align-top italic", col.key === 'amount' ? "text-right font-bold" : "", col.key !== 'description' ? "whitespace-nowrap w-[1%]" : "w-auto")}>
+                      {col.key === 'amount' 
+                        ? `Rp. ${totalAmount.toLocaleString('id-ID')},-` 
+                        : "Terlampir"
+                      }
                     </td>
                   ))}
                   {isEditing && (
-                    <td className="border border-black p-1 text-center print:hidden align-top">
-                      <button 
-                        onClick={() => removeRow(row.id)}
-                        className="text-red-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <td className="border border-black p-1 text-center print:hidden align-top text-slate-400 text-[10px]">
+                      Lihat di lampiran
                     </td>
                   )}
                 </tr>
-              ))}
+              ) : (
+                memoData.rows.map((row, idx) => (
+                  <tr key={row.id}>
+                    <td className="border border-black p-3 text-center align-top">{idx + 1}</td>
+                    {memoData.columns.map((col) => (
+                      <td key={col.key} className={cn(
+                        "border border-black p-3 align-top", 
+                        col.key === 'amount' ? "text-right" : "", 
+                        isEditing 
+                          ? (col.key === 'description' ? "w-auto min-w-[120px]" : "w-auto min-w-[100px]") 
+                          : (col.key !== 'description' ? "whitespace-nowrap w-[1%]" : "w-auto")
+                      )}>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            {col.key === 'amount' && <span>Rp.</span>}
+                            <input 
+                              className={cn(
+                                "w-full outline-none bg-transparent",
+                                col.key === 'amount' ? "text-right" : ""
+                              )}
+                              type={col.key === 'amount' ? 'number' : 'text'}
+                              value={(row as any)[col.key]} 
+                              onChange={e => updateRow(row.id, col.key, e.target.value)} 
+                            />
+                          </div>
+                        ) : (
+                          col.key === 'amount' 
+                            ? `Rp. ${Number((row as any)[col.key]).toLocaleString('id-ID')},-`
+                            : (row as any)[col.key]
+                        )}
+                      </td>
+                    ))}
+                    {isEditing && (
+                      <td className="border border-black p-1 text-center print:hidden align-top">
+                        <button 
+                          onClick={() => removeRow(row.id)}
+                          className="text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
               <tr className="bg-slate-50 font-bold border-t border-black">
-                <td colSpan={memoData.columns.length} className="border border-black p-3 text-right font-bold text-[12px]">Total bantuan</td>
-                <td className="border border-black p-3 text-right text-[12px] font-bold">
+                <td colSpan={memoData.columns.length} className="border border-black p-3 text-right font-bold text-[10px]">Total bantuan</td>
+                <td className="border border-black p-3 text-right text-[10px] font-bold">
                   Rp. {totalAmount.toLocaleString('id-ID')},-
                 </td>
                 {isEditing && <td className="border border-black p-3 print:hidden bg-slate-100"></td>}
@@ -1054,23 +1159,23 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </tbody>
           </table>
 
-          <div className="border border-black p-4 text-[12px] font-bold mb-8 bg-slate-50 tracking-tight text-black">
+          <div className="border border-black p-4 text-[10px] font-bold mb-8 bg-slate-50 tracking-tight text-black">
             Terbilang : {terbilang(totalAmount)}
           </div>
 
-          <p className="text-[12px] italic mb-12 text-center leading-relaxed text-black">
+          <p className="text-[10px] italic mb-12 text-center leading-relaxed text-black">
             Demikian Memorandum Penyaluran ZIS ini dibuat dengan sebenarnya dan dapat dipergunakan dengan semestinya.
           </p>
 
           {/* Approval Section */}
-          <div className="grid grid-cols-3 border border-black mb-10 text-[12px] font-sans text-black">
+          <div className="grid grid-cols-3 border border-black mb-10 text-[10px] font-sans text-black">
             {(() => {
               return memoData.signersTop.map((signer, idx) => (
               <div key={idx} className={cn("p-1 flex flex-col items-center justify-between min-h-[140px]", idx < 2 && "border-r border-black")}>
                 <div className="w-full">
                   {isEditing ? (
                     <input 
-                      className="font-bold border-b border-black pb-1 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
+                      className="font-bold border-b border-black pb-1 w-full text-center bg-amber-50 outline-none text-black text-[10px]"
                       value={signer.label}
                       onChange={e => {
                         const newSigners = [...memoData.signersTop];
@@ -1079,7 +1184,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                       }}
                     />
                   ) : (
-                    <p className="font-bold border-b border-black pb-1 w-full text-center tracking-wide leading-tight text-[12px]">{signer.label}</p>
+                    <p className="font-bold border-b border-black pb-1 w-full text-center tracking-wide leading-tight text-[10px]">{signer.label}</p>
                   )}
                 </div>
                 
@@ -1087,7 +1192,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   {isEditing ? (
                     <>
                       <input 
-                        className="font-bold underline leading-none mb-0 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
+                        className="font-bold underline leading-none mb-0 w-full text-center bg-amber-50 outline-none text-black text-[10px]"
                         value={signer.name}
                         onChange={e => {
                           const newSigners = [...memoData.signersTop];
@@ -1096,7 +1201,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         }}
                       />
                       <input 
-                        className="text-[12px] w-full text-center bg-amber-50 outline-none text-black"
+                        className="text-[10px] w-full text-center bg-amber-50 outline-none text-black"
                         value={signer.role}
                         onChange={e => {
                           const newSigners = [...memoData.signersTop];
@@ -1107,9 +1212,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                     </>
                   ) : (
                     <>
-                      <p className="font-bold underline leading-none mb-0 tracking-tight whitespace-nowrap mx-auto text-[12px]">{signer.name}</p>
+                      <p className="font-bold underline leading-none mb-0 tracking-tight whitespace-nowrap mx-auto text-[10px]">{signer.name}</p>
                       <div className="h-6 flex items-start justify-center mt-0.5">
-                        <p className="leading-tight font-bold text-[12px]">{signer.role}</p>
+                        <p className="leading-tight font-bold text-[10px]">{signer.role}</p>
                       </div>
                     </>
                   )}
@@ -1119,9 +1224,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           </div>
 
           {/* Footer Decision Section */}
-          <div className="border border-black text-[12px] font-sans text-black">
+          <div className="border border-black text-[10px] font-sans text-black">
             <div>
-              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[12px]">Diputuskan</p>
+              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[10px]">Diputuskan</p>
               <div className="grid grid-cols-[1fr_1fr_1fr_1.15fr_1fr] h-40">
                 {(() => {
                   return memoData.signersBottom.map((signer, idx) => (
@@ -1129,7 +1234,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                       {isEditing ? (
                         <>
                           <input 
-                            className="font-bold underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
+                            className="font-bold underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black text-[10px]"
                             value={signer.name}
                             onChange={e => {
                               const newSigners = [...memoData.signersBottom];
@@ -1138,7 +1243,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                             }}
                           />
                           <input 
-                            className="text-[12px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
+                            className="text-[10px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
                             value={signer.role}
                             onChange={e => {
                               const newSigners = [...memoData.signersBottom];
@@ -1149,9 +1254,9 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         </>
                       ) : (
                         <>
-                          <p className="font-bold underline mb-0 leading-tight tracking-tighter mx-auto whitespace-nowrap text-[12px]">{signer.name}</p>
+                          <p className="font-bold underline mb-0 leading-tight tracking-tighter mx-auto whitespace-nowrap text-[10px]">{signer.name}</p>
                           <div className="h-6 flex items-start justify-center mt-0.5">
-                            <p className="text-[12px] leading-tight font-bold">{signer.role}</p>
+                            <p className="text-[10px] leading-tight font-bold">{signer.role}</p>
                           </div>
                         </>
                       )}
@@ -1166,6 +1271,105 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.04] pointer-events-none -rotate-12 select-none text-center">
             <h1 className="text-9xl font-black whitespace-nowrap">BAZNAS SIAK</h1>
           </div>
+          </div>
+        ) : activeTab === 'lampiran' ? (
+          /* Lampiran Landscape Render */
+          <div className="w-full flex flex-col gap-8 pb-20 items-center">
+            {chunkArray<any>(memoData.rows, 18).map((pageRows, pageIndex, allPages) => (
+              <div key={pageIndex} className={cn(
+                "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full shrink-0 flex flex-col",
+                pageIndex > 0 && "print:break-before-page",
+                isEditing && "ring-4 ring-amber-500/30"
+              )}
+              style={{ fontSize: `${templateConfig.fontSize + 2.5}pt`, minHeight: paperSize === 'A4' ? '210mm' : '215.9mm' }}>
+                <h3 className="font-bold text-center mb-6 text-lg">LAMPIRAN PENERIMA DANA ZIS</h3>
+                <h4 className="font-bold text-center mb-6 text-md uppercase">PROGRAM: {memoData.classification}</h4>
+                
+                <table className="w-full border-collapse border border-black text-[10px] bg-transparent mb-auto">
+                  <thead>
+                    <tr className="bg-slate-100/50 print:bg-white text-center">
+                      <th className="border border-black p-2 font-bold w-12">No</th>
+                      {memoData.columns.map(col => (
+                        <th key={col.key} className="border border-black p-2 font-bold">{col.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row: any, localIdx: number) => {
+                      const absoluteIdx = pageIndex * 18 + localIdx + 1;
+                      return (
+                        <tr key={row.id}>
+                          <td className="border border-black p-1 text-center align-top">{absoluteIdx}</td>
+                          {memoData.columns.map((col) => (
+                            <td key={col.key} className={cn(
+                              "border border-black p-1 align-top", 
+                              col.key === 'amount' ? "text-right" : "", 
+                              isEditing 
+                                ? (col.key === 'description' ? "w-auto min-w-[150px]" : "w-auto min-w-[100px]") 
+                                : (col.key !== 'description' ? "whitespace-nowrap w-[1%]" : "w-auto")
+                            )}>
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input 
+                                    className={cn("w-full outline-none bg-amber-50", col.key === 'amount' ? "text-right" : "")}
+                                    type={col.key === 'amount' ? 'number' : 'text'}
+                                    value={row[col.key]} 
+                                    onChange={e => {
+                                      const newRows = [...memoData.rows];
+                                      const globalIdx = memoData.rows.findIndex(r => r.id === row.id);
+                                      if(globalIdx !== -1) {
+                                        newRows[globalIdx] = {...newRows[globalIdx], [col.key]: e.target.value};
+                                        setMemoData({...memoData, rows: newRows});
+                                      }
+                                    }} 
+                                  />
+                                </div>
+                              ) : (
+                                col.key === 'amount' 
+                                  ? `Rp. ${Number(row[col.key]).toLocaleString('id-ID')},-`
+                                  : row[col.key]
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                    {pageIndex === allPages.length - 1 && (
+                      <tr className="bg-slate-50 border-t border-black">
+                        <td colSpan={memoData.columns.length} className="border border-black p-2 text-right font-bold text-[10px]">TOTAL Rp</td>
+                        <td className="border border-black p-2 text-right font-bold text-[10px]">{totalAmount.toLocaleString('id-ID')}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                
+                <div className="grid grid-cols-2 mt-auto text-center text-[10px] pt-4 h-32">
+                  <div className="flex flex-col items-center justify-start">
+                    <span className="mb-auto">Diperiksa</span>
+                    <div className="font-bold border-b border-black w-64 mb-1 leading-none pb-1">
+                      {isEditing ? <input className="w-full bg-amber-50 text-center outline-none" value={memoData.signersTop[1]?.name} onChange={(e) => {
+                        const newSigners = [...memoData.signersTop];
+                        if(newSigners[1]) newSigners[1].name = e.target.value;
+                        setMemoData({...memoData, signersTop: newSigners});
+                      }} /> : (memoData.signersTop[1]?.name)}
+                    </div>
+                    <span>{memoData.signersTop[1]?.role}</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-start">
+                    <span className="mb-auto">Disiapkan</span>
+                    <div className="font-bold border-b border-black w-48 mb-1 leading-none pb-1">
+                      {isEditing ? <input className="w-full bg-amber-50 text-center outline-none" value={memoData.signersTop[0]?.name} onChange={(e) => {
+                        const newSigners = [...memoData.signersTop];
+                        if(newSigners[0]) newSigners[0].name = e.target.value;
+                        setMemoData({...memoData, signersTop: newSigners});
+                      }} /> : (memoData.signersTop[0]?.name)}
+                    </div>
+                    <span>{memoData.signersTop[0]?.role}</span>
+                  </div>
+                </div>
+                
+              </div>
+            ))}
           </div>
         ) : activeTab === 'scan' ? (
           /* Scan Results Tab */
@@ -1187,7 +1391,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 </p>
                 {!isSaving && (
                   <label className={cn(
-                    "px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-xl flex items-center gap-2 cursor-pointer",
+                    "px-8 py-3 rounded-xl text-[10px] font-bold transition-all shadow-xl flex items-center gap-2 cursor-pointer",
                     "bg-indigo-600 hover:bg-indigo-500 text-white"
                   )}>
                     <Upload className="w-4 h-4" />
@@ -1205,7 +1409,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                           <FileCheck className="w-4 h-4 text-emerald-400" />
                         </div>
-                        <span className="text-xs font-bold text-white uppercase">HASIL SCAN MPZIS {mpzisFiles.length > 1 ? `(HLM ${idx + 1})` : ''}</span>
+                        <span className="text-[10px] font-bold text-white uppercase">HASIL SCAN MPZIS {mpzisFiles.length > 1 ? `(HLM ${idx + 1})` : ''}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button 
@@ -1236,7 +1440,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                       >
                         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                           <p className="text-white font-bold mb-2 text-lg">Pratinjau Gagal Dimuat</p>
-                          <p className="text-white/40 text-sm mb-8">Browser Anda mungkin memblokir pratinjau otomatis untuk file PDF.</p>
+                          <p className="text-white/40 text-[10px] mb-8">Browser Anda mungkin memblokir pratinjau otomatis untuk file PDF.</p>
                           <button 
                             onClick={() => downloadFile(file.data, file.name)}
                             className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-xl shadow-indigo-500/20"
@@ -1265,14 +1469,14 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Konfigurasi Template</h3>
-                  <p className="text-slate-400 text-sm">Sesuaikan branding dan logo lembaga Anda secara global</p>
+                  <p className="text-slate-400 text-[10px]">Sesuaikan branding dan logo lembaga Anda secara global</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 {/* Logo Upload Section */}
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-300">Logo Lembaga</label>
+                  <label className="text-[10px] font-bold text-slate-300">Logo Lembaga</label>
                   <div 
                     onClick={() => {
                       const fileInput = document.getElementById('config-logo-input-mpzis');
@@ -1285,13 +1489,13 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         <img src={templateConfig.logo} alt="Logo Preview" className="h-full object-contain p-4" />
                         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <Upload className="w-8 h-8 text-white mb-2" />
-                          <span className="text-white text-xs font-bold">Ganti Logo</span>
+                          <span className="text-white text-[10px] font-bold">Ganti Logo</span>
                         </div>
                       </>
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-slate-500 mb-2 group-hover:text-amber-500 transition-colors" />
-                        <span className="text-slate-400 text-sm group-hover:text-amber-400">Klik untuk upload logo</span>
+                        <span className="text-slate-400 text-[10px] group-hover:text-amber-400">Klik untuk upload logo</span>
                       </>
                     )}
                     <input 
@@ -1306,7 +1510,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Lembaga (Utama)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Lembaga (Utama)</label>
                     <input 
                       type="text" 
                       className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
@@ -1315,7 +1519,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Region / Wilayah</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Region / Wilayah</label>
                     <input 
                       type="text" 
                       className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
@@ -1326,7 +1530,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lembaga (Bottom)</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lembaga (Bottom)</label>
                   <input 
                     type="text" 
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 transition-colors bg-slate-950"
@@ -1337,7 +1541,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
                     <div className="flex items-center gap-3">
                       <input 
                         type="range" 
@@ -1347,17 +1551,17 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         value={templateConfig.logoSize}
                         onChange={(e) => setTemplateConfig(p => ({ ...p, logoSize: Number(e.target.value) }))}
                       />
-                      <span className="text-white font-mono text-sm w-12 text-right">{templateConfig.logoSize}px</span>
+                      <span className="text-white font-mono text-[10px] w-12 text-right">{templateConfig.logoSize}px</span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
                     <div className="flex items-center gap-3">
                       <button 
                         onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.max(6, p.fontSize - 1) }))}
                         className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
                       >-</button>
-                      <span className="text-white font-mono text-sm w-8 text-center">{templateConfig.fontSize}</span>
+                      <span className="text-white font-mono text-[10px] w-8 text-center">{templateConfig.fontSize}</span>
                       <button 
                         onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.min(14, p.fontSize + 1) }))}
                         className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
@@ -1402,7 +1606,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                    <FileCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-white text-xs font-bold leading-none mb-1">Scan Tertanda</p>
+                  <p className="text-white text-[10px] font-bold leading-none mb-1">Scan Tertanda</p>
                   <p className="text-[10px] text-white/40">{isSaving ? 'Memuat...' : (mpzisFiles.length > 0 ? 'Tersedia di Cloud' : 'Belum diunggah')}</p>
                 </div>
               </div>
@@ -1436,7 +1640,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
             <button 
               onClick={onClose}
-              className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold transition-all border border-white/10"
+              className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-bold transition-all border border-white/10"
             >
               Tutup Pratinjau
             </button>

@@ -15,7 +15,7 @@ import ActivityTicker from './ActivityTicker';
 interface RecipientListProps {
   data: Recipient[];
   onReceipt: (recipient: Recipient) => void;
-  onMPZIS: (recipient: Recipient) => void;
+  onMPZIS: (recipient: Recipient, lampiranItems?: Recipient[]) => void;
   onEPPD: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onInternalMemo?: (recipient: Recipient) => void;
   onSurvey: (recipient: Recipient) => void;
@@ -501,7 +501,10 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                         </button>
                                         
                                         <button 
-                                          onClick={() => onMPZIS(item)}
+                                          onClick={() => {
+                                            const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]);
+                                            onMPZIS(item, checked.length > 0 ? checked : [item]);
+                                          }}
                                           className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
                                           title="Buka MPZIS (Memorandum)"
                                         >

@@ -540,8 +540,9 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
                   }}
-                  onMPZIS={(rec) => {
+                  onMPZIS={(rec, lampiran) => {
                     setSelectedRecipient(rec);
+                    setSelectedLampiran(lampiran || []);
                     setIsShowingMPZIS(true);
                   }}
                   onEPPD={(rec, lampiran) => {
@@ -566,8 +567,9 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
                   }}
-                  onMPZIS={(rec) => {
+                  onMPZIS={(rec, lampiran) => {
                     setSelectedRecipient(rec);
+                    setSelectedLampiran(lampiran || []);
                     setIsShowingMPZIS(true);
                   }}
                   onEPPD={(rec, lampiran) => {
@@ -604,8 +606,9 @@ export default function App() {
                       setSelectedRecipient(rec);
                       setIsShowingReceipt(true);
                     }}
-                    onMPZIS={(rec) => {
+                    onMPZIS={(rec, lampiran) => {
                       setSelectedRecipient(rec);
+                      setSelectedLampiran(lampiran || []);
                       setIsShowingMPZIS(true);
                     }}
                     onEPPD={(rec, lampiran) => {
@@ -691,8 +694,9 @@ export default function App() {
               setSelectedRecipient(rec);
               setIsShowingReceipt(true);
             }}
-            onMPZIS={(rec) => {
+            onMPZIS={(rec, lampiran) => {
               setSelectedRecipient(rec);
+              setSelectedLampiran(lampiran || []);
               setIsShowingMPZIS(true);
             }}
             onSurvey={(rec) => {
@@ -851,6 +855,7 @@ export default function App() {
         {isShowingMPZIS && selectedRecipient && (
           <MPZISTemplate
             recipient={selectedRecipient}
+            lampiranItems={selectedLampiran}
             onClose={() => setIsShowingMPZIS(false)}
           />
         )}
