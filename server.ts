@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -196,14 +196,23 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
         return res.status(400).json({ error: "Parameter 'imageData' required" });
       }
 
-      // Strip out potential data URL prefix
+      // 100% Robust Base64 data extractor: Clean whitespaces and extract MIME/base64 portions manually
       let mimeType = "image/jpeg";
       let base64Data = imageData;
-      const match = imageData.match(/^data:([^;]+);base64,(.*)$/);
-      if (match) {
-        mimeType = match[1];
-        base64Data = match[2];
+      const cleanImageData = imageData.trim();
+      const base64PrefixIdx = cleanImageData.indexOf(";base64,");
+      
+      if (base64PrefixIdx !== -1) {
+        const mimePart = cleanImageData.substring(0, base64PrefixIdx);
+        const mimeMatch = mimePart.match(/^data:(.*)$/);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1];
+        }
+        base64Data = cleanImageData.substring(base64PrefixIdx + ";base64,".length);
       }
+      
+      // Strip any whitespace/newlines inside the base64 content
+      base64Data = base64Data.replace(/\s/g, "");
 
       const ai = new GoogleGenAI({
         apiKey: apiKey,
@@ -232,6 +241,14 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
           ]
         },
         config: {
+          // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+          ],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -276,14 +293,23 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
         return res.status(400).json({ error: "Parameter 'imageData' required" });
       }
 
-      // Strip out potential data URL prefix
+      // 100% Robust Base64 data extractor: Clean whitespaces and extract MIME/base64 portions manually
       let mimeType = "image/jpeg";
       let base64Data = imageData;
-      const match = imageData.match(/^data:([^;]+);base64,(.*)$/);
-      if (match) {
-        mimeType = match[1];
-        base64Data = match[2];
+      const cleanImageData = imageData.trim();
+      const base64PrefixIdx = cleanImageData.indexOf(";base64,");
+      
+      if (base64PrefixIdx !== -1) {
+        const mimePart = cleanImageData.substring(0, base64PrefixIdx);
+        const mimeMatch = mimePart.match(/^data:(.*)$/);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1];
+        }
+        base64Data = cleanImageData.substring(base64PrefixIdx + ";base64,".length);
       }
+      
+      // Strip any whitespace/newlines inside the base64 content
+      base64Data = base64Data.replace(/\s/g, "");
 
       const ai = new GoogleGenAI({
         apiKey: apiKey,
@@ -316,6 +342,14 @@ If any field or column is empty or contains a hyphen (-), represent its value wi
           ]
         },
         config: {
+          // Explicitly clear safety constraints to avoid false-triggering PII block on official ID papers
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+          ],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
