@@ -92,6 +92,11 @@ service cloud.firestore {
       }
     }
 
+    // OCR SESSIONS
+    match /ocr_sessions/{sessionId} {
+      allow read, write: if sessionId.size() > 0;
+    }
+
     // PPD RECORDS
     match /ppd_records/{recordId} {
       allow list: if isVerified();
@@ -136,7 +141,7 @@ service cloud.firestore {
 
     // SETTINGS
     match /settings/{settingId} {
-      allow get: if isVerified();
+      allow read: if isVerified();
       allow write: if isAdmin();
     }
 

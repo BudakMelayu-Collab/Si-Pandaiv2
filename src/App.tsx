@@ -19,11 +19,13 @@ import EPPDTemplate from './components/EPPDTemplate';
 import EPPDModule from './components/EPPDModule';
 import PPDRecap from './components/PPDRecap';
 import SurveyTemplate from './components/SurveyTemplate';
+import InternalMemoTemplate from './components/InternalMemoTemplate';
 import CompanionCatalog from './components/CompanionCatalog';
 import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
 import EditRecipientModal from './components/EditRecipientModal';
+import MobileOcrScanner from './components/MobileOcrScanner';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
@@ -98,6 +100,7 @@ export default function App() {
   const [isShowingReceipt, setIsShowingReceipt] = useState(false);
   const [isShowingMPZIS, setIsShowingMPZIS] = useState(false);
   const [isShowingEPPD, setIsShowingEPPD] = useState(false);
+  const [isShowingInternalMemo, setIsShowingInternalMemo] = useState(false);
   const [isShowingSurvey, setIsShowingSurvey] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastConfig, setToastConfig] = useState<{ title: string; description: string; type: 'success' | 'delete' }>({
@@ -141,6 +144,12 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+
+  const isOcrRoute = typeof window !== 'undefined' && window.location.pathname === '/ocr-scan';
+
+  if (isOcrRoute) {
+    return <MobileOcrScanner />;
+  }
 
   const handleLoginWithGoogle = async () => {
     try {
@@ -547,6 +556,10 @@ export default function App() {
                     setSelectedLampiran(lampiran || []);
                     setIsShowingEPPD(true);
                   }}
+                  onInternalMemo={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingInternalMemo(true);
+                  }}
                   onSurvey={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingSurvey(true);
@@ -568,6 +581,10 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setSelectedLampiran(lampiran || []);
                     setIsShowingEPPD(true);
+                  }}
+                  onInternalMemo={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingInternalMemo(true);
                   }}
                   onSurvey={(rec) => {
                     setSelectedRecipient(rec);
@@ -602,6 +619,10 @@ export default function App() {
                       setSelectedRecipient(rec);
                       setSelectedLampiran(lampiran || []);
                       setIsShowingEPPD(true);
+                    }}
+                    onInternalMemo={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingInternalMemo(true);
                     }}
                     onSurvey={(rec) => {
                       setSelectedRecipient(rec);
@@ -851,6 +872,15 @@ export default function App() {
             onSaveRecord={savePPDRecordLocal}
             onDeleteRecord={deletePPDRecordLocal}
             onClose={() => setIsShowingEPPD(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isShowingInternalMemo && selectedRecipient && (
+          <InternalMemoTemplate
+            recipient={selectedRecipient}
+            onClose={() => setIsShowingInternalMemo(false)}
           />
         )}
       </AnimatePresence>

@@ -11,6 +11,7 @@ interface BNBARecapTableProps {
   onReceipt?: (recipient: Recipient) => void;
   onMPZIS?: (recipient: Recipient) => void;
   onEPPD?: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
+  onInternalMemo?: (recipient: Recipient) => void;
   onSurvey?: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
 }

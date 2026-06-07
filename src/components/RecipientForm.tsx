@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, X, Upload, FileText, Image as ImageIcon, 
   MapPin, User, Hash, Phone, Calendar, DollarSign,
-  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2
+  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2, QrCode, Smartphone
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
+import QRCode from 'react-qr-code';
 import { AidDocument, Recipient } from '../types';
 
 interface RecipientFormProps {
@@ -135,6 +136,94 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
   const [customCompanions, setCustomCompanions] = useState<string[]>([]);
   const [customPersonInCharge, setCustomPersonInCharge] = useState<string[]>([]);
+
+  const [inputMethod, setInputMethod] = useState<'manual' | 'ocr'>('manual');
+  
+  // OCR Session Logic
+  const ocrSessionId = useRef(Math.random().toString(36).substring(2, 15) + Date.now().toString(36)).current;
+  const [ocrStatus, setOcrStatus] = useState<'waiting' | 'scanned' | 'review'>('waiting');
+  const [ocrKtpData, setOcrKtpData] = useState<any>(null);
+  const [ocrPhotoDataUrl, setOcrPhotoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (inputMethod !== 'ocr') return;
+
+    let isProcessing = false;
+
+    const setupOcrListener = async () => {
+      const { db } = await import('../firebase');
+      const { doc, onSnapshot, deleteDoc } = await import('firebase/firestore');
+
+      const ref = doc(db, 'ocr_sessions', ocrSessionId);
+      const unsubscribe = onSnapshot(ref, async (snap) => {
+        if (snap.exists() && snap.data().photo && !isProcessing) {
+          isProcessing = true;
+          setOcrStatus('scanned');
+          
+          const photoBase64 = snap.data().photo;
+          // Process OCR with AI Endpoint
+          try {
+            const res = await fetch("/api/gemini/ocr", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imageBase64: photoBase64 }),
+            });
+            
+            let extractedData = {
+               name: '',
+               nik: '',
+               pob: '',
+               dob: '',
+               gender: '',
+               bloodType: '',
+               address: '',
+               rt: '',
+               rw: '',
+               district: '',
+               kampung: '',
+               religion: '',
+               maritalStatus: '',
+               occupation: '',
+               citizenship: '',
+               validUntil: ''
+            };
+
+            if (res.ok) {
+              const result = await res.json();
+              extractedData = {
+                ...extractedData,
+                ...result
+              };
+            } else {
+              const errResult = await res.json().catch(() => ({}));
+              console.error("OCR API Error status:", res.status, errResult);
+              throw new Error(errResult.error || "OCR API failed with status " + res.status);
+            }
+
+            setOcrKtpData(extractedData);
+            setOcrPhotoDataUrl(photoBase64);
+            setOcrStatus('review');
+            
+            // Clean up session document
+            await deleteDoc(ref);
+          } catch (e: any) {
+            console.error("OCR API failed", e);
+            alert(e.message || "Gagal memproses OCR. Silakan coba lagi atau gunakan input manual.");
+            setOcrStatus('waiting');
+            isProcessing = false;
+            await deleteDoc(ref);
+          }
+        }
+      });
+
+      return () => unsubscribe();
+    };
+
+    const cleanup = setupOcrListener();
+    return () => {
+      cleanup.then(unsub => unsub());
+    };
+  }, [inputMethod, ocrSessionId]);
 
   useEffect(() => {
     if (initialGroupRecipients && initialGroupRecipients.length > 0) {
@@ -567,21 +656,17 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       return;
     }
 
-    // Verify Tabel Utama (Main parameters)
+    // Verify main parameters
     if (!registrationData.sector) {
-      alert('Mohon pilih Bidang pada Tabel Utama.');
+      alert('Mohon pilih Bidang.');
       return;
     }
     if (!registrationData.aidType) {
-      alert('Mohon pilih Jenis Bantuan pada Tabel Utama.');
+      alert('Mohon pilih Jenis Bantuan.');
       return;
     }
     if (!registrationData.amountProposed) {
-      alert('Mohon masukkan Nominal Diajukan pada Tabel Utama.');
-      return;
-    }
-    if (!registrationData.isTermsAccepted) {
-      alert('Anda harus mencentang pernyataan Fakta Integritas kebenaran fakta integritas data.');
+      alert('Mohon masukkan Nominal Diajukan.');
       return;
     }
 
@@ -604,7 +689,23 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
   return (
     <div className="space-y-10 pb-36">
-      <form onSubmit={e => e.preventDefault()} className="space-y-8">
+      <div className="flex gap-4 border-b border-slate-200 mb-6 px-1">
+        <button
+          className={cn("pb-2 px-4 font-black text-sm border-b-2 transition-all duration-300 transform outline-none", inputMethod === 'manual' ? "border-indigo-600 text-indigo-700 pointer-events-none" : "border-transparent text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer")}
+          onClick={() => setInputMethod('manual')}
+        >
+          Input Manual
+        </button>
+        <button
+          className={cn("pb-2 px-4 font-black text-sm border-b-2 transition-all duration-300 transform outline-none", inputMethod === 'ocr' ? "border-indigo-600 text-indigo-700 pointer-events-none" : "border-transparent text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer")}
+          onClick={() => setInputMethod('ocr')}
+        >
+          Input via OCR
+        </button>
+      </div>
+
+      {inputMethod === 'manual' ? (
+        <form onSubmit={e => e.preventDefault()} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
         
         {/* SECTION 1: TABEL UTAMA - PARAMETER REGISTRASI & PENGAJUAN */}
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
@@ -613,7 +714,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <Layers className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 text-lg">Parameter Registrasi & Pengajuan (Tabel Utama)</h3>
+              <h3 className="font-bold text-slate-800 text-lg">Parameter Registrasi & Pengajuan</h3>
               <p className="text-xs text-slate-500 font-medium">Informasi utama permohonan yang berlaku untuk seluruh rombongan/sub-penerima.</p>
             </div>
           </div>
@@ -985,7 +1086,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               </div>
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">
-                  {editingIndex !== null ? `Edit Data Penerima (Urutan #${editingIndex + 1})` : 'Form Input Detil Penerima'}
+                  {editingIndex !== null ? `Edit Data Penerima (Urutan #${editingIndex + 1})` : 'Form Input Data Penerima'}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">Lengkapi biodata individu penerima manfaat di bawah ini.</p>
               </div>
@@ -1031,7 +1132,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
-                <input type="text" className="form-input-custom font-medium" placeholder="DD/MM/YYYY atau umur" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
+                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
@@ -1060,18 +1161,25 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
-                <input type="text" className="form-input-custom font-medium" placeholder="DD/MM/YYYY atau umur" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
+                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">No Handphone</label>
                 <input 
                   type="tel" 
-                  maxLength={13}
-                  placeholder="0812xxxxxxxx"
+                  placeholder="+62"
                   className="form-input-custom font-medium" 
                   value={recipientInput.contact} 
-                  onChange={e => setRecipientInput({...recipientInput, contact: e.target.value.replace(/\D/g, '')})} 
+                  onChange={e => {
+                    let val = e.target.value.replace(/[^\d+]/g, '');
+                    if (val.startsWith('0')) {
+                      val = '+62' + val.substring(1);
+                    } else if (val.startsWith('62')) {
+                      val = '+' + val;
+                    }
+                    setRecipientInput({...recipientInput, contact: val});
+                  }} 
                 />
               </div>
             </div>
@@ -1085,7 +1193,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2 lg:col-span-4">
                   <label className="text-sm font-semibold text-slate-700">Alamat Lengkap *</label>
-                  <textarea className="form-input-custom min-h-[60px]" value={recipientInput.address} onChange={e => setRecipientInput({...recipientInput, address: e.target.value})} placeholder="Dusun / Rukun Tetangga / Rukun Warga" />
+                  <textarea className="form-input-custom min-h-[60px]" value={recipientInput.address} onChange={e => setRecipientInput({...recipientInput, address: e.target.value})} placeholder="Jalan" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">RT</label>
@@ -1420,7 +1528,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <div className="p-10 text-center space-y-2 bg-slate-50/50">
                 <p className="text-slate-400 font-bold text-sm">Belum Ada Penerima dalam Sub-Tabel</p>
                 <p className="text-slate-400 text-xs max-w-md mx-auto">
-                  Silakan isi data penerima pada formulir **"Form Input Detil Penerima"** diatas, kemudian klik tombol **"Tambahkan Penerima ke Sub Tabel"** untuk meregistrasikannya di sub-tabel ini.
+                  Silakan isi data penerima pada formulir **"Form Input Data Penerima"** diatas, kemudian klik tombol **"Tambahkan Penerima ke Sub Tabel"** untuk meregistrasikannya di sub-tabel ini.
                 </p>
               </div>
             ) : (
@@ -1546,19 +1654,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         </div>
 
         {/* COMPACT FLOATING FOOTER ACTION ACCORDING TO SYSTEM DESIGN PHILOSOPHY */}
-        <div className="fixed bottom-0 right-0 left-64 bg-white/85 backdrop-blur-md border-t border-slate-200 p-4 px-8 flex items-center justify-between z-20 shadow-lg">
-          <div className="flex items-center gap-3">
-            <input 
-              type="checkbox" 
-              id="terms" 
-              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              checked={registrationData.isTermsAccepted}
-              onChange={e => setRegistrationData({...registrationData, isTermsAccepted: e.target.checked})}
-            />
-            <label htmlFor="terms" className="text-sm text-slate-700 font-black cursor-pointer select-none">
-              Fakta Integritas Data Benar
-            </label>
-          </div>
+        <div className="fixed bottom-0 right-0 left-64 bg-white/85 backdrop-blur-md border-t border-slate-200 p-4 px-8 flex items-center justify-end z-20 shadow-lg">
           
           <div className="flex items-center gap-3">
             <button 
@@ -1583,12 +1679,330 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <span>
                 {isSavingAll ? 'Menyimpan...' : (subRecipients.length > 0 
                   ? `Simpan Seluruh Registrasi (${subRecipients.length} Penerima)` 
-                  : 'Simpan Langsung')}
+                  : 'Simpan')}
               </span>
             </button>
           </div>
         </div>
       </form>
+      ) : ocrStatus === 'review' && ocrKtpData ? (
+        <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+             <div>
+               <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">Formulir Pendaftaran via OCR</h3>
+               <p className="text-slate-500 text-sm mt-1">Sistem otomatis mendeteksi isian form dari KTP yang Anda unggah. Anda dapat mengedit isian ini sebelum disimpan.</p>
+             </div>
+             <button 
+                onClick={() => setOcrStatus('waiting')}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-lg transition-colors cursor-pointer"
+             >
+                Scan Ulang
+             </button>
+          </div>
+          
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+             {/* KTP Form Layout */}
+             <div className="flex-1 w-full bg-[#E0F2FE] p-6 rounded-xl border border-[#bae6fd] shadow-md relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#bae6fd]/20 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 left-0 w-32 h-32 bg-[#bae6fd]/20 rounded-full blur-3xl"></div>
+                
+                <div className="text-center mb-6 relative z-10">
+                   <h4 className="font-bold text-slate-800 text-lg uppercase tracking-widest">Provinsi Riau</h4>
+                   <h4 className="font-bold text-slate-800 text-lg uppercase tracking-widest leading-tight">Kabupaten Siak</h4>
+                </div>
+                
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                   <label className="w-1/4 font-bold text-slate-700 text-sm">NIK</label>
+                   <span className="font-bold text-slate-800">:</span>
+                   <input
+                     className="flex-1 bg-white p-2 rounded-md border border-[#bae6fd] text-sm font-bold shadow-sm focus:ring-2 focus:ring-sky-400 outline-none"
+                     value={ocrKtpData.nik}
+                     onChange={(e) => setOcrKtpData({...ocrKtpData, nik: e.target.value})}
+                   />
+                </div>
+                
+                <div className="space-y-3 relative z-10 text-sm">
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Nama</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input
+                       className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                       value={ocrKtpData.name}
+                       onChange={(e) => setOcrKtpData({...ocrKtpData, name: e.target.value})}
+                     />
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Tempat/Tgl Lahir</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <div className="flex-1 flex gap-2">
+                       <input
+                         className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                         value={ocrKtpData.pob}
+                         onChange={(e) => setOcrKtpData({...ocrKtpData, pob: e.target.value})}
+                         placeholder="Tempat"
+                       />
+                       <span className="text-slate-500">,</span>
+                       <input
+                         className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                         value={ocrKtpData.dob}
+                         onChange={(e) => setOcrKtpData({...ocrKtpData, dob: e.target.value})}
+                         placeholder="Tanggal"
+                       />
+                     </div>
+                   </div>
+
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Jenis Kelamin</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <div className="flex-1 flex gap-2 items-center">
+                       <select
+                         className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                         value={ocrKtpData.gender}
+                         onChange={(e) => setOcrKtpData({...ocrKtpData, gender: e.target.value})}
+                       >
+                         <option value="">--PILIH--</option>
+                         <option value="Laki-laki">LAKI-LAKI</option>
+                         <option value="Perempuan">PEREMPUAN</option>
+                       </select>
+                       <span className="text-slate-600 w-auto whitespace-nowrap px-1 text-xs font-bold">Gol. Darah :</span>
+                       <input
+                         className="w-12 bg-white p-1.5 rounded border border-[#bae6fd] text-center shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                         value={ocrKtpData.bloodType}
+                         onChange={(e) => setOcrKtpData({...ocrKtpData, bloodType: e.target.value})}
+                         placeholder="O"
+                       />
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Alamat</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input
+                       className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none"
+                       value={ocrKtpData.address}
+                       onChange={(e) => setOcrKtpData({...ocrKtpData, address: e.target.value})}
+                     />
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold"></label>
+                     <span className="text-transparent font-semibold">:</span>
+                     <div className="flex-1 flex gap-2 items-center">
+                       <span className="text-slate-600 w-16">RT/RW</span>
+                       <span className="text-slate-600">:</span>
+                       <input className="w-12 bg-white p-1.5 rounded border border-[#bae6fd] text-center shadow-sm focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.rt} onChange={(e) => setOcrKtpData({...ocrKtpData, rt: e.target.value})} />
+                       <span className="text-slate-400 font-bold">/</span>
+                       <input className="w-12 bg-white p-1.5 rounded border border-[#bae6fd] text-center shadow-sm focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.rw} onChange={(e) => setOcrKtpData({...ocrKtpData, rw: e.target.value})} />
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold"></label>
+                     <span className="text-transparent font-semibold">:</span>
+                     <div className="flex-1 flex gap-2 items-center">
+                       <span className="text-slate-600 w-16">Kel/Desa</span>
+                       <span className="text-slate-600">:</span>
+                       <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.kampung} onChange={(e) => setOcrKtpData({...ocrKtpData, kampung: e.target.value})} />
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold"></label>
+                     <span className="text-transparent font-semibold">:</span>
+                     <div className="flex-1 flex gap-2 items-center">
+                       <span className="text-slate-600 w-16">Kecamatan</span>
+                       <span className="text-slate-600">:</span>
+                       <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.district} onChange={(e) => setOcrKtpData({...ocrKtpData, district: e.target.value})} />
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Agama</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.religion} onChange={(e) => setOcrKtpData({...ocrKtpData, religion: e.target.value})} />
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Status Perkawinan</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.maritalStatus} onChange={(e) => setOcrKtpData({...ocrKtpData, maritalStatus: e.target.value})} />
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Pekerjaan</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.occupation} onChange={(e) => setOcrKtpData({...ocrKtpData, occupation: e.target.value})} />
+                   </div>
+                   
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Kewarganegaraan</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.citizenship} onChange={(e) => setOcrKtpData({...ocrKtpData, citizenship: e.target.value})} />
+                   </div>
+
+                   <div className="flex items-center gap-4">
+                     <label className="w-1/4 text-slate-600 font-semibold">Berlaku Hingga</label>
+                     <span className="text-slate-600 font-semibold">:</span>
+                     <input className="flex-1 bg-white p-1.5 rounded border border-[#bae6fd] shadow-sm uppercase focus:ring-2 focus:ring-sky-400 outline-none" value={ocrKtpData.validUntil} onChange={(e) => setOcrKtpData({...ocrKtpData, validUntil: e.target.value})} />
+                   </div>
+                </div>
+             </div>
+             
+             {/* Thumbnail Scanner */}
+             {ocrPhotoDataUrl && (
+               <div className="w-full lg:w-64 shrink-0">
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm sticky top-6">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Foto KTP / KK Asli</p>
+                    <img src={ocrPhotoDataUrl} className="w-full h-auto rounded-lg border border-slate-100 object-cover" />
+                    
+                    <button 
+                       type="button"
+                       onClick={async () => {
+                         try {
+                           const { saveRecipient } = await import('../firebase');
+                           await saveRecipient({
+                             name: ocrKtpData.name || '',
+                             nik: ocrKtpData.nik || '',
+                             pob: ocrKtpData.pob || '',
+                             dob: ocrKtpData.dob || '',
+                             gender: ocrKtpData.gender === 'Perempuan' ? 'Perempuan' : 'Laki-laki',
+                             address: ocrKtpData.address || '',
+                             rt: ocrKtpData.rt || '',
+                             rw: ocrKtpData.rw || '',
+                             kampung: ocrKtpData.kampung || '',
+                             district: ocrKtpData.district || '',
+                             familyStatus: ocrKtpData.maritalStatus || '',
+                             
+                             // Fill necessary defaults
+                             registrationId: registrationData.registrationId,
+                             status: registrationData.status,
+                             sector: registrationData.sector || 'Kemanusiaan',
+                             subSector: registrationData.subSector || 'Bantuan Biaya Hidup',
+                             aidType: registrationData.aidType || 'Rutin Berkelanjutan',
+                             programName: registrationData.programName || '-',
+                             purpose: 'Berdasarkan data KTP (OCR)',
+                             submissionDate: new Date().toISOString(),
+                             source: 'Form Aplikasi',
+                             documents: [{
+                               id: generateRegId().substring(0,6),
+                               name: 'KTP (Draft OCR)',
+                               fileUrl: ocrPhotoDataUrl,
+                               type: 'KTP',
+                               uploadedAt: new Date().toISOString()
+                             }]
+                           } as any);
+                           setOcrStatus('waiting');
+                           setOcrKtpData(null);
+                           setOcrPhotoDataUrl(null);
+                           alert('Data berhasil disimpan dari OCR!');
+                         } catch (error) {
+                           console.error(error);
+                           alert('Gagal menyimpan.');
+                         }
+                       }}
+                       className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg shadow-md transition-colors"
+                    >
+                       Simpan Data OCR
+                    </button>
+                  </div>
+               </div>
+             )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center min-h-[500px] animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="flex flex-col md:flex-row items-center gap-12 max-w-4xl mx-auto w-full">
+            
+            {/* Bagian Kiri: Area Barcode / HP */}
+            <div className="bg-indigo-50/50 p-8 rounded-3xl border border-indigo-100 flex flex-col items-center max-w-sm w-full">
+               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-150 mb-6">
+                 <Smartphone className="w-8 h-8 text-indigo-600" />
+               </div>
+               <h3 className="font-extrabold text-slate-800 text-xl mb-3">Pindai dengan HP Anda</h3>
+               <p className="text-slate-500 text-sm leading-relaxed mb-6 text-center">
+                 Buka kamera HP Anda dan pindai kode QR di bawah ini untuk menghubungkan perangkat Anda. 
+                 <br/><br/>
+                 Gunakan HP untuk mengambil foto KTP, Kartu Keluarga, dan dokumen persyaratan lainnya.
+               </p>
+               
+               <div className="bg-white p-5 rounded-2xl border-2 border-dashed border-indigo-200 shadow-sm inline-block relative group">
+                 <div className="absolute inset-0 bg-indigo-500/5 rotate-45 transform origin-center border border-indigo-100 rounded-xl"></div>
+                 {ocrStatus === 'waiting' ? (
+                   <>
+                     <div className="relative z-10 bg-white p-2 w-[160px] h-[160px] rounded-lg">
+                       <QRCode value={typeof window !== 'undefined' ? `${window.location.origin}/ocr-scan?session=${ocrSessionId}` : `https://baznas-siak.vercel.app/ocr-scan?session=${ocrSessionId}`} size={144} className="w-full h-full" />
+                     </div>
+                     {/* Garis scan animasi ping-pong */}
+                     <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500 shadow-[0_0_8px_2px_rgba(99,102,241,0.5)] z-20 animate-[bounce_3s_infinite]" />
+                   </>
+                 ) : (
+                   <div className="relative z-10 bg-white p-2 w-[160px] h-[160px] rounded-lg flex flex-col items-center justify-center text-center">
+                     <Check className="w-12 h-12 text-emerald-500 mb-2" />
+                     <p className="text-sm font-bold text-slate-800">Foto Terkirim!</p>
+                     <p className="text-xs text-slate-500">Mengekstrak data...</p>
+                   </div>
+                 )}
+               </div>
+               
+               <p className={cn("text-xs mt-6 font-bold uppercase tracking-wider flex items-center gap-2", ocrStatus === 'waiting' ? "text-slate-400" : "text-emerald-500")}>
+                 {ocrStatus === 'waiting' ? (
+                   <><Loader2 className="w-3 h-3 animate-spin" /> Menunggu foto dari HP...</>
+                 ) : (
+                   <><Loader2 className="w-3 h-3 animate-spin" /> Memproses OCR...</>
+                 )}
+               </p>
+            </div>
+
+            {/* Bagian Kanan: Penjelasan & Status sinkronisasi */}
+            <div className="flex flex-col items-center md:items-start flex-1 text-left">
+              <h3 className="font-extrabold text-slate-800 text-3xl mb-4 tracking-tight">Sinkronisasi Otomatis</h3>
+              <p className="text-slate-500 text-base leading-relaxed mb-8">
+                Data hasil foto/scan cerdas (OCR) dari perangkat HP Anda akan otomatis masuk dan terekstrak ke layar ini sebagai draft form, mempermudah Anda dalam memasukkan data penerima dan meminimalisir kesalahan ketik.
+              </p>
+              
+              <div className="space-y-4 w-full mb-10">
+                <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                   <div className="bg-emerald-100 p-2 rounded-lg">
+                     <Check className="w-5 h-5 text-emerald-600 shrink-0" />
+                   </div>
+                   <div>
+                     <span className="block text-sm font-bold text-slate-700">KTP & Data Spesifik Individu</span>
+                     <span className="text-xs text-slate-500">Otomatis ekstraksi NIK, Nama, Alamat, dll.</span>
+                   </div>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                   <div className="bg-emerald-100 p-2 rounded-lg">
+                     <Check className="w-5 h-5 text-emerald-600 shrink-0" />
+                   </div>
+                   <div>
+                     <span className="block text-sm font-bold text-slate-700">Kartu Keluarga</span>
+                     <span className="text-xs text-slate-500">Input sub-penerima massal dari rincian anggota keluarga.</span>
+                   </div>
+                </div>
+
+                <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                   <div className="bg-emerald-100 p-2 rounded-lg">
+                     <Check className="w-5 h-5 text-emerald-600 shrink-0" />
+                   </div>
+                   <div>
+                     <span className="block text-sm font-bold text-slate-700">Surat Pengajuan & Lampiran</span>
+                     <span className="text-xs text-slate-500">Tersimpan otomatis sebagai bukti pendukung.</span>
+                   </div>
+                </div>
+              </div>
+
+              <button 
+                 onClick={() => setInputMethod('manual')}
+                 className="px-6 py-3 w-full bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-800 font-bold text-sm rounded-xl transition-all cursor-pointer uppercase tracking-wider"
+              >
+                 Gunakan Input Manual
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PREVIEW DOCUMENT MODAL */}
       {previewDoc && (

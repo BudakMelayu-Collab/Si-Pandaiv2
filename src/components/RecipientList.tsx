@@ -17,6 +17,7 @@ interface RecipientListProps {
   onReceipt: (recipient: Recipient) => void;
   onMPZIS: (recipient: Recipient) => void;
   onEPPD: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
+  onInternalMemo?: (recipient: Recipient) => void;
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
   onEditRecipient?: (recipient: Recipient) => void;
@@ -95,7 +96,7 @@ function getRelativeTimeDetails(createdAtStr?: string, submissionDateStr?: strin
   return { relative, timeStr };
 }
 
-export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurvey, onDeleteRecipient, onEditRecipient, onEditGroup, onDuplicateGroup }: RecipientListProps) {
+export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInternalMemo, onSurvey, onDeleteRecipient, onEditRecipient, onEditGroup, onDuplicateGroup }: RecipientListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -488,27 +489,26 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                         </button>
                                         
                                         <button 
+                                          onClick={() => {
+                                            if (onInternalMemo) onInternalMemo(item);
+                                          }}
+                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
+                                          title="Internal Memo"
+                                        >
+                                          <FileText className="w-3 h-3 text-black" />
+                                          <span>Internal Memo</span>
+                                        </button>
+                                        
+                                        <button 
                                           onClick={() => onSurvey(item)}
                                           className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Buka Lembar Verifikasi (Survei)"
+                                          title="Lembar Verifikasi"
                                         >
                                           <ClipboardList className="w-3 h-3 text-black" />
-                                          <span>Buka Lembar Verifikasi (Survei)</span>
+                                          <span>Lembar Verifikasi</span>
                                         </button>
 
-                                        {/* Utility buttons (WA, Merge, Delete) */}
-                                        {item.contact && (
-                                          <a 
-                                            href={`https://wa.me/${item.contact.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors"
-                                            title="Hubungi via WhatsApp"
-                                          >
-                                            <Phone className="w-3 h-3 text-black" />
-                                          </a>
-                                        )}
-
+                                        {/* Utility buttons (Merge, Delete) */}
                                         <button 
                                           onClick={() => handleMergeScans(item)}
                                           disabled={mergingId === item.id}
@@ -741,10 +741,22 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onSurv
                                                         onSurvey(subItem);
                                                       }}
                                                       className="inline-flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
-                                                      title="Buka Lembar Verifikasi (Survei)"
+                                                      title="Lembar Verifikasi"
                                                     >
                                                       <ClipboardList className="w-3.5 h-3.5" />
                                                     </button>
+                                                    {subItem.contact && (
+                                                      <a
+                                                        href={`https://wa.me/${subItem.contact.replace(/\D/g, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center justify-center bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
+                                                        title="Hubungi via WhatsApp"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                      >
+                                                        <Phone className="w-3.5 h-3.5" />
+                                                      </a>
+                                                    )}
                                                   </div>
                                                 </td>
                                                 <td className="px-3.5 py-3 font-normal whitespace-nowrap text-center min-w-[160px]">

@@ -514,6 +514,40 @@ export const updateRecipientPdf = async (id: string, pdfBase64: string | null) =
   }
 };
 
+export const updateInternalMemoPdf = async (id: string, pdfBase64: string | null) => {
+  const path = `recipients/${id}`;
+  try {
+    const ref = doc(db, 'recipients', id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Recipient not found');
+    
+    const recipient = snap.data() as Recipient;
+    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+
+    // Save heavy file/delete from subcollection
+    const scanRef = doc(db, 'recipients', id, 'scans', 'memo');
+    if (pdfBase64) {
+      await setDoc(scanRef, {
+        base64: pdfBase64,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      const snapScan = await safeGetDoc(scanRef);
+      if (snapScan.exists()) {
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(scanRef);
+      }
+    }
+    
+    await updateDoc(ref, {
+      hasInternalMemoPdf: hasFile,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
 export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | null) => {
   const path = `recipients/${id}`;
   try {

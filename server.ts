@@ -69,7 +69,7 @@ Petunjuk Tambahan:
       }));
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.0-flash",
         contents: contents,
         config: {
           systemInstruction: systemInstruction,
@@ -162,7 +162,7 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.0-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -176,6 +176,116 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
       console.error("Gemini Classification Error:", err);
       res.status(500).json({ 
         error: err.message || "Terjadi kesalahan ketika melakukan klasifikasi menggunakan Gemini AI." 
+      });
+    }
+  });
+
+  // OCR API endpoint using Gemini Vision
+  app.post("/api/gemini/ocr", async (req: express.Request, res: express.Response) => {
+    try {
+      const { imageBase64 } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ 
+          error: "GEMINI_API_KEY environment variable is not defined on the Server side. Silakan isi API Key di Settings." 
+        });
+      }
+
+      if (!imageBase64) {
+        return res.status(400).json({ error: "No image provided" });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: apiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          }
+        }
+      });
+
+      // Remove the data:image/jpeg;base64, prefix if it exists
+      const base64Data = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+
+      const prompt = `
+Anda adalah sistem ekstraksi teks pintar (OCR) untuk KTP (Kartu Tanda Penduduk) dan KK (Kartu Keluarga) Indonesia.
+Tolong ekstrak informasi dari gambar/foto dokumen kependudukan yang diberikan dan kembalikan ke dalam format JSON.
+
+Jika itu KTP, ekstrak selengkap mungkin:
+- NIK (16 digit angka) -> nik
+- Nama -> name
+- Tempat Lahir -> pob
+- Tanggal Lahir (dd-mm-yyyy) -> dob
+- Jenis Kelamin (Laki-laki / Perempuan) -> gender
+- Golongan Darah -> bloodType
+- Alamat -> address
+- RT -> rt
+- RW -> rw
+- Kel/Desa -> kampung
+- Kecamatan -> district
+- Agama -> religion
+- Status Perkawinan -> maritalStatus
+- Pekerjaan -> occupation
+- Kewarganegaraan -> citizenship
+- Berlaku Hingga -> validUntil
+
+Jika gambar tidak jelas atau nilai tidak ditemukan, isikan dengan string kosong "".
+
+Format JSON yang diwajibkan:
+{
+  "nik": "16 digit angka",
+  "name": "nama lengkap",
+  "pob": "tempat lahir",
+  "dob": "tanggal lahir",
+  "gender": "Laki-laki atau Perempuan",
+  "bloodType": "A/B/AB/O/-",
+  "address": "alamat lengkap",
+  "rt": "rt",
+  "rw": "rw",
+  "kampung": "nama desa/kelurahan",
+  "district": "nama kecamatan",
+  "religion": "agama",
+  "maritalStatus": "status perkawinan",
+  "occupation": "pekerjaan",
+  "citizenship": "WNI/WNA",
+  "validUntil": "Seumur Hidup atau tanggal"
+}
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [
+           prompt,
+           {
+             inlineData: {
+               data: base64Data,
+               mimeType: "image/jpeg"
+             }
+           }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.1,
+        }
+      });
+
+      res.setHeader("Content-Type", "application/json");
+      res.send(response.text);
+    } catch (err: any) {
+      console.error("Gemini OCR Error:", err);
+      if (err.status === 429 || (err.message && err.message.includes("429"))) {
+        return res.status(429).json({
+          error: "Quota limits exceeded. Mohon tunggu sekitar 1 menit sebelum mencoba scan KTP lagi."
+        });
+      }
+      if (err.status === 503 || (err.message && err.message.includes("503"))) {
+        return res.status(503).json({
+          error: "Sistem AI sedang sibuk (High Demand). Silakan coba lagi dalam beberapa saat atau gunakan input manual."
+        });
+      }
+      res.status(500).json({ 
+        error: err.message || "Terjadi kesalahan ketika melakukan OCR." 
       });
     }
   });

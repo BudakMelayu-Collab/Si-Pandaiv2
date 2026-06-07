@@ -63,6 +63,7 @@ export interface Recipient {
   hasSignedPdf?: boolean;
   hasSignedReceiptPdf?: boolean;
   hasSignedMPZISPdf?: boolean;
+  hasInternalMemoPdf?: boolean;
   hasSignedSurveyPdf?: boolean;
   isTermsAccepted: boolean;
   
