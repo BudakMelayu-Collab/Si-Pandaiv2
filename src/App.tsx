@@ -145,7 +145,11 @@ export default function App() {
   const [displayName, setDisplayName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  const isMobileScanRoute = typeof window !== 'undefined' && window.location.pathname === '/scan-docs';
+  const isMobileScanRoute = typeof window !== 'undefined' && (
+    window.location.pathname === '/scan-docs' ||
+    window.location.search.includes('scan-docs=true') ||
+    window.location.hash.includes('scan-docs')
+  );
 
   if (isMobileScanRoute) {
     return <MobileScanner />;

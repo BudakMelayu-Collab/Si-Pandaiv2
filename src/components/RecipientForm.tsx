@@ -1034,7 +1034,19 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
           <div className="flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-6">
             <div className="bg-white p-6 rounded-2xl border-2 border-dashed border-indigo-200 shadow-sm inline-block relative">
                <div className="relative z-10 bg-white p-2 w-[200px] h-[200px] rounded-lg">
-                 <QRCode value={typeof window !== 'undefined' ? `${window.location.origin}/scan-docs?session=${hpSessionId}` : `https://baznas-siak.vercel.app/scan-docs?session=${hpSessionId}`} size={184} className="w-full h-full" />
+                 <QRCode value={(() => {
+                   if (typeof window === 'undefined') {
+                     return `https://baznas-siak.vercel.app/?scan-docs=true&session=${hpSessionId}`;
+                   }
+                   let cleanPath = window.location.pathname;
+                   if (cleanPath.endsWith('index.html')) {
+                     cleanPath = cleanPath.slice(0, -10);
+                   }
+                   if (!cleanPath.endsWith('/')) {
+                     cleanPath += '/';
+                   }
+                   return `${window.location.origin}${cleanPath}?scan-docs=true&session=${hpSessionId}`;
+                 })()} size={184} className="w-full h-full" />
                </div>
             </div>
             
