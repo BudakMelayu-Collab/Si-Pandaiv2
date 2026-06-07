@@ -866,55 +866,55 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
 
           {/* Date removed as per request */}
 
-          <p className="text-base mb-6 leading-relaxed text-black">
+          <p className="text-[15px] mb-6 leading-relaxed text-black">
             Kami yang bertanda tangan dibawah ini Komite Pendistribusian dan Pendayagunaan menyetujui dan memutuskan penyaluran sebagai berikut :
           </p>
 
           {/* List Details */}
-          <div className="space-y-3 text-base mb-8 text-black font-sans">
+          <div className="space-y-3 text-[15px] mb-8 text-black font-sans">
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">1. Klasifikasi program</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[15px] font-bold text-black" value={memoData.classification} onChange={e => setMemoData({...memoData, classification: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.classification} onChange={e => setMemoData({...memoData, classification: e.target.value})} />
               ) : (
-                <span className="text-[15px] font-bold">{memoData.classification}</span>
+                <span className="text-[12px] font-bold">{memoData.classification}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">2. Tujuan penyaluran</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[15px] font-bold text-black" value={memoData.purpose} onChange={e => setMemoData({...memoData, purpose: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.purpose} onChange={e => setMemoData({...memoData, purpose: e.target.value})} />
               ) : (
-                <span className="text-[15px] font-bold">{memoData.purpose}</span>
+                <span className="text-[12px] font-bold">{memoData.purpose}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">3. Ashnaf</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[15px] font-bold text-black" value={memoData.ashnaf} onChange={e => setMemoData({...memoData, ashnaf: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.ashnaf} onChange={e => setMemoData({...memoData, ashnaf: e.target.value})} />
               ) : (
-                <span className="text-[15px] font-bold">{memoData.ashnaf}</span>
+                <span className="text-[12px] font-bold">{memoData.ashnaf}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">4. Sumber dana</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[15px] font-bold text-black" value={memoData.source} onChange={e => setMemoData({...memoData, source: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.source} onChange={e => setMemoData({...memoData, source: e.target.value})} />
               ) : (
-                <span className="text-[15px] font-bold">{memoData.source}</span>
+                <span className="text-[12px] font-bold">{memoData.source}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
               <span className="font-normal">5. Post anggaran rkat</span>
               <span>:</span>
               {isEditing ? (
-                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[15px] font-bold text-black" value={memoData.budgetPost} onChange={e => setMemoData({...memoData, budgetPost: e.target.value})} />
+                <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[12px] font-bold text-black" value={memoData.budgetPost} onChange={e => setMemoData({...memoData, budgetPost: e.target.value})} />
               ) : (
-                <span className="text-[15px] font-bold">{memoData.budgetPost}</span>
+                <span className="text-[12px] font-bold">{memoData.budgetPost}</span>
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
@@ -926,21 +926,21 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                   onClick={() => isEditing && setMemoData({...memoData, transactionType: 'CASH'})}
                 >
                   {memoData.transactionType === 'CASH' ? <CheckSquare className="w-5 h-5 text-emerald-600" /> : <Square className="w-5 h-5 text-slate-400" />}
-                  <span className="text-[15px] font-bold">Cash</span>
+                  <span className="text-[12px] font-bold">Cash</span>
                 </div>
                 <div 
                   className={cn("flex items-center gap-1.5 cursor-pointer", isEditing && "hover:text-emerald-600")}
                   onClick={() => isEditing && setMemoData({...memoData, transactionType: 'TRANSFER'})}
                 >
                   {memoData.transactionType === 'TRANSFER' ? <CheckSquare className="w-5 h-5 text-emerald-600" /> : <Square className="w-5 h-5 text-slate-400" />}
-                  <span className="text-[15px] font-bold">Transfer</span>
+                  <span className="text-[12px] font-bold">Transfer</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-3">
-            <p className="text-base font-normal tracking-wide">7. Penerima dana :</p>
+            <p className="text-[12px] font-normal tracking-wide">7. Penerima dana :</p>
             {isEditing && (
               <div className="flex gap-2">
                 <button 
@@ -969,15 +969,15 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             )}
           </div>
           
-          <table className="w-full border-collapse border border-black text-base mb-6 text-black font-sans">
+          <table className="w-full border-collapse border border-black text-[12px] mb-6 text-black font-sans">
             <thead>
               <tr className="bg-slate-100">
-                <th className="border border-black p-3 w-12 font-bold text-[15px]">No</th>
+                <th className="border border-black p-3 w-12 font-bold text-[12px]">No</th>
                 {memoData.columns.map((col) => (
                   <th 
                     key={col.key} 
                     className={cn(
-                      "border border-black p-3 relative group font-bold text-center tracking-tight text-[15px]",
+                      "border border-black p-3 relative group font-bold text-center tracking-tight text-[12px]",
                       col.key === 'description' ? "w-[30%] min-w-[200px]" : ""
                     )}
                   >
@@ -1045,8 +1045,8 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                 </tr>
               ))}
               <tr className="bg-slate-50 font-bold border-t border-black">
-                <td colSpan={memoData.columns.length} className="border border-black p-3 text-right font-bold text-base">Total bantuan</td>
-                <td className="border border-black p-3 text-right text-[15px] font-bold">
+                <td colSpan={memoData.columns.length} className="border border-black p-3 text-right font-bold text-[12px]">Total bantuan</td>
+                <td className="border border-black p-3 text-right text-[12px] font-bold">
                   Rp. {totalAmount.toLocaleString('id-ID')},-
                 </td>
                 {isEditing && <td className="border border-black p-3 print:hidden bg-slate-100"></td>}
@@ -1054,37 +1054,40 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
             </tbody>
           </table>
 
-          <div className="border border-black p-4 text-[14px] font-bold mb-8 bg-slate-50 tracking-tight text-black">
+          <div className="border border-black p-4 text-[12px] font-bold mb-8 bg-slate-50 tracking-tight text-black">
             Terbilang : {terbilang(totalAmount)}
           </div>
 
-          <p className="text-base italic mb-12 text-center leading-relaxed text-black">
+          <p className="text-[12px] italic mb-12 text-center leading-relaxed text-black">
             Demikian Memorandum Penyaluran ZIS ini dibuat dengan sebenarnya dan dapat dipergunakan dengan semestinya.
           </p>
 
           {/* Approval Section */}
-          <div className="grid grid-cols-3 border border-black mb-10 text-[14px] font-sans text-black">
-            {memoData.signersTop.map((signer, idx) => (
-              <div key={idx} className={cn("p-4 flex flex-col items-center", idx < 2 && "border-r border-black")}>
-                {isEditing ? (
-                  <input 
-                    className="font-bold mb-20 border-b border-black pb-1 w-full text-center bg-amber-50 outline-none text-black"
-                    value={signer.label}
-                    onChange={e => {
-                      const newSigners = [...memoData.signersTop];
-                      newSigners[idx].label = e.target.value;
-                      setMemoData({...memoData, signersTop: newSigners});
-                    }}
-                  />
-                ) : (
-                  <p className="font-bold mb-20 border-b border-black pb-1 w-full text-center tracking-wide leading-tight">{signer.label}</p>
-                )}
+          <div className="grid grid-cols-3 border border-black mb-10 text-[12px] font-sans text-black">
+            {(() => {
+              return memoData.signersTop.map((signer, idx) => (
+              <div key={idx} className={cn("p-1 flex flex-col items-center justify-between min-h-[140px]", idx < 2 && "border-r border-black")}>
+                <div className="w-full">
+                  {isEditing ? (
+                    <input 
+                      className="font-bold border-b border-black pb-1 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
+                      value={signer.label}
+                      onChange={e => {
+                        const newSigners = [...memoData.signersTop];
+                        newSigners[idx].label = e.target.value;
+                        setMemoData({...memoData, signersTop: newSigners});
+                      }}
+                    />
+                  ) : (
+                    <p className="font-bold border-b border-black pb-1 w-full text-center tracking-wide leading-tight text-[12px]">{signer.label}</p>
+                  )}
+                </div>
                 
-                <div className="text-center w-full">
+                <div className="text-center w-full mt-auto pt-8 overflow-hidden">
                   {isEditing ? (
                     <>
                       <input 
-                        className="font-bold underline leading-none mb-0.5 w-full text-center bg-amber-50 outline-none text-black"
+                        className="font-bold underline leading-none mb-0 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
                         value={signer.name}
                         onChange={e => {
                           const newSigners = [...memoData.signersTop];
@@ -1093,7 +1096,7 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                         }}
                       />
                       <input 
-                        className="text-[11px] w-full text-center bg-amber-50 outline-none text-black"
+                        className="text-[12px] w-full text-center bg-amber-50 outline-none text-black"
                         value={signer.role}
                         onChange={e => {
                           const newSigners = [...memoData.signersTop];
@@ -1104,53 +1107,57 @@ export default function MPZISTemplate({ recipient, onClose }: MPZISTemplateProps
                     </>
                   ) : (
                     <>
-                      <p className="font-bold underline leading-none mb-0 tracking-tight">{signer.name}</p>
-                      <p className="text-[12px] font-bold leading-none mt-0.5">{signer.role}</p>
+                      <p className="font-bold underline leading-none mb-0 tracking-tight whitespace-nowrap mx-auto text-[12px]">{signer.name}</p>
+                      <div className="h-6 flex items-start justify-center mt-0.5">
+                        <p className="leading-tight font-bold text-[12px]">{signer.role}</p>
+                      </div>
                     </>
                   )}
                 </div>
               </div>
-            ))}
+            ))})()}
           </div>
 
           {/* Footer Decision Section */}
-          <div className="border border-black text-[13px] font-sans text-black">
+          <div className="border border-black text-[12px] font-sans text-black">
             <div>
-              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[14px]">Diputuskan</p>
+              <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[12px]">Diputuskan</p>
               <div className="grid grid-cols-[1fr_1fr_1fr_1.15fr_1fr] h-40">
-                {memoData.signersBottom.map((signer, idx) => (
-                  <div key={idx} className="border-r last:border-r-0 border-black p-1 flex flex-col justify-end text-center overflow-hidden">
-                    {isEditing ? (
-                      <>
-                        <input 
-                          className="font-bold text-[9px] underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black"
-                          value={signer.name}
-                          onChange={e => {
-                            const newSigners = [...memoData.signersBottom];
-                            newSigners[idx].name = e.target.value;
-                            setMemoData({...memoData, signersBottom: newSigners});
-                          }}
-                        />
-                        <input 
-                          className="text-[10px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
-                          value={signer.role}
-                          onChange={e => {
-                            const newSigners = [...memoData.signersBottom];
-                            newSigners[idx].role = e.target.value;
-                            setMemoData({...memoData, signersBottom: newSigners});
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-bold text-[14px] underline mb-0 leading-tight tracking-tighter whitespace-nowrap">{signer.name}</p>
-                        <div className="h-6 flex items-start justify-center">
-                          <p className="text-[11px] leading-tight font-bold">{signer.role}</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                {(() => {
+                  return memoData.signersBottom.map((signer, idx) => (
+                    <div key={idx} className="border-r last:border-r-0 border-black p-1 flex flex-col justify-end text-center overflow-hidden">
+                      {isEditing ? (
+                        <>
+                          <input 
+                            className="font-bold underline leading-tight mb-0 w-full text-center bg-amber-50 outline-none text-black text-[12px]"
+                            value={signer.name}
+                            onChange={e => {
+                              const newSigners = [...memoData.signersBottom];
+                              newSigners[idx].name = e.target.value;
+                              setMemoData({...memoData, signersBottom: newSigners});
+                            }}
+                          />
+                          <input 
+                            className="text-[12px] leading-none mb-2 w-full text-center bg-amber-50 outline-none text-black"
+                            value={signer.role}
+                            onChange={e => {
+                              const newSigners = [...memoData.signersBottom];
+                              newSigners[idx].role = e.target.value;
+                              setMemoData({...memoData, signersBottom: newSigners});
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-bold underline mb-0 leading-tight tracking-tighter mx-auto whitespace-nowrap text-[12px]">{signer.name}</p>
+                          <div className="h-6 flex items-start justify-center mt-0.5">
+                            <p className="text-[12px] leading-tight font-bold">{signer.role}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>
