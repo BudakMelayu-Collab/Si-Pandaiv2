@@ -1145,11 +1145,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             }
             @media print {
               @page {
-                size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
-                margin: 3mm;
-                @bottom-right {
-                  content: counter(page);
-                }
+                size: ${activeTab === 'lampiran' ? 'landscape' : 'portrait'};
+                margin: auto;
               }
               
               #root > div > *:not(.eppd-template-overlay) {
@@ -1177,35 +1174,29 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               }
               
               .eppd-print-page, .lampiran-print-page {
-                page-break-after: always !important;
-                break-after: page !important;
-                margin: 0 !important;
+                page-break-inside: avoid !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
                 box-sizing: border-box !important;
                 position: relative !important;
-                overflow: hidden !important;
+                overflow: visible !important;
                 flex-shrink: 0 !important;
                 background-color: white !important;
               }
               
               .eppd-print-page {
-                width: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
-                height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
-                min-height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
               }
 
               .lampiran-print-page {
-                width: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
-                height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
-                min-height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
-              }
-              
-              .eppd-print-page:last-child, .lampiran-print-page:last-child {
-                page-break-after: avoid !important;
-                break-after: avoid !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
               }
             }
           `}} />
