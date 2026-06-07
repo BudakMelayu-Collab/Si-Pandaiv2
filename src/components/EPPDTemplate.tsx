@@ -1128,7 +1128,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
         )}
 
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:pb-0 print:bg-white print:overflow-visible pb-32">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible pb-32">
           <style dangerouslySetInnerHTML={{ __html: `
             .eppd-print-page, .lampiran-print-page {
               background-color: white;
@@ -1145,8 +1145,11 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             }
             @media print {
               @page {
-                size: ${activeTab === 'lampiran' ? 'landscape' : 'portrait'};
-                margin: auto;
+                size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
+                margin: 3mm;
+                @bottom-right {
+                  content: counter(page);
+                }
               }
               
               #root > div > *:not(.eppd-template-overlay) {
@@ -1174,29 +1177,35 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               }
               
               .eppd-print-page, .lampiran-print-page {
-                page-break-inside: avoid !important;
-                margin: 0 auto !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                margin: 0 !important;
                 padding: 0 !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
                 box-sizing: border-box !important;
                 position: relative !important;
-                overflow: visible !important;
+                overflow: hidden !important;
                 flex-shrink: 0 !important;
                 background-color: white !important;
               }
               
               .eppd-print-page {
-                width: 950px !important;
-                height: auto !important;
-                min-height: 0 !important;
+                width: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+                height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+                min-height: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
               }
 
               .lampiran-print-page {
-                width: 1300px !important;
-                height: auto !important;
-                min-height: 0 !important;
+                width: ${paperSize === 'A4' ? '297mm' : '330.2mm'} !important;
+                height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+                min-height: ${paperSize === 'A4' ? '210mm' : '215.9mm'} !important;
+              }
+              
+              .eppd-print-page:last-child, .lampiran-print-page:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
               }
             }
           `}} />
@@ -1352,7 +1361,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
             {activeTab === 'eppd' && (
             <div className={cn(
-              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:mb-0 mb-16 shrink-0 overflow-hidden flex flex-col",
+              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
               isEditing && "ring-4 ring-amber-500/30"
             )}
             style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
@@ -2010,7 +2019,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         {/* Lampiran Section */}
         {activeTab === 'lampiran' && chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
         <div key={`lampiran-page-${pageIndex}`} className={cn(
-          "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:mb-0 mb-16 shrink-0 overflow-hidden flex flex-col",
+          "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
           pageIndex > 0 && "print:break-before-page",
           isEditing && "ring-4 ring-amber-500/30"
         )}
