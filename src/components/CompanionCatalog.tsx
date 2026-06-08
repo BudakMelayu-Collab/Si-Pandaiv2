@@ -465,17 +465,7 @@ export default function CompanionCatalog({ companionId, companionName, recipient
                           onChange={e => setRecipientForm({...recipientForm, programName: e.target.value})}
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Nominal Diajukan (Rp)</label>
-                        <input 
-                          required
-                          type="number" 
-                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm"
-                          placeholder="0"
-                          value={recipientForm.amountProposed || ''}
-                          onChange={e => setRecipientForm({...recipientForm, amountProposed: Number(e.target.value)})}
-                        />
-                      </div>
+
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">No. HP / WhatsApp</label>
                         <input 

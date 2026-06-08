@@ -88,7 +88,13 @@ export const SIAK_AID_TYPES: Record<string, string[]> = {
     "Seragam Tunai",
     "Seragam Non Tunai",
     "Beasiswa Penuh",
-    "Bantuan Tunai Pendidikan Transportasi Pendidikan Dalam Negeri"
+    "Bantuan Tunai Pendidikan Transportasi Pendidikan Dalam Negeri",
+    "Beasiswa Pendidikan (Rutin Berkala)",
+    "Beasiswa Pendidikan (Sekali Bantu / Insidental)",
+    "Bantuan Biaya Pendidikan (Insidental / Tunggakan)",
+    "Bantuan Perlengkapan & Sarana Belajar",
+    "Pembinaan & Biaya Hidup Santri",
+    "Pembinaan & Biaya Hidup Mahasiswa"
   ],
   "Siak Sejahtera": [
     "Modal Usaha",
@@ -126,16 +132,31 @@ export const SIAK_AID_TYPES: Record<string, string[]> = {
 
 export const SIAK_PROGRAM_NAMES: Record<string, string[]> = {
   "Siak Cerdas": [
-    "Biaya Pendidikan",
-    "Siceria Yatim Dhuafa",
-    "Siceria Riset",
-    "Siceria KAT",
-    "Beasiswa Cendikia Baznas",
-    "Satu Keluarga Satu Sarjana"
+    "Seragam Sekolah Tingkat SD",
+    "Seragam Sekolah Tingkat SMP",
+    "Seragam Sekolah Tingkat (MI, MTs dan MA)",
+    "Beasiswa Santri Tingkat (MI, MTs dan MA)",
+    "Santri Binaan (Ponpes Darul Hadist)",
+    "Santri Binaan (SMP Cendikia)",
+    "Santri Binaan (Abdur Rahman) di Darul Hadist Siak",
+    "Santunan Guru Madrasah Aliyah (MA)",
+    "Beasiswa Cendikia BAZNAS Jenjang S1",
+    "Beasiswa Cendikia BAZNAS Jenjang D3-D4",
+    "Beasiswa Tahfidz Qur'an 1-5 Juz",
+    "Beasiswa Riset BAZNAS S1",
+    "Beasiswa Disabilitas, 3T dan KAT",
+    "Bantuan Biaya Pendidikan",
+    "Bantuan Pendidikan Infak Terikat",
+    "Bantuan Pendidikan",
+    "Satu Keluarga Satu Sarjana (SKSS)"
   ],
   "Siak Dakwah": [
-    "Santunan Mualaf",
-    "Suluk"
+    "Santunan Muallaf",
+    "Da'i Mukim",
+    "Program Da'I Daerah 3T",
+    "Bantuan Saguhati Mu'allaf",
+    "Pembinaan Mu'allaf",
+    "Imam Masjid Paripurna"
   ],
   "Siak Sejahtera": [
     "Mitra Skelas",
@@ -155,16 +176,9 @@ export const SIAK_PROGRAM_NAMES: Record<string, string[]> = {
     "Terunapreneur"
   ],
   "Siak Peduli": [
-    "Bantuan Alat Kesehatan",
-    "Stunting",
-    "KWH Listrik",
-    "Sanitasi Sehat",
-    "Fakir Berkelanjutan",
-    "Biaya Hidup",
-    "RTLH",
-    "RLH",
-    "Khitanan Massal",
-    "Tanggap Bencana"
+    "Safa",
+    "Program ATM Beras",
+    "Yafa"
   ],
   "Siak Sehat": [
     "Transfortasi Pasien",
