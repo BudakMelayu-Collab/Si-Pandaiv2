@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Search, Filter, 
   ExternalLink, Download, FileText, ChevronRight, ChevronDown,
-  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload, Check,
+  Edit3, Trash2, FileCheck, ClipboardList, FileStack, Loader2, X, Upload, Check, Hourglass, MoreVertical,
   Phone, MapPin, Hash, Archive, Bell, AlertTriangle, AlertCircle, Plus, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -315,14 +315,14 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Program</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Jenis Bantuan</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Status</th>
-                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Keterangan</th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Progress</th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Sumber Berkas</th>
                           {showInstitutionColumns && (
                             <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Nama Lembaga</th>
                           )}
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">Penanggung Jawab (PIC)</th>
                           <th className="pr-6 pl-3 py-3.5 text-sm font-normal text-black tracking-wider text-right sticky right-0 bg-slate-50 whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:overflow-hidden lg:opacity-0">
-                            <span className="lg:hidden">Progres dan Tindakan Berkas</span>
+                            <span className="lg:hidden">Aksi</span>
                           </th>
                         </tr>
                       </thead>
@@ -401,33 +401,33 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                     </span>
                                   </td>
 
-                                  {/* Keterangan */}
+                                  {/* Progress */}
                                   <td className="px-3 py-4 text-xs align-top">
                                     {(() => {
                                       if (['Selesai', 'Ditolak'].includes(item.status)) return <span className="text-slate-500 font-normal">-</span>;
 
                                       const docs = [
-                                        { name: 'Receipt', uploaded: isRecipientFileTracked(item, 'receipt') },
-                                        { name: 'MPZIS', uploaded: isRecipientFileTracked(item, 'mpzis') },
-                                        { name: 'E-PPD', uploaded: isRecipientFileTracked(item, 'eppd') },
-                                        { name: 'Lm. Verifikasi', uploaded: isRecipientFileTracked(item, 'survey') },
+                                        { key: 'receipt', name: 'Tanda Terima', uploaded: isRecipientFileTracked(item, 'receipt') },
+                                        { key: 'mpzis', name: 'MPZIS', uploaded: isRecipientFileTracked(item, 'mpzis') },
+                                        { key: 'eppd', name: 'E-PPD', uploaded: isRecipientFileTracked(item, 'eppd') },
+                                        { key: 'survey', name: 'Lembar Verifikasi', uploaded: isRecipientFileTracked(item, 'survey') },
                                       ];
 
-                                      const isAllUploaded = docs.every(d => d.uploaded);
-
-                                      return isAllUploaded ? (
-                                        <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit">
-                                          <Check className="w-3.5 h-3.5" />
-                                          <span className="font-semibold text-[11px] uppercase tracking-wider">Lengkap</span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col gap-1 min-w-[130px]">
-                                          {docs.map(d => (
-                                            <div key={d.name} className={cn("flex items-center gap-1.5", d.uploaded ? "text-slate-400" : "text-rose-600")}>
-                                              {d.uploaded ? <Check className="w-3.5 h-3.5 shrink-0" /> : <X className="w-3.5 h-3.5 shrink-0" />}
-                                              <span className={cn("leading-none", d.uploaded ? "font-normal" : "font-semibold")}>{d.name}</span>
-                                            </div>
-                                          ))}
+                                      return (
+                                        <div className="flex flex-col gap-1 min-w-[220px]">
+                                          {docs.map(d => {
+                                            let statusText = d.uploaded ? 'Terupload' : 'Belum dibuat/upload';
+                                            if (d.key === 'survey' && !d.uploaded) {
+                                              statusText = 'Menunggu Diverifikasi';
+                                            }
+                                            
+                                            return (
+                                              <div key={d.name} className={cn("flex items-center gap-1.5", d.uploaded ? "text-emerald-700" : "text-amber-600")}>
+                                                {d.uploaded ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Hourglass className="w-3.5 h-3.5 shrink-0" />}
+                                                <span className={cn("leading-none font-normal")}>{d.name} {statusText}</span>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
                                       );
                                     })()}
@@ -452,150 +452,66 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                     {item.personInCharge || '-'}
                                   </td>
 
-                                  {/* Progress & Tindakan Berkas Overlay (Desktop) / Column (Mobile) */}
-                                  <td className="pr-6 pl-3 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.04)] whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:align-middle lg:z-10 lg:shadow-none lg:bg-transparent lg:group-hover:bg-transparent">
-                                    <div className="flex flex-col items-end justify-center gap-2 lg:absolute lg:inset-y-0 lg:right-0 lg:pr-6 lg:pl-16 lg:bg-gradient-to-l lg:from-slate-50 lg:from-70% lg:to-transparent lg:opacity-0 lg:group-hover:opacity-100 lg:pointer-events-none lg:group-hover:pointer-events-auto transition-all duration-200 lg:min-w-[420px]">
-                                      {/* Progress Berkas */}
-                                      <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl w-fit drop-shadow-sm lg:bg-slate-50/50 lg:border-slate-100 lg:drop-shadow-none">
-                                        {[
-                                          { key: 'receipt', color: 'bg-emerald-500 ring-emerald-500/50 shadow-[0_0_6px_rgba(16,185,129,0.3)]', label: 'Tanda Terima', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
-                                          { key: 'mpzis', color: 'bg-sky-500 ring-sky-500/50 shadow-[0_0_6px_rgba(14,165,233,0.3)]', label: 'MPZIS', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
-                                          { key: 'eppd', color: 'bg-indigo-500 ring-indigo-500/50 shadow-[0_0_6px_rgba(99,102,241,0.3)]', label: 'E-PPD', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
-                                          { key: 'survey', color: 'bg-fuchsia-500 ring-fuchsia-500/50 shadow-[0_0_6px_rgba(192,38,211,0.3)]', label: 'SURVEY', activeClass: 'bg-slate-100 border-slate-200 text-black font-normal' },
-                                        ].map((led) => {
-                                          const isTracked = isRecipientFileTracked(item, led.key as any);
-                                          return (
-                                            <div
-                                              key={led.key}
-                                              className={cn(
-                                                "py-0.5 px-1.5 rounded-lg text-sm border transition-all flex items-center gap-1 select-none font-normal",
-                                                isTracked 
-                                                  ? led.activeClass 
-                                                  : "bg-white border-slate-150 text-black"
-                                              )}
-                                              title={led.label}
-                                            >
-                                              <div 
-                                                className={cn(
-                                                  "w-1 h-1 rounded-full ring-1 ring-white/15",
-                                                  isTracked ? led.color : "bg-slate-300"
-                                                )}
-                                              />
-                                              <span className="text-sm font-normal tracking-tight text-black">
-                                                {led.key === 'eppd' ? 'E-PPD' : led.key === 'mpzis' ? 'MPZIS' : (led.key.charAt(0).toUpperCase() + led.key.slice(1))}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-
-                                      {/* Templates buttons */}
-                                      <div className="flex items-center gap-1.5 justify-end">
-                                        <button 
-                                          onClick={() => onReceipt(item)}
-                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Buat Tanda Terima Dokumen"
-                                        >
-                                          <FileCheck className="w-3 h-3 text-black" />
-                                          <span>Receipt</span>
+                                  {/* Aksi Berkas */}
+                                  <td className="pr-6 pl-3 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.04)] whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:align-middle lg:z-10 lg:shadow-none lg:bg-transparent lg:group-hover:bg-transparent lg:group-hover:z-30 lg:group-focus-within:z-30">
+                                    <div className="flex items-center justify-end lg:absolute lg:inset-y-0 lg:right-0 lg:pr-6 lg:pl-16 lg:bg-gradient-to-l lg:from-slate-50 lg:from-70% lg:to-transparent lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-200">
+                                      <div className="relative group/menu">
+                                        <button className="p-2 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors shadow-sm pointer-events-auto">
+                                          <MoreVertical className="w-4 h-4" />
                                         </button>
                                         
-                                        <button 
-                                          onClick={() => {
-                                            const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]);
-                                            onMPZIS(item, checked.length > 0 ? checked : [item]);
-                                          }}
-                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Buka MPZIS (Memorandum)"
-                                        >
-                                          <FileText className="w-3 h-3 text-black" />
-                                          <span>MPZIS</span>
-                                        </button>
-                                        
-                                        <button 
-                                          onClick={() => {
-                                            const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]);
-                                            onEPPD(item, checked.length > 0 ? checked : [item]);
-                                          }}
-                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Buka E-PPD"
-                                        >
-                                          <FileCheck className="w-3 h-3 text-black" />
-                                          <span>E-PPD</span>
-                                        </button>
-                                        
-                                        <button 
-                                          onClick={() => {
-                                            if (onInternalMemo) onInternalMemo(item);
-                                          }}
-                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Internal Memo"
-                                        >
-                                          <FileText className="w-3 h-3 text-black" />
-                                          <span>Internal Memo</span>
-                                        </button>
-                                        
-                                        <button 
-                                          onClick={() => onSurvey(item)}
-                                          className="py-1 px-2 text-black bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight"
-                                          title="Lembar Verifikasi"
-                                        >
-                                          <ClipboardList className="w-3 h-3 text-black" />
-                                          <span>Lembar Verifikasi</span>
-                                        </button>
-
-                                        {/* Utility buttons (Merge, Delete) */}
-                                        <button 
-                                          onClick={() => handleMergeScans(item)}
-                                          disabled={mergingId === item.id}
-                                          className={cn(
-                                            "py-1 px-1.5 text-black bg-white rounded-lg border transition-all text-center flex items-center justify-center gap-1 group shadow-xs cursor-pointer text-sm font-normal tracking-tight",
-                                            mergingId === item.id 
-                                              ? "bg-slate-100 border-slate-250 cursor-not-allowed font-normal" 
-                                              : "hover:bg-slate-50 border-slate-200"
+                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 mr-12 w-48 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-slate-200 p-1.5 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 pointer-events-auto flex flex-col gap-0.5">
+                                          <button onClick={() => onReceipt(item)} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            <FileCheck className="w-3.5 h-3.5" />
+                                            <span>Receipt</span>
+                                          </button>
+                                          
+                                          <button onClick={() => { const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]); onMPZIS(item, checked.length > 0 ? checked : [item]); }} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span>MPZIS</span>
+                                          </button>
+                                          
+                                          <button onClick={() => { const checked = groupItems.filter(sub => !!selectedSubItemIds[sub.id]); onEPPD(item, checked.length > 0 ? checked : [item]); }} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            <FileCheck className="w-3.5 h-3.5" />
+                                            <span>E-PPD</span>
+                                          </button>
+                                          
+                                          <button onClick={() => { if (onInternalMemo) onInternalMemo(item); }} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span>Internal Memo</span>
+                                          </button>
+                                          
+                                          <button onClick={() => onSurvey(item)} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            <ClipboardList className="w-3.5 h-3.5" />
+                                            <span>Lembar Verifikasi</span>
+                                          </button>
+                                          
+                                          <div className="h-px bg-slate-100 my-1"></div>
+                                          
+                                          <button onClick={() => handleMergeScans(item)} disabled={mergingId === item.id} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                            {mergingId === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileStack className="w-3.5 h-3.5" />}
+                                            <span>Merge Scans</span>
+                                          </button>
+                                          
+                                          {onDuplicateGroup && (
+                                            <button onClick={() => onDuplicateGroup(groupItems)} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                              <Copy className="w-3.5 h-3.5" />
+                                              <span>Duplikat</span>
+                                            </button>
                                           )}
-                                          title="Gabungkan Semua File Scan"
-                                        >
-                                          {mergingId === item.id ? (
-                                            <>
-                                              <Loader2 className="w-3 h-3 text-black animate-spin" />
-                                              <span>Wait</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <FileStack className="w-3 h-3 text-black" />
-                                              <span>Merge</span>
-                                            </>
+                                          {onEditGroup && (
+                                            <button onClick={() => onEditGroup(groupItems)} className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                              <Edit3 className="w-3.5 h-3.5" />
+                                              <span>Edit Formulir</span>
+                                            </button>
                                           )}
-                                        </button>
-
-                                        {onDuplicateGroup && (
-                                          <button 
-                                            onClick={() => onDuplicateGroup(groupItems)}
-                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
-                                            title="Duplikat untuk Bulan Baru"
-                                          >
-                                            <Copy className="w-3.5 h-3.5 text-black" />
-                                          </button>
-                                        )}
-                                        {onEditGroup && (
-                                          <button 
-                                            onClick={() => onEditGroup(groupItems)}
-                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
-                                            title="Edit Formulir"
-                                          >
-                                            <Edit3 className="w-3.5 h-3.5 text-black" />
-                                          </button>
-                                        )}
-                                        {onDeleteRecipient && (
-                                          <button 
-                                            onClick={() => setRecipientToDelete(item)}
-                                            className="p-1 text-black hover:bg-slate-50 rounded-lg border border-slate-200 shadow-xs transition-colors cursor-pointer"
-                                            title="Hapus Berkas"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5 text-black" />
-                                          </button>
-                                        )}
+                                          {onDeleteRecipient && (
+                                            <button onClick={() => setRecipientToDelete(item)} className="w-full py-1.5 px-2.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer">
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              <span>Hapus Berkas</span>
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </td>

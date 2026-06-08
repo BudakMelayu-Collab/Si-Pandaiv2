@@ -10,7 +10,7 @@ interface EPPDModuleProps {
   ppdRecords: PPDRecord[];
   onSelectEPPD: (recipient: Recipient, lampiran?: Recipient[]) => void;
   onReceipt: (recipient: Recipient) => void;
-  onMPZIS: (recipient: Recipient) => void;
+  onMPZIS: (recipient: Recipient, lampiran?: Recipient[]) => void;
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecord: (id: string) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
