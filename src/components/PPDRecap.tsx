@@ -27,7 +27,7 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
     // Simple CSV Export
     const headers = [
       'No. PPD', 'Tanggal', 'Pemohon', 'Keperluan (Uraian)', 'Nama', 
-      'NIK', 'Asnaf', 'Nama Program', 'Kampung', 'Kecamatan', 
+      'NIK', 'Status Hubungan Keluarga', 'Asnaf', 'Nama Program', 'Kampung', 'Kecamatan', 
       'Transfer/Tunai', 'No Rekening', 'Nama Rekening', 'Jumlah', 'Keterangan'
     ];
     const csvContent = [
@@ -39,6 +39,7 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
         `"${r.proposeFor}"`,
         `"${r.recipientName || '-'}"`,
         `"${r.recipientNik || '-'}"`,
+        `"${r.familyStatus || '-'}"`,
         `"${r.asnaf || '-'}"`,
         `"${r.programName || '-'}"`,
         `"${r.kampung || '-'}"`,
@@ -61,12 +62,12 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
   const handleExportExcel = () => {
     const headers = [
       'No. PPD', 'Tanggal', 'Pemohon', 'Keperluan (Uraian)', 'Nama', 
-      'NIK', 'Asnaf', 'Nama Program', 'Kampung', 'Kecamatan', 
+      'NIK', 'Status Hubungan Keluarga', 'Asnaf', 'Nama Program', 'Kampung', 'Kecamatan', 
       'Transfer/Tunai', 'No Rekening', 'Nama Rekening', 'Jumlah', 'Keterangan'
     ];
     const data = filteredRecords.map(r => [
       r.no, r.date, r.requestedBy, r.proposeFor, r.recipientName || '-',
-      r.recipientNik || '-', r.asnaf || '-', r.programName || '-',
+      r.recipientNik || '-', r.familyStatus || '-', r.asnaf || '-', r.programName || '-',
       r.kampung || '-', r.district || '-', r.paymentMethod || '-',
       r.bankAccountNo || '-', r.bankAccountName || '-', r.amount, r.notes || '-'
     ]);
@@ -196,6 +197,7 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
                 <th className="pb-3 px-2 min-w-[200px]">Keperluan (Uraian)</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Nama</th>
                 <th className="pb-3 px-2 whitespace-nowrap">NIK</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Status Hubungan Keluarga</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Asnaf</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Nama Program</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Kampung</th>
@@ -224,6 +226,7 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
                   <td className="py-4 px-2 text-[11px] font-normal text-black min-w-[200px] whitespace-normal break-words leading-relaxed">{record.proposeFor}</td>
                   <td className="py-4 px-2 text-[11px] font-bold text-black whitespace-nowrap">{record.recipientName || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.recipientNik || '-'}</td>
+                  <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.familyStatus || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.asnaf || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.programName || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.kampung || '-'}</td>

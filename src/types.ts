@@ -22,6 +22,7 @@ export interface Recipient {
   adminCategory?: string; // Kategori Administrasi
   serviceType?: string;
   source: string; // Sumber Berkas
+  ashnaf?: string; // Ashnaf
   institutionName?: string; // Nama Lembaga
   personInCharge?: string; // Penanggung Jawab
   sector: string; // Bidang
@@ -100,6 +101,7 @@ export interface PPDRecord {
   recipientName?: string;
   recipientNik?: string;
   asnaf?: string;
+  familyStatus?: string;
   programName?: string;
   kampung?: string;
   district?: string;

@@ -779,7 +779,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
           <button 
             onClick={async () => {
-              let asnafValue = recipient.familyStatus || '-';
+              let asnafValue = recipient.ashnaf || '-';
               try {
                 setSaveStatus('saving');
                 const { saveRecipientTemplateData, getRecipientTemplateData } = await import('../firebase');
@@ -787,7 +787,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 await storage.setItem(`ppd_data_${recipient.id}`, ppdData);
                 
                 const mpzisData = await getRecipientTemplateData(recipient.id, 'mpzis');
-                if (mpzisData && mpzisData.ashnaf) {
+                if (mpzisData && mpzisData.ashnaf && asnafValue === '-') {
                   asnafValue = mpzisData.ashnaf;
                 }
 
@@ -806,6 +806,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 recipientName: recipient.name,
                 recipientNik: recipient.nik,
                 asnaf: asnafValue,
+                familyStatus: recipient.familyStatus,
                 programName: recipient.programName,
                 kampung: recipient.kampung,
                 district: recipient.district,

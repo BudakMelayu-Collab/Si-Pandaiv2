@@ -90,11 +90,12 @@ export const SIAK_AID_TYPES: Record<string, string[]> = {
     "Beasiswa Penuh",
     "Bantuan Tunai Pendidikan Transportasi Pendidikan Dalam Negeri",
     "Beasiswa Pendidikan (Rutin Berkala)",
-    "Beasiswa Pendidikan (Sekali Bantu / Insidental)",
+    "Beasiswa Pendidikan (Sekali Bayar / Insidental)",
     "Bantuan Biaya Pendidikan (Insidental / Tunggakan)",
     "Bantuan Perlengkapan & Sarana Belajar",
     "Pembinaan & Biaya Hidup Santri",
-    "Pembinaan & Biaya Hidup Mahasiswa"
+    "Pembinaan & Biaya Hidup Mahasiswa",
+    "Santunan & Insentif Guru (Pendidik)"
   ],
   "Siak Sejahtera": [
     "Modal Usaha",

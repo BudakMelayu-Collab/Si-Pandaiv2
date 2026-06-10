@@ -93,6 +93,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     adminCategory: '',
     serviceType: '',
     source: '',
+    ashnaf: '',
     institutionName: '',
     personInCharge: '',
     submissionDate: new Date().toISOString().split('T')[0],
@@ -313,7 +314,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     } else if (val === 'Satu Keluarga Satu Sarjana (SKSS)') {
       nextState.aidType = 'Pembinaan & Biaya Hidup Mahasiswa';
     } else if (['Beasiswa Santri Tingkat (MI, MTs dan MA)', 'Beasiswa Cendikia BAZNAS Jenjang S1', 'Beasiswa Cendikia BAZNAS Jenjang D3-D4', "Beasiswa Tahfidz Qur'an 1-5 Juz", 'Beasiswa Riset BAZNAS S1', 'Beasiswa Disabilitas, 3T dan KAT'].includes(val)) {
-      nextState.aidType = 'Beasiswa Pendidikan (Sekali Bantu / Insidental)';
+      nextState.aidType = 'Beasiswa Pendidikan (Sekali Bayar / Insidental)';
     } else if (['Bantuan Biaya Pendidikan', 'Bantuan Pendidikan', 'Bantuan Pendidikan Infak Terikat'].includes(val)) {
       nextState.aidType = 'Bantuan Biaya Pendidikan (Insidental / Tunggakan)';
     } else if (['Seragam Sekolah Tingkat SD', 'Seragam Sekolah Tingkat SMP', 'Seragam Sekolah Tingkat (MI, MTs dan MA)'].includes(val)) {
@@ -321,9 +322,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     } else if (['Santri Binaan (Ponpes Darul Hadist)', 'Santri Binaan (SMP Cendikia)', 'Santri Binaan (Abdur Rahman) di Darul Hadist Siak'].includes(val)) {
       nextState.aidType = 'Pembinaan & Biaya Hidup Santri';
     } else if (['Santunan Guru Madrasah Aliyah (MA)'].includes(val)) {
-      nextState.aidType = 'Beasiswa Pendidikan (Rutin Berkala)'; // Based on the user prompt it was cut off: "maka plihan jenis bantuan adalah " - assuming it's omitted or maybe "Bantuan Tunai Pendidikan" or let's leave it. Wait, the user didn't finish "maka plihan jenis bantuan adalah ", I will leave it empty as before, but since they started setting logic for it... I will leave the code unchanged for it if I don't know the aid type, or just don't set aidType.
+      nextState.aidType = 'Santunan & Insentif Guru (Pendidik)';
     }
-    // For "Santunan Guru Madrasah Aliyah (MA)" the user prompt left the aidType blank, so we don't automatically set any aidType here.
 
     setRegistrationData(nextState);
   };
@@ -734,6 +734,25 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Ashnaf</label>
+              <select 
+                className="form-input-custom font-medium" 
+                value={registrationData.ashnaf} 
+                onChange={e => setRegistrationData({...registrationData, ashnaf: e.target.value})}
+              >
+                <option value="">Pilih Ashnaf</option>
+                <option value="Fakir">Fakir</option>
+                <option value="Miskin">Miskin</option>
+                <option value="Amil">Amil</option>
+                <option value="Muallaf">Muallaf</option>
+                <option value="Riqab">Riqab</option>
+                <option value="Gharim">Gharim</option>
+                <option value="Fisabilillah">Fisabilillah</option>
+                <option value="Ibnu Sabil">Ibnu Sabil</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Sumber Berkas</label>
               <select 
                 className="form-input-custom font-medium" 
@@ -914,7 +933,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                   ...(customProgramNames[registrationData.sector] || [])
                 ].filter(p => {
                   if (registrationData.serviceType === 'Layanan Konter') {
-                    if (['Santri Binaan (Ponpes Darul Hadist)', 'Santri Binaan (SMP Cendikia)', 'Santri Binaan (Abdur Rahman) di Darul Hadist Siak', 'Satu Keluarga Satu Sarjana (SKSS)'].includes(p)) return false;
+                    if (registrationData.sector === 'Siak Cerdas') {
+                      if (!['Beasiswa Santri Tingkat (MI, MTs dan MA)', 'Beasiswa Cendikia BAZNAS Jenjang S1', 'Beasiswa Cendikia BAZNAS Jenjang D3-D4', "Beasiswa Tahfidz Qur'an 1-5 Juz", 'Beasiswa Riset BAZNAS S1', 'Beasiswa Disabilitas, 3T dan KAT', 'Bantuan Biaya Pendidikan', 'Bantuan Pendidikan', 'Bantuan Pendidikan Infak Terikat', 'Seragam Sekolah Tingkat SD', 'Seragam Sekolah Tingkat SMP', 'Seragam Sekolah Tingkat (MI, MTs dan MA)', 'Santunan Guru Madrasah Aliyah (MA)'].includes(p)) return false;
+                    }
                   } else if (registrationData.serviceType === 'Program Bulanan') {
                     if (registrationData.sector === 'Siak Cerdas') {
                       if (!['Santri Binaan (Ponpes Darul Hadist)', 'Santri Binaan (SMP Cendikia)', 'Santri Binaan (Abdur Rahman) di Darul Hadist Siak', 'Satu Keluarga Satu Sarjana (SKSS)'].includes(p)) return false;
@@ -983,8 +1004,20 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                    ...(customAidTypes[registrationData.sector] || [])
                 ].filter(ss => {
                   if (registrationData.serviceType === 'Program Bulanan' && registrationData.sector === 'Siak Cerdas') {
-                    if (!['Pembinaan & Biaya Hidup Santri', 'Pembinaan & Biaya Hidup Mahasiswa'].includes(ss)) return false;
+                    if (!['Pembinaan & Biaya Hidup Santri', 'Pembinaan & Biaya Mahasiswa'].includes(ss) && !['Pembinaan & Biaya Hidup Mahasiswa'].includes(ss)) return false;
                   }
+                  
+                  if (registrationData.sector === 'Siak Cerdas' && registrationData.programName) {
+                    const p = registrationData.programName;
+                    if (p === 'Beasiswa SKSS BAZNAS Siak' && ss !== 'Beasiswa Pendidikan (Rutin Berkala)') return false;
+                    if (p === 'Satu Keluarga Satu Sarjana (SKSS)' && ss !== 'Pembinaan & Biaya Hidup Mahasiswa') return false;
+                    if (['Beasiswa Santri Tingkat (MI, MTs dan MA)', 'Beasiswa Cendikia BAZNAS Jenjang S1', 'Beasiswa Cendikia BAZNAS Jenjang D3-D4', "Beasiswa Tahfidz Qur'an 1-5 Juz", 'Beasiswa Riset BAZNAS S1', 'Beasiswa Disabilitas, 3T dan KAT'].includes(p) && ss !== 'Beasiswa Pendidikan (Sekali Bayar / Insidental)') return false;
+                    if (['Bantuan Biaya Pendidikan', 'Bantuan Pendidikan', 'Bantuan Pendidikan Infak Terikat'].includes(p) && ss !== 'Bantuan Biaya Pendidikan (Insidental / Tunggakan)') return false;
+                    if (['Seragam Sekolah Tingkat SD', 'Seragam Sekolah Tingkat SMP', 'Seragam Sekolah Tingkat (MI, MTs dan MA)'].includes(p) && ss !== 'Bantuan Perlengkapan & Sarana Belajar') return false;
+                    if (['Santri Binaan (Ponpes Darul Hadist)', 'Santri Binaan (SMP Cendikia)', 'Santri Binaan (Abdur Rahman) di Darul Hadist Siak'].includes(p) && ss !== 'Pembinaan & Biaya Hidup Santri') return false;
+                    if (p === 'Santunan Guru Madrasah Aliyah (MA)' && ss !== 'Santunan & Insentif Guru (Pendidik)') return false;
+                  }
+
                   return true;
                 }).map(ss => (
                   <option key={ss} value={ss}>{ss}</option>
