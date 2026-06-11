@@ -112,15 +112,21 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       }
       setLogo(savedLogo);
       
-      // Load memorandum data
-      let savedMemo = await storage.getItem(`mpzis_memo_${recipient.id}`);
-      if (!savedMemo) {
-        try {
-          const { getRecipientTemplateData } = await import('../firebase');
-          savedMemo = await getRecipientTemplateData(recipient.id, 'mpzis');
-        } catch (e) {
-          console.error("Cloud memo load failed", e);
+      // Load memorandum data from Cloud Firestore first
+      let savedMemo = null;
+      try {
+        const { getRecipientTemplateData } = await import('../firebase');
+        savedMemo = await getRecipientTemplateData(recipient.id, 'mpzis');
+        if (savedMemo) {
+          await storage.setItem(`mpzis_memo_${recipient.id}`, savedMemo);
         }
+      } catch (e) {
+        console.error("Cloud memo load failed, trying local storage fallback", e);
+      }
+
+      // If not available from cloud, fallback to local storage
+      if (!savedMemo) {
+        savedMemo = await storage.getItem(`mpzis_memo_${recipient.id}`);
       }
 
       if (savedMemo) {

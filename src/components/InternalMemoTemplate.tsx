@@ -70,9 +70,28 @@ export default function InternalMemoTemplate({ recipient, onClose }: InternalMem
         const savedLogo = await storage.getItem('baznas_logo');
         if (savedLogo) setLogo(savedLogo as string);
         
-        const savedMemo = await storage.getItem(`memo_${recipient.id}`);
+        // Try Cloud Firestore first to ensure the latest data from other devices/roles is loaded
+        let savedMemo = null;
+        try {
+          const { getRecipientTemplateData } = await import('../firebase');
+          savedMemo = await getRecipientTemplateData(recipient.id, 'memo');
+          if (savedMemo) {
+            await storage.setItem(`memo_${recipient.id}`, JSON.stringify(savedMemo));
+          }
+        } catch (e) {
+          console.error("Cloud fetch failed, trying local storage fallback", e);
+        }
+
+        // If not available from cloud, fallback to local storage
+        if (!savedMemo) {
+          const localSaved = await storage.getItem(`memo_${recipient.id}`);
+          if (localSaved) {
+            savedMemo = typeof localSaved === 'string' ? JSON.parse(localSaved) : localSaved;
+          }
+        }
+
         if (savedMemo) {
-          const parsed = JSON.parse(savedMemo as string);
+          const parsed = savedMemo;
           
           // Migrasi format lama ke baru
           if (parsed.toPosition === 'Ketua BAZNAS Provinsi Riau') parsed.toPosition = 'Ketua BAZNAS Kabupaten Siak';
@@ -162,6 +181,8 @@ export default function InternalMemoTemplate({ recipient, onClose }: InternalMem
   const handleSave = async () => {
     try {
       await storage.setItem(`memo_${recipient.id}`, JSON.stringify(memoData));
+      const { saveRecipientTemplateData } = await import('../firebase');
+      await saveRecipientTemplateData(recipient.id, 'memo', memoData);
       alert('Tersimpan!');
     } catch (err) {
       alert('Gagal menyimpan');

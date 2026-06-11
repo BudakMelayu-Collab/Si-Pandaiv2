@@ -142,20 +142,21 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       }
       setLogo(savedLogo);
 
-      // Try local storage first
-      let savedData = await storage.getItem(`receipt_data_${recipient.id}`);
-
-      // If not in local storage, try cloud
-      if (!savedData) {
-        try {
-          const { getRecipientTemplateData } = await import('../firebase');
-          savedData = await getRecipientTemplateData(recipient.id, 'receipt');
-          if (savedData) {
-            await storage.setItem(`receipt_data_${recipient.id}`, savedData);
-          }
-        } catch (e) {
-          console.error("Cloud receipt load failed", e);
+      // Try Cloud Firestore first to ensure the latest data from other devices/roles is loaded
+      let savedData = null;
+      try {
+        const { getRecipientTemplateData } = await import('../firebase');
+        savedData = await getRecipientTemplateData(recipient.id, 'receipt');
+        if (savedData) {
+          await storage.setItem(`receipt_data_${recipient.id}`, savedData);
         }
+      } catch (e) {
+        console.error("Cloud receipt load failed, trying local storage fallback", e);
+      }
+
+      // If not available from cloud, fallback to local storage
+      if (!savedData) {
+        savedData = await storage.getItem(`receipt_data_${recipient.id}`);
       }
 
       if (savedData) {

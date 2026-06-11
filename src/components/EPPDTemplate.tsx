@@ -404,20 +404,21 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       }
       setLogo(savedLogo);
 
-      // Try local storage first
-      let savedData = await storage.getItem(`ppd_data_${recipient.id}`);
-      
-      // If not in local storage, try cloud
-      if (!savedData) {
-        try {
-          const { getRecipientTemplateData } = await import('../firebase');
-          savedData = await getRecipientTemplateData(recipient.id, 'eppd');
-          if (savedData) {
-            await storage.setItem(`ppd_data_${recipient.id}`, savedData);
-          }
-        } catch (e) {
-          console.error("Cloud fetch failed", e);
+      // Try Cloud Firestore first to ensure the latest data from other devices/roles is loaded
+      let savedData = null;
+      try {
+        const { getRecipientTemplateData } = await import('../firebase');
+        savedData = await getRecipientTemplateData(recipient.id, 'eppd');
+        if (savedData) {
+          await storage.setItem(`ppd_data_${recipient.id}`, savedData);
         }
+      } catch (e) {
+        console.error("Cloud fetch failed, trying local storage fallback", e);
+      }
+
+      // If not available from cloud, fallback to local storage
+      if (!savedData) {
+        savedData = await storage.getItem(`ppd_data_${recipient.id}`);
       }
 
       const itemsToUse = lampiranItems && lampiranItems.length > 0 ? lampiranItems : [recipient];
