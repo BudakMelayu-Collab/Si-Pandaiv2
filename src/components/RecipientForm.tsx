@@ -527,8 +527,11 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
           const gdriveRes = await uploadFileToGoogleDrive(file, recipientName, recipientNik, slotLabel, sectorVal, programVal);
           finalUrl = `gdrive:${gdriveRes.id}`;
           displaySize = `${(file.size / (1024 * 1024)).toFixed(2)} MB (Drive)`;
-        } catch (gdriveErr) {
+        } catch (gdriveErr: any) {
           console.error("Gagal mengunggah ke Google Drive, dialihkan ke penyimpanan lokal:", gdriveErr);
+          if (gdriveErr?.message?.includes('kadaluarsa')) {
+            alert(gdriveErr.message);
+          }
           token = null; // trigger fallback
         }
       }

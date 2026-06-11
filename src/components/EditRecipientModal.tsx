@@ -204,8 +204,11 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
           const gdriveRes = await uploadFileToGoogleDrive(file, recipientName, recipientNik, slotLabel, sectorVal, programVal);
           finalUrl = `gdrive:${gdriveRes.id}`;
           displaySize = displaySize + ' (Drive)';
-        } catch (gdriveErr) {
+        } catch (gdriveErr: any) {
           console.error("Gagal mengunggah ke Google Drive, dialihkan ke penyimpanan lokal:", gdriveErr);
+          if (gdriveErr?.message?.includes('kadaluarsa')) {
+            alert(gdriveErr.message);
+          }
           token = null; // trigger fallback
         }
       }

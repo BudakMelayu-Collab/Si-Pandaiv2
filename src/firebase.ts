@@ -110,6 +110,21 @@ export const fetchSharedGoogleAccessToken = async (): Promise<string | null> => 
   return null;
 };
 
+const handleDriveFetch = async (url: string, options?: RequestInit) => {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    cachedGoogleAccessToken = null;
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'settings', 'gdrive_token'));
+    } catch(e) {
+      console.warn('Failed to delete expired GDrive token from Firestore', e);
+    }
+    throw new Error('Otorisasi Google Drive kadaluarsa (Token berlaku 1 Jam). Silakan sinkronkan ulang akun Google Anda.');
+  }
+  return res;
+};
+
 const getFileExtensionFromBase64 = (base64DataUrl: string): string => {
   if (base64DataUrl.includes('data:image/png')) return '.png';
   if (base64DataUrl.includes('data:image/jpeg') || base64DataUrl.includes('data:image/jpg')) return '.jpg';
@@ -167,7 +182,7 @@ export const uploadBase64ToGoogleDrive = async (
     base64Content +
     closeDelimiter;
 
-  const response = await fetch(
+  const response = await handleDriveFetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
     {
       method: 'POST',
@@ -213,8 +228,11 @@ export const syncFileToGoogleDriveIfConnected = async (
       console.log(`Auto uploading ${filename} to Google Drive under recipient folder ${recipientName}...`);
       const gdriveRes = await uploadBase64ToGoogleDrive(base64, filename, recipientName, recipientIdOrNik, sector, programName);
       return `gdrive:${gdriveRes.id}`;
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Gagal mengunggah otomatis ke Google Drive:`, err);
+      if (err?.message?.includes('kadaluarsa')) {
+        alert(err.message);
+      }
     }
   }
   return base64; // Fallback to base64
@@ -286,7 +304,7 @@ export const getOrCreateFolderHierarchy = async (
       const qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`;
       const searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
       
-      const searchMainRes = await fetch(searchMainUrl, {
+      const searchMainRes = await handleDriveFetch(searchMainUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -298,7 +316,7 @@ export const getOrCreateFolderHierarchy = async (
       }
       
       if (!mainFolderId) {
-        const createMainRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        const createMainRes = await handleDriveFetch('https://www.googleapis.com/drive/v3/files', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -335,7 +353,7 @@ export const getOrCreateFolderHierarchy = async (
       const qSector = `name='${cleanSector.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${mainFolderId}' in parents and trashed=false`;
       const searchSectorUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qSector)}&fields=files(id)`;
       
-      const searchSectorRes = await fetch(searchSectorUrl, {
+      const searchSectorRes = await handleDriveFetch(searchSectorUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -347,7 +365,7 @@ export const getOrCreateFolderHierarchy = async (
       }
       
       if (!sectorFolderId) {
-        const createSectorRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        const createSectorRes = await handleDriveFetch('https://www.googleapis.com/drive/v3/files', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -383,7 +401,7 @@ export const getOrCreateFolderHierarchy = async (
         const qProgram = `name='${cleanProgram.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentFolderIdForRecipient}' in parents and trashed=false`;
         const searchProgramUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qProgram)}&fields=files(id)`;
         
-        const searchProgramRes = await fetch(searchProgramUrl, {
+        const searchProgramRes = await handleDriveFetch(searchProgramUrl, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -395,7 +413,7 @@ export const getOrCreateFolderHierarchy = async (
         }
         
         if (!programFolderId) {
-          const createProgramRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+          const createProgramRes = await handleDriveFetch('https://www.googleapis.com/drive/v3/files', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${token}`,
@@ -430,7 +448,7 @@ export const getOrCreateFolderHierarchy = async (
     const qSub = `name='${recipientFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentFolderIdForRecipient}' in parents and trashed=false`;
     const searchSubUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qSub)}&fields=files(id)`;
     
-    const searchSubRes = await fetch(searchSubUrl, {
+    const searchSubRes = await handleDriveFetch(searchSubUrl, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -442,7 +460,7 @@ export const getOrCreateFolderHierarchy = async (
     }
     
     if (!subFolderId) {
-      const createSubRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      const createSubRes = await handleDriveFetch('https://www.googleapis.com/drive/v3/files', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -469,8 +487,11 @@ export const getOrCreateFolderHierarchy = async (
     }
     
     return parentFolderIdForRecipient;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gagal memproses struktur folder Google Drive:", error);
+    if (error?.message?.includes('Otorisasi Google Drive kadaluarsa')) {
+      throw error;
+    }
     return 'root';
   }
 };
@@ -543,7 +564,7 @@ export const uploadFileToGoogleDrive = async (
     base64Content +
     closeDelimiter;
 
-  const response = await fetch(
+  const response = await handleDriveFetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
     {
       method: 'POST',
@@ -570,7 +591,7 @@ export const downloadGoogleDriveFileAsBase64 = async (fileId: string): Promise<s
     if (!token) {
       throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan akun Google Anda.");
     }
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    const res = await handleDriveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
