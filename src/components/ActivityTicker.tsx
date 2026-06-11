@@ -23,6 +23,7 @@ export default function ActivityTicker({ data }: ActivityTickerProps) {
     });
 
   useEffect(() => {
+    setIndex(0);
     if (todayActivities.length <= 1) return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % todayActivities.length);
@@ -34,14 +35,14 @@ export default function ActivityTicker({ data }: ActivityTickerProps) {
     return <span className="text-sm font-medium tracking-wider text-slate-500 italic">Belum ada aktivitas hari ini</span>;
   }
 
-  const currentItem = todayActivities[index];
+  const currentItem = todayActivities[index] || todayActivities[0] || {} as Recipient;
   const timeStr = currentItem.createdAt ? new Date(currentItem.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <div className="relative h-6 flex items-center overflow-hidden flex-1 px-1">
       <AnimatePresence mode="popLayout">
         <motion.div
-          key={currentItem.id}
+          key={currentItem.id || 'default-key'}
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -20, opacity: 0 }}
@@ -51,10 +52,10 @@ export default function ActivityTicker({ data }: ActivityTickerProps) {
           <Clock className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
           <span className="font-bold text-indigo-700 flex-shrink-0">{timeStr}</span>
           <span className="font-semibold text-slate-800 flex-shrink-0">Berkas Baru:</span>
-          <span className="font-medium text-black truncate max-w-[150px]">{currentItem.name?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}</span>
-          <span className="text-slate-500 truncate max-w-[150px]">[{currentItem.programName}]</span>
+          <span className="font-medium text-black truncate max-w-[150px]">{currentItem.name?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || ''}</span>
+          {currentItem.programName && <span className="text-slate-500 truncate max-w-[150px]">[{currentItem.programName}]</span>}
           <span className="text-indigo-500 font-mono text-xs ml-1 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 flex-shrink-0">
-            #{currentItem.registrationId || currentItem.id.substring(0, 6)}
+            #{currentItem.registrationId || currentItem.id?.substring(0, 6) || ''}
           </span>
         </motion.div>
       </AnimatePresence>
