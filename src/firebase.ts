@@ -1872,3 +1872,139 @@ export const streamSystemLogs = (callback: (data: SystemLog[]) => void) => {
     handleFirestoreError(error, OperationType.LIST, path);
   });
 };
+
+export const syncAllLocalFilesToGoogleDrive = async (
+  onProgress?: (index: number, total: number, status: string) => void
+): Promise<{ successCount: number; errors: string[] }> => {
+  let token = getGoogleAccessToken();
+  if (!token) {
+    token = await fetchSharedGoogleAccessToken();
+    if (token) {
+      cachedGoogleAccessToken = token;
+    }
+  }
+  if (!token) {
+    throw new Error("Sesi Google Drive belum terhubung atau telah kadaluarsa. Super Admin harus menghubungkan Google Drive terlebih dahulu.");
+  }
+
+  // 1. Fetch all recipients
+  const querySnapshot = await getDocs(collection(db, 'recipients'));
+  const recipients = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Recipient));
+  
+  let successCount = 0;
+  const errors: string[] = [];
+  const total = recipients.length;
+
+  for (let i = 0; i < total; i++) {
+    const recipient = recipients[i];
+    const nameStr = recipient.name || 'Penerima Tanpa Nama';
+    const cleanNik = recipient.nik || '';
+    const sectorVal = recipient.sector || 'Umum';
+    const programVal = recipient.programName || '';
+
+    if (onProgress) {
+      onProgress(i + 1, total, `Memproses data: ${nameStr}...`);
+    }
+
+    try {
+      let isRecipientDocModified = false;
+      
+      // A. Sync attachments (documents array)
+      if (recipient.documents && recipient.documents.length > 0) {
+        const updatedDocs = [...recipient.documents];
+        for (let j = 0; j < updatedDocs.length; j++) {
+          const docItem = updatedDocs[j];
+          if (docItem.url && docItem.url.startsWith('data:')) {
+            try {
+              if (onProgress) {
+                onProgress(i + 1, total, `Mengunggah lampiran [${docItem.name}] untuk ${nameStr}...`);
+              }
+              const ext = getFileExtensionFromBase64(docItem.url);
+              const cleanDocName = docItem.name.replace(/[/\\?%*:|"<>\s]+/g, '_');
+              const filename = `${cleanDocName} - ${nameStr.replace(/[^a-zA-Z0-9 ]/g, '').trim()}${ext}`;
+              
+              const gdriveRes = await uploadBase64ToGoogleDrive(
+                docItem.url,
+                filename,
+                nameStr,
+                cleanNik,
+                sectorVal,
+                programVal
+              );
+              
+              docItem.url = `gdrive:${gdriveRes.id}`;
+              isRecipientDocModified = true;
+              successCount++;
+            } catch (err: any) {
+              console.error(`Gagal sync berkas lampiran ${docItem.name} untuk ${nameStr}:`, err);
+              errors.push(`Lampiran [${docItem.name}] ${nameStr}: ${err.message || err}`);
+            }
+          }
+        }
+        
+        if (isRecipientDocModified) {
+          const recipientRef = doc(db, 'recipients', recipient.id);
+          await updateDoc(recipientRef, {
+            documents: updatedDocs,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // B. Sync template PDFs (scans subcollection: receipt, eppd, memo, mpzis, survey)
+      const scanTypes = [
+        { key: 'receipt', label: 'Tanda Terima', hasFlag: 'hasSignedReceiptPdf' as const },
+        { key: 'eppd', label: 'E-PPD', hasFlag: 'hasSignedPdf' as const },
+        { key: 'memo', label: 'Internal Memo', hasFlag: 'hasInternalMemoPdf' as const },
+        { key: 'mpzis', label: 'MPZIS', hasFlag: 'hasSignedMPZISPdf' as const },
+        { key: 'survey', label: 'Lembar Verifikasi', hasFlag: 'hasSignedSurveyPdf' as const }
+      ];
+
+      for (const scanType of scanTypes) {
+        const flagVal = recipient[scanType.hasFlag];
+        if (flagVal) {
+          const scanRef = doc(db, 'recipients', recipient.id, 'scans', scanType.key);
+          const scanSnap = await safeGetDoc(scanRef);
+          if (scanSnap.exists()) {
+            const scanData = scanSnap.data();
+            const localBase64 = scanData?.base64;
+            
+            if (localBase64 && localBase64.startsWith('data:')) {
+              try {
+                if (onProgress) {
+                  onProgress(i + 1, total, `Mengunggah berkas ${scanType.label} untuk ${nameStr}...`);
+                }
+                const ext = getFileExtensionFromBase64(localBase64);
+                const filename = `${scanType.label} - ${nameStr.replace(/[^a-zA-Z0-9 ]/g, '').trim()}${ext}`;
+                
+                const gdriveRes = await uploadBase64ToGoogleDrive(
+                  localBase64,
+                  filename,
+                  nameStr,
+                  cleanNik,
+                  sectorVal,
+                  programVal
+                );
+                
+                await setDoc(scanRef, {
+                  base64: `gdrive:${gdriveRes.id}`,
+                  updatedAt: new Date().toISOString()
+                });
+                
+                successCount++;
+              } catch (err: any) {
+                console.error(`Gagal sync PDF ${scanType.label} untuk ${nameStr}:`, err);
+                errors.push(`Berkas [${scanType.label}] ${nameStr}: ${err.message || err}`);
+              }
+            }
+          }
+        }
+      }
+    } catch (errRecipient: any) {
+      console.error(`Gagal memproses penerima ${nameStr}:`, errRecipient);
+      errors.push(`Penerima [${nameStr}]: ${errRecipient.message || errRecipient}`);
+    }
+  }
+
+  return { successCount, errors };
+};

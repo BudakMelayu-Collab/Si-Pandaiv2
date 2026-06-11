@@ -9,7 +9,11 @@ import {
   Bell, 
   Info, 
   AlertTriangle, 
-  AlertCircle 
+  AlertCircle,
+  RefreshCw,
+  Cloud,
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { 
   updateAppSettings, 
@@ -17,7 +21,8 @@ import {
   saveAnnouncement, 
   streamAnnouncements, 
   updateAnnouncement, 
-  deleteAnnouncement 
+  deleteAnnouncement,
+  syncAllLocalFilesToGoogleDrive
 } from '../firebase';
 import { AppSettings, Announcement } from '../types';
 import { cn } from '../lib/utils';
@@ -29,6 +34,38 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'general' | 'announcements'>('general');
   
+  // Google Drive Re-sync States
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncTotal, setSyncTotal] = useState(0);
+  const [syncCurrent, setSyncCurrent] = useState(0);
+  const [syncStatusText, setSyncStatusText] = useState('');
+  const [syncResult, setSyncResult] = useState<{ successCount: number; errors: string[] } | null>(null);
+
+  const handleSyncAllLocalFiles = async () => {
+    if (!confirm('Apakah Anda yakin ingin memeriksa dan menyinkronkan seluruh berkas lokal ke Google Drive? Sesi Google Drive Super Admin saat ini harus aktif.')) {
+      return;
+    }
+    
+    setIsSyncingAll(true);
+    setSyncResult(null);
+    setSyncCurrent(0);
+    setSyncTotal(0);
+    setSyncStatusText('Menghubungkan ke layanan Google Drive...');
+    
+    try {
+      const result = await syncAllLocalFilesToGoogleDrive((current, total, status) => {
+        setSyncCurrent(current);
+        setSyncTotal(total);
+        setSyncStatusText(status);
+      });
+      setSyncResult(result);
+    } catch (err: any) {
+      alert('Gagal mendeteksi/menyinkronkan berkas: ' + (err.message || err));
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
   // Announcement Form
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false);
   const [announcementForm, setAnnouncementForm] = useState<Omit<Announcement, 'id' | 'createdAt'>>({
@@ -135,7 +172,8 @@ export default function Settings() {
       </div>
 
       {activeTab === 'general' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <Upload className="w-4 h-4 text-indigo-600" />
@@ -194,7 +232,107 @@ export default function Settings() {
             </form>
           </div>
         </div>
-      )}
+
+        {/* SINKRONISASI MASSAL GOOGLE DRIVE */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2.5">
+                <Cloud className="w-5 h-5 text-indigo-600" />
+                Penyelarasan & Sinkronisasi Massal Google Drive
+              </h3>
+              <p className="text-sm text-slate-500 max-w-2xl leading-relaxed">
+                Jika staff sempat mengalami kegagalan unggah berkas (misal karena sesi Google Drive Super Admin kedaluwarsa atau terputus) sehingga berkas dialihkan ke memori penyimpanan lokal (Firestore), Anda dapat mengunggah dan memindahkan seluruh berkas lokal tersebut ke hierarki folder Google Drive Anda secara aman dengan mengeklik tombol di samping.
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleSyncAllLocalFiles}
+              disabled={isSyncingAll}
+              className={cn(
+                "px-5 py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2.5 hover:bg-indigo-700 transition-all shadow-md active:scale-95 disabled:opacity-50 text-sm whitespace-nowrap self-start md:self-center",
+                isSyncingAll && "bg-slate-400 hover:bg-slate-400"
+              )}
+            >
+              {isSyncingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {isSyncingAll ? 'Sedang Sinkronisasi...' : 'Mulai Sinkronisasi'}
+            </button>
+          </div>
+
+          {/* Sync Progress / Status */}
+          {isSyncingAll && (
+            <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-3 animate-pulse">
+              <div className="flex items-center justify-between text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                <span>Proses Pengunggahan Massal</span>
+                <span>{syncCurrent} dari {syncTotal} Penerima</span>
+              </div>
+              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-600 transition-all duration-300 rounded-full"
+                  style={{ width: `${syncTotal > 0 ? (syncCurrent / syncTotal) * 100 : 0}%` }}
+                />
+              </div>
+              <p className="text-sm text-slate-600 font-medium flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping" />
+                {syncStatusText}
+              </p>
+            </div>
+          )}
+
+          {/* Sync Result */}
+          {syncResult && (
+            <div className={cn(
+              "p-5 rounded-2xl border space-y-3 animate-in fade-in duration-300",
+              syncResult.errors.length === 0 ? "bg-emerald-50/50 border-emerald-100" : "bg-amber-50/30 border-amber-100"
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
+                  syncResult.errors.length === 0 ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                )}>
+                  {syncResult.errors.length === 0 ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h4 className={cn(
+                    "font-bold text-sm",
+                    syncResult.errors.length === 0 ? "text-emerald-800" : "text-amber-800"
+                  )}>
+                    {syncResult.errors.length === 0 ? 'Sinkronisasi Selesai dengan Sempurna!' : 'Sinkronisasi Selesai dengan Beberapa Catatan'}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Sistem telah selesai memproses database. Sebanyak <span className="font-bold text-slate-800">{syncResult.successCount} berkas baru</span> berhasil dipindahkan dan diselaraskan ke Google Drive Anda secara aman.
+                  </p>
+                </div>
+              </div>
+
+              {/* Errors list if any */}
+              {syncResult.errors.length > 0 && (
+                <div className="pt-3 border-t border-dashed border-amber-200 space-y-2">
+                  <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Detail Kendala/Error ({syncResult.errors.length}):
+                  </p>
+                  <ul className="text-[11px] text-amber-700 list-disc pl-4 space-y-1 font-mono leading-relaxed max-h-40 overflow-y-auto">
+                    {syncResult.errors.map((errorMsg, idx) => (
+                      <li key={idx}>{errorMsg}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
 
       {activeTab === 'announcements' && (
         <div className="space-y-6">
