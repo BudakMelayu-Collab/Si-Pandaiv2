@@ -29,8 +29,10 @@ export interface Recipient {
   subSector: string; // Sub Bidang
   aidType: AidType;
   programName: string;
-  purpose: string; // Mengajukan bantuan untuk
+  purpose: string; // Tujuan Penyaluran
+  tujuanPengajuan?: string; // Tujuan Pengajuan
   amountProposed: number; // Nominal yang akan dibantu
+  fundingSource?: string; // Sumber Dana
   contact: string;
   companion?: string; // Pendamping
   
@@ -67,6 +69,8 @@ export interface Recipient {
   hasSignedMPZISPdf?: boolean;
   hasInternalMemoPdf?: boolean;
   hasSignedSurveyPdf?: boolean;
+  isMPZISGenerated?: boolean;
+  isEPPDGenerated?: boolean;
   isTermsAccepted: boolean;
   
   // Custom data for specific programs

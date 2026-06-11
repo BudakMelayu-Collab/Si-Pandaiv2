@@ -183,14 +183,15 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           parsed.classification = recipient.sector || 'Siak Sejahtera';
         }
         // 2. Clear old hardcoded purposes / ashnaf / source / description
-        if (parsed.purpose?.startsWith('Melaksanakan program ')) parsed.purpose = '';
-        if (parsed.ashnaf === 'Miskin') parsed.ashnaf = '';
-        if (parsed.source === 'Zakat / Infaq / Shadaqah') parsed.source = '';
-        if (parsed.budgetPost === recipient.aidType) parsed.budgetPost = '';
+        if (parsed.purpose?.startsWith('Melaksanakan program ')) parsed.purpose = recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '';
+        if (parsed.ashnaf === 'Miskin' || !parsed.ashnaf) parsed.ashnaf = recipient.ashnaf || '';
+        if (parsed.source === 'Zakat / Infaq / Shadaqah' || !parsed.source) parsed.source = recipient.fundingSource || '';
+        if (parsed.budgetPost === recipient.aidType || !parsed.budgetPost) parsed.budgetPost = recipient.programName || '';
+        if (parsed.purpose === 'Biaya Penddikan' || !parsed.purpose) parsed.purpose = recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '';
 
         
-        // Fix old `nomor` format dynamically if it contains the old pattern
-        if (!parsed.nomor?.includes('/001/MPZIS/') && !parsed.nomor?.includes('/000/MPZIS/')) {
+        // Fix old `nomor` format dynamically if it contains the old pattern or uses BDG.
+        if (!parsed.nomor || parsed.nomor.includes('BDG.')) {
           const getBidangCode = (sector: string) => {
             switch(sector?.toLowerCase()) {
               case 'siak cerdas': return 'SC';
@@ -205,7 +206,16 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
             return romans[month - 1] || 'I';
           };
-          parsed.nomor = `${recipient.registrationId}/001/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`;
+          
+          let counter = parseInt(localStorage.getItem('mpzis_seq_counter') || '1', 10);
+          let seqStr = String(counter).padStart(3, '0');
+          
+          // Only replace BDG. with correct code while preserving sequence if possible
+          if (parsed.nomor && parsed.nomor.includes('BDG.')) {
+             parsed.nomor = parsed.nomor.replace(/BDG\.\d/g, getBidangCode(recipient.sector || ''));
+          } else {
+             parsed.nomor = `${seqStr}/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`;
+          }
         }
         
         // Always update rows from selection if it was provided
@@ -214,12 +224,16 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
             return {
               id: existingRow ? existingRow.id : (Date.now() + Math.random()),
-              description: existingRow ? existingRow.description : '',
+              description: (existingRow && existingRow.description) ? existingRow.description : (r.purpose || recipient.purpose || ''),
               name: r.name || '',
               nik: r.nik || '',
               amount: existingRow ? Number(existingRow.amount) : (Number(r.amountProposed) || 0)
             };
           });
+        } else if (parsed.rows && parsed.rows.length === 1) {
+          if (!parsed.rows[0].description) {
+            parsed.rows[0].description = recipient.purpose || '';
+          }
         }
 
         setMemoData(parsed);
@@ -480,15 +494,28 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
   };
 
   // Local state for memorandum data
-  const [memoData, setMemoData] = useState({
-    nomor: `${recipient.registrationId}/001/MPZIS/${getBidangCode(recipient.sector || '')}/${getRomanMonth(new Date().getMonth() + 1)}/${new Date().getFullYear()}`,
+  const [memoData, setMemoData] = useState(() => {
+    let defaultNomor = '';
+    const dateObj = new Date();
+    const bidCode = getBidangCode(recipient.sector || '');
+    const rmMonth = getRomanMonth(dateObj.getMonth() + 1);
+    
+    // Instead of hardcoding 001, let's look for sequence counter
+    // Only init if this is initial mount
+    const counter = parseInt(localStorage.getItem('mpzis_seq_counter') || '1', 10);
+    const seqStr = String(counter).padStart(3, '0');
+    // E.g. "001/MPZIS/SS/VI/2026"
+    defaultNomor = `${seqStr}/MPZIS/${bidCode}/${rmMonth}/${dateObj.getFullYear()}`;
+
+    return {
+      nomor: defaultNomor,
     programValue: recipient.sector || '',
     headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     classification: recipient.sector || 'Siak Sehat',
-    purpose: '',
-    ashnaf: '',
-    source: '',
-    budgetPost: '',
+    purpose: recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '',
+    ashnaf: recipient.ashnaf || '',
+    source: recipient.fundingSource || '',
+    budgetPost: recipient.programName || '',
     transactionType: 'TRANSFER' as 'CASH' | 'TRANSFER',
     columns: [
       { key: 'description', label: 'Uraian' },
@@ -499,7 +526,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
     rows: lampiranItems && lampiranItems.length > 0 
       ? lampiranItems.map(r => ({
           id: Date.now() + Math.random(),
-          description: '',
+          description: r.purpose || recipient.purpose || '',
           name: r.name || '',
           nik: r.nik || '',
           amount: Number(r.amountProposed) || 0
@@ -507,7 +534,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       : [
       { 
         id: Date.now(), 
-        description: '', 
+        description: recipient.purpose || '', 
         name: recipient.name, 
         nik: recipient.nik,
         amount: Number(recipient.amountProposed) 
@@ -525,6 +552,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       { name: "KH. Moch Sowwam Amin, SH", role: "Wakil Ketua III" },
       { name: "H. Rojikin, S.Ag, MH", role: "Wakil Ketua IV" }
     ]
+  };
   });
   
   // Auto-save memo data
@@ -533,6 +561,14 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
     const saveMemo = async () => {
       setSaveStatus('saving');
       try {
+        const match = memoData.nomor?.match(/^(\d+)\/MPZIS\//);
+        if (match) {
+          const seq = parseInt(match[1], 10);
+          const currentCounter = parseInt(localStorage.getItem('mpzis_seq_counter') || '1', 10);
+          if (seq >= currentCounter) {
+            localStorage.setItem('mpzis_seq_counter', String(seq + 1));
+          }
+        }
         await storage.setItem(`mpzis_memo_${recipient.id}`, memoData);
         const { saveRecipientTemplateData } = await import('../firebase');
         await saveRecipientTemplateData(recipient.id, 'mpzis', memoData);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, X, Upload, FileText, Image as ImageIcon, 
   MapPin, User, Hash, Phone, Calendar, DollarSign,
-  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2, QrCode, Smartphone
+  Plus, Trash2, Layers, Edit3, Check, Eye, ChevronRight, Loader2, QrCode, Smartphone, Wand2
 } from 'lucide-react';
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
@@ -68,6 +68,8 @@ const DEFAULT_RECIPIENT_INPUT = {
   bankAccountNo: '',
   bankName: '',
   bankAccountHolder: '',
+  purpose: '', // Tujuan Penyaluran
+  tujuanPengajuan: '', // Tujuan Pengajuan
   notes: '',
   documentStatus: 'Lengkap',
   documentStatusNotes: '',
@@ -103,7 +105,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     aidType: '',
     programName: '',
     amountProposed: '',
-    purpose: '',
+    fundingSource: '',
     notes: '',
     isTermsAccepted: true,
     status: 'Masuk Berkas', // Standard initial status
@@ -144,7 +146,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       setRegistrationData({
         registrationId: first.registrationId || generateRegId(),
         adminCategory: first.adminCategory || '',
+        serviceType: first.serviceType || '',
         source: first.source || '',
+        ashnaf: first.ashnaf || '',
         institutionName: first.institutionName || '',
         personInCharge: first.personInCharge || '',
         submissionDate: first.submissionDate || new Date().toISOString().split('T')[0],
@@ -154,7 +158,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         aidType: first.aidType || '',
         programName: first.programName || '',
         amountProposed: first.amountProposed || '',
-        purpose: first.purpose || '',
+        fundingSource: first.fundingSource || '',
         notes: first.notes || '',
         isTermsAccepted: true,
         status: first.status || 'Masuk Berkas',
@@ -555,8 +559,11 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   // Load selected recipient back into the input fields for editing
   const handleLoadEditRecipient = (index: number) => {
     setEditingIndex(index);
-    const recipient = subRecipients[index];
-    setRecipientInput(recipient);
+    let recipient = subRecipients[index];
+
+    setRecipientInput({
+      ...recipient
+    });
 
     const slotsCopy: DocumentSlot[] = INITIAL_DOCUMENT_SLOTS.map(s => ({ ...s }));
 
@@ -775,6 +782,21 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 <option value="Online">Online</option>
                 <option value="Instansi">Instansi</option>
                 <option value="Lembaga">Lembaga</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Sumber Dana</label>
+              <select 
+                className="form-input-custom font-medium" 
+                value={registrationData.fundingSource} 
+                onChange={e => setRegistrationData({...registrationData, fundingSource: e.target.value})}
+              >
+                <option value="">Pilih Sumber Dana</option>
+                <option value="Zakat">Zakat</option>
+                <option value="Infaq">Infaq</option>
+                <option value="Shadaqah">Shadaqah</option>
+                <option value="DSKL">DSKL</option>
               </select>
             </div>
 
@@ -1050,13 +1072,6 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 </div>
               )}
             </div>
-
-
-
-            <div className="space-y-2 md:col-span-3">
-              <label className="text-sm font-semibold text-slate-700">Mengajukan Bantuan Untuk / Keterangan</label>
-              <input type="text" className="form-input-custom font-medium" value={registrationData.purpose} onChange={e => setRegistrationData({...registrationData, purpose: e.target.value})} placeholder="Tuliskan tujuan permohonan bantuan secara spesifik dan representatif" />
-            </div>
           </div>
         </div>
 
@@ -1115,7 +1130,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
-                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
+                <input type="text" placeholder="Hari/Bulan/Tahun" className="form-input-custom font-medium" value={recipientInput.dob} onChange={e => setRecipientInput({...recipientInput, dob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
@@ -1144,7 +1159,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
-                <input type="text" className="form-input-custom font-medium" placeholder="Hari/Bulan/Tahun" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
+                <input type="text" placeholder="Hari/Bulan/Tahun" className="form-input-custom font-medium" value={recipientInput.headOfFamilyDob} onChange={e => setRecipientInput({...recipientInput, headOfFamilyDob: e.target.value})} />
               </div>
 
               <div className="space-y-2">
@@ -1163,6 +1178,55 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     }
                     setRecipientInput({...recipientInput, contact: val});
                   }} 
+                />
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Tujuan Penyaluran</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const rtRw = [recipientInput.rt, recipientInput.rw].filter(Boolean).join('/');
+                      const alamatLengkap = [recipientInput.address, rtRw].filter(Boolean).join(' ');
+                      const generated = `Permohonan Bantuan ${registrationData.programName || registrationData.aidType || ''} a.n ${recipientInput.name || ''} Alamat ${alamatLengkap} kampung ${recipientInput.kampung || ''} kecamatan ${recipientInput.district || ''}`.trim().replace(/\s+/g, ' ');
+                      setRecipientInput({...recipientInput, purpose: generated});
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                  </button>
+                </div>
+                <textarea 
+                  className="form-input-custom font-medium min-h-[60px]" 
+                  value={recipientInput.purpose} 
+                  onChange={e => setRecipientInput({...recipientInput, purpose: e.target.value})} 
+                  placeholder="Keterangan singkat penyaluran..." 
+                />
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Tujuan Pengajuan</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const bulan = new Date().toLocaleString('id-ID', { month: 'long' });
+                      const rtRw = [recipientInput.rt || '-', recipientInput.rw || '-'].join('/');
+                      const computedCount = Math.max(1, editingIndex !== null ? subRecipients.length : subRecipients.length + 1);
+                      const generated = `Permohonan Pencairan Dana ${registrationData.fundingSource || ''} ${registrationData.programName || ''} a.n ${recipientInput.name || ''} Sebanyak ${computedCount} Orang Bulan ${bulan} ${recipientInput.address || ''} ${rtRw} kampung ${recipientInput.kampung || ''} kecamatan ${recipientInput.district || ''}`.trim().replace(/\s+/g, ' ');
+                      setRecipientInput({...recipientInput, tujuanPengajuan: generated});
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                  </button>
+                </div>
+                <textarea 
+                  className="form-input-custom font-medium min-h-[60px]" 
+                  value={recipientInput.tujuanPengajuan} 
+                  onChange={e => setRecipientInput({...recipientInput, tujuanPengajuan: e.target.value})} 
+                  placeholder="Di dalam field ini, terdapat Fitur Rangkum Otomatis. Anda cukup menekan tombol '✨ Buat Otomatis' di sebelah judul field ini." 
                 />
               </div>
             </div>

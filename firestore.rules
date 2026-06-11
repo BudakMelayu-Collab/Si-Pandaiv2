@@ -74,6 +74,7 @@ service cloud.firestore {
             'skmp', 'documentStatus', 'documentStatusNotes', 'documents',
             'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf',
             'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl',
+            'isMPZISGenerated', 'isEPPDGenerated',
             'serviceType', 'monthlyPaymentStatus', 'monthlyPaymentNote',
             'rsBedId', 'rsCheckInDate', 'rsNoReg', 'rsEstimatedCheckOutDate', 'rsCheckOutDate', 'rsMedicalNotes', 'rsStatus', 'rsCompanionName', 'rsCompanionRelation', 'rsHospital', 'rsJenisRawatan',
             'updatedAt'

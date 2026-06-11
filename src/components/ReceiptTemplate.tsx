@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'react-qr-code';
 import { Recipient } from '../types';
 import { 
   Printer, X, FileCheck, Edit3, Upload, Image as ImageIcon, 
@@ -606,6 +607,151 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     </div>
   );
 
+  const renderApplicationForm = () => (
+    <div 
+      className="w-full px-8 py-8 font-sans leading-tight text-black flex flex-col relative bg-white print:break-before-page"
+      style={{ fontSize: `${templateConfig.fontSize}pt` }}
+    >
+      {/* Header */}
+      <table className="w-full border-collapse mb-4 border border-black">
+        <tbody>
+          <tr>
+            <td className="w-[120px] p-2 border-r border-black align-middle text-center">
+              {templateConfig.logo ? (
+                <img src={templateConfig.logo} alt="Logo" className="max-w-full max-h-full object-contain mx-auto" style={{ height: `${templateConfig.logoSize}px` }} />
+              ) : logo ? (
+                <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain mx-auto" style={{ height: `${templateConfig.logoSize}px` }} />
+              ) : null}
+            </td>
+            <td className="p-4 align-middle">
+              <h1 className="font-bold uppercase tracking-tight text-[12pt] mb-0 leading-none">LAYANAN MUSTAHIK</h1>
+              <h2 className="uppercase tracking-tight text-[10pt] font-normal leading-none mt-1 text-slate-700">{templateConfig.institution || "BAZNAS PROVINSI RIAU"}</h2>
+            </td>
+            <td className="w-[160px] p-2 border-l border-black align-middle text-center bg-white">
+              <div className="flex flex-col items-center justify-center">
+                 <div className="flex w-full h-8 items-end justify-between px-2 mb-1 gap-[1px]">
+                    {Array.from({length: 42}).map((_, i) => (
+                      <div key={i} className="bg-black shrink-0" style={{ width: [1, 2, 3][Math.floor(Math.random() * 3)] + 'px', height: '100%' }}></div>
+                    ))}
+                 </div>
+                 <span className="text-[10px] font-mono tracking-widest">{recipient.registrationId.split('-')[1]}</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Main Table */}
+      <table className="w-full border-collapse mb-4 border border-black text-[10px]">
+        <thead>
+          <tr>
+            <th colSpan={2} className="border-b border-black p-1.5 text-center font-bold text-xs underline uppercase relative tracking-wide">
+              FORMULIR PERMOHONAN
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold w-[180px]">Registrasi</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.submissionDate}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Penerima</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.name}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Indentitas</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.nik}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Tempat Lahir</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.pob}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Tanggal Lahir</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.dob ? new Date(recipient.dob).toLocaleDateString('id-ID') : '-'}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Kontak Person</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.contact}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Alamat</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.address}, RT{recipient.rt}/RW{recipient.rw}, {recipient.kampung}, {recipient.district}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Status Berkas</td>
+            <td className="border-b border-black p-1.5 uppercase">LENGKAP</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Indeks</td>
+            <td className="border-b border-black p-1.5 uppercase">{recipient.companion || '-'}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Program</td>
+            <td className="border-b border-black p-1.5 uppercase">{receiptData.subject}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Nominal</td>
+            <td className="border-b border-black p-1.5 uppercase">Rp. {recipient.amountProposed?.toLocaleString('id-ID') || 0}</td>
+          </tr>
+          <tr>
+            <td className="border-b border-r border-black p-1.5 font-bold">Rekening</td>
+            <td className="border-b border-black p-1.5 uppercase leading-tight">
+              {recipient.schoolName ? `${recipient.schoolName}\n` : ''}
+              {recipient.bankAccountHolder ? `${recipient.bankAccountHolder}/` : ''}
+              {recipient.bankName ? `${recipient.bankName}-` : ''}
+              {recipient.bankAccountNo || '-'}
+            </td>
+          </tr>
+          <tr>
+            <td className="border-r border-black p-1.5 font-bold">Keterangan</td>
+            <td className="border-black p-1.5 uppercase">{recipient.purpose}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Signature Table */}
+      <table className="w-full border-collapse border border-black text-xs text-center mb-8 bg-white" style={{ pageBreakInside: 'avoid' }}>
+        <thead>
+          <tr>
+            <th className="border-b border-r border-black p-1 font-normal w-1/2">Petugas</th>
+            <th className="border-b border-black p-1 font-normal w-1/2">Mustahik</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border-b border-r border-black p-2 align-middle overflow-hidden" style={{ height: '140px'}}>
+              {/* Petugas Signature Placeholder */}
+              <div className="flex items-center justify-center h-full max-w-full px-2">
+                <a href="#" className="text-blue-600 underline text-[10px] break-all text-center max-w-[200px]">
+                  {recipient.registrationId.split('-')[1]}.TTD_PETUGAS.{String(Math.floor(Math.random() * 100000)).padStart(5, '0')}
+                </a>
+              </div>
+            </td>
+            <td className="border-b border-black p-3 align-middle bg-white">
+               <div className="flex justify-center bg-white p-1">
+                 <QRCode value={recipient.registrationId} size={100} level="M" />
+               </div>
+            </td>
+          </tr>
+          <tr>
+            <td className="border-r border-black p-2 font-bold uppercase tracking-tight">{recipient.companion || '-'}</td>
+            <td className="border-black p-2 uppercase tracking-tight">{recipient.name}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      {/* Logos/Watermark at bottom */}
+      <div className="flex items-center gap-1.5 pb-8 opacity-90 shrink-0">
+        <div className="w-4 h-4 bg-[#1B29E3] rounded-bl-xl rounded-tr-xl rounded-tl rounded-br-sm -rotate-12 translate-y-0.5"></div>
+        <span className="text-[#1B29E3] font-black tracking-tight text-xl" style={{ fontFamily: 'sans-serif' }}>
+          Sebari
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
       {/* Toolbar */}
@@ -795,16 +941,25 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                {viewMode === 'template' ? (
             <div className="flex flex-col items-center w-full">
               <div 
-                className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container origin-top transition-transform duration-200 p-0"
-                style={{ 
-                  transform: `scale(${scale})`,
-                  minHeight: paperSize === 'A4' ? '1120px' : '1250px'
-                }}
+                className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200"
+                style={{ transform: `scale(${scale})` }}
               >
-                {renderReceiptContent('PEMOHON')}
-                {renderReceiptContent('ARSIP')}
+                <div 
+                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative"
+                  style={{ minHeight: paperSize === 'A4' ? '1120px' : '1250px' }}
+                >
+                  {renderReceiptContent('PEMOHON')}
+                  {renderReceiptContent('ARSIP')}
+                </div>
+                
+                <div 
+                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative"
+                  style={{ minHeight: paperSize === 'A4' ? '1120px' : '1250px' }}
+                >
+                  {renderApplicationForm()}
+                </div>
               </div>
-              <div style={{ height: `${Math.max(100, scale * 1200)}px` }} className="print:hidden h-20" />
+              <div style={{ height: `${Math.max(100, scale * 2400)}px` }} className="print:hidden h-20" />
             </div>
           ) : viewMode === 'scan' ? (
             <div className="w-full h-full max-w-4xl flex flex-col gap-4">

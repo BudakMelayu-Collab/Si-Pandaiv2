@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User } from 'lucide-react';
+import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User, Wand2 } from 'lucide-react';
 import { Recipient, AidDocument } from '../types';
 import { cn } from '../lib/utils';
 import { SIAK_REGIONAL_DATA } from '../constants';
@@ -40,7 +40,9 @@ interface EditRecipientModalProps {
 }
 
 export default function EditRecipientModal({ recipient, onClose, onSave }: EditRecipientModalProps) {
-  const [formData, setFormData] = useState<Partial<Recipient>>({ ...recipient });
+  const [formData, setFormData] = useState<Partial<Recipient>>({ 
+    ...recipient
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   const [documentSlots, setDocumentSlots] = useState<DocumentSlot[]>(() => {
@@ -262,7 +264,7 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tanggal Lahir</label>
-                <input name="dob" type="date" className="form-input-custom font-medium" value={formData.dob || ''} onChange={handleChange} />
+                <input name="dob" type="text" placeholder="Hari/Bulan/Tahun" className="form-input-custom font-medium" value={formData.dob || ''} onChange={handleChange} />
               </div>
 
               <div className="space-y-2">
@@ -291,7 +293,74 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Tgl Lahir Kepala Keluarga</label>
-                <input name="headOfFamilyDob" type="date" className="form-input-custom font-medium" value={formData.headOfFamilyDob || ''} onChange={handleChange} />
+                <input name="headOfFamilyDob" type="text" placeholder="Hari/Bulan/Tahun" className="form-input-custom font-medium" value={formData.headOfFamilyDob || ''} onChange={handleChange} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">No Handphone</label>
+                <input 
+                  type="tel" 
+                  placeholder="+62"
+                  className="form-input-custom font-medium" 
+                  value={formData.contact || ''} 
+                  onChange={e => {
+                    let val = e.target.value.replace(/[^\d+]/g, '');
+                    if (val.startsWith('0')) {
+                      val = '+62' + val.substring(1);
+                    } else if (val.startsWith('62')) {
+                      val = '+' + val;
+                    }
+                    setFormData({...formData, contact: val});
+                  }} 
+                />
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Tujuan Penyaluran</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const rtRw = [formData.rt, formData.rw].filter(Boolean).join('/');
+                      const alamatLengkap = [formData.address, rtRw].filter(Boolean).join(' ');
+                      const generated = `Permohonan Bantuan ${recipient.programName || recipient.aidType || ''} a.n ${formData.name || ''} Alamat ${alamatLengkap} kampung ${formData.kampung || ''} kecamatan ${formData.district || ''}`.trim().replace(/\s+/g, ' ');
+                      setFormData({...formData, purpose: generated});
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                  </button>
+                </div>
+                <textarea 
+                  className="form-input-custom font-medium min-h-[60px]" 
+                  value={formData.purpose || ''} 
+                  onChange={e => setFormData({...formData, purpose: e.target.value})} 
+                  placeholder="Keterangan singkat penyaluran..." 
+                />
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Tujuan Pengajuan</label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const bulan = new Date().toLocaleString('id-ID', { month: 'long' });
+                      const rtRw = [formData.rt || '-', formData.rw || '-'].join('/');
+                      const generated = `Permohonan Pencairan Dana ${recipient.fundingSource || ''} ${recipient.programName || ''} a.n ${formData.name || ''} Sebanyak 1 Orang Bulan ${bulan} ${formData.address || ''} ${rtRw} kampung ${formData.kampung || ''} kecamatan ${formData.district || ''}`.trim().replace(/\s+/g, ' ');
+                      setFormData({...formData, tujuanPengajuan: generated});
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                  </button>
+                </div>
+                <textarea 
+                  className="form-input-custom font-medium min-h-[60px]" 
+                  value={formData.tujuanPengajuan || ''} 
+                  onChange={e => setFormData({...formData, tujuanPengajuan: e.target.value})} 
+                  placeholder="Di dalam field ini, terdapat Fitur Rangkum Otomatis. Anda cukup menekan tombol '✨ Buat Otomatis' di sebelah judul field ini." 
+                />
               </div>
             </div>
 
@@ -304,7 +373,7 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2 lg:col-span-4">
                   <label className="text-sm font-semibold text-slate-700">Alamat Lengkap *</label>
-                  <textarea name="address" className="form-input-custom min-h-[60px]" value={formData.address || ''} onChange={handleChange} placeholder="Dusun / Rukun Tetangga / Rukun Warga" />
+                  <textarea name="address" className="form-input-custom min-h-[60px]" value={formData.address || ''} onChange={handleChange} placeholder="Jalan" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">RT</label>
@@ -315,16 +384,39 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                   <input name="rw" type="text" maxLength={3} className="form-input-custom font-mono" value={formData.rw || ''} onChange={handleChange} placeholder="000" />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Kampung / Kelurahan</label>
+                  <select 
+                    className="form-input-custom font-medium" 
+                    value={formData.kampung || ''} 
+                    onChange={e => {
+                      const selectedKampung = e.target.value;
+                      let detectedDistrict = formData.district || '';
+                      
+                      for (const [district, villages] of Object.entries(SIAK_REGIONAL_DATA)) {
+                        if (villages.includes(selectedKampung)) {
+                          detectedDistrict = district;
+                          break;
+                        }
+                      }
+                      setFormData({...formData, kampung: selectedKampung, district: detectedDistrict});
+                    }}
+                  >
+                    <option value="">Pilih Kampung/Kelurahan</option>
+                    {Object.entries(SIAK_REGIONAL_DATA).map(([district, villages]) => (
+                      <optgroup key={district} label={district}>
+                        {villages.map(v => <option key={v} value={v}>{v}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Kecamatan *</label>
                   <select 
                     name="district"
                     required 
                     className="form-input-custom font-medium" 
                     value={formData.district || ''} 
-                    onChange={e => {
-                      const newDistrict = e.target.value;
-                      setFormData(prev => ({...prev, district: newDistrict, kampung: ''}));
-                    }}
+                    onChange={e => setFormData({...formData, district: e.target.value, kampung: ''})}
                   >
                     <option value="">Pilih Kecamatan</option>
                     {Object.keys(SIAK_REGIONAL_DATA).map(d => (
@@ -332,23 +424,6 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                     ))}
                   </select>
                 </div>
-                {formData.district && (
-                  <div className="space-y-2 animate-in fade-in-50 duration-200 block">
-                    <label className="text-sm font-semibold text-slate-700">Kampung / Kelurahan *</label>
-                    <select 
-                      name="kampung"
-                      required 
-                      className="form-input-custom font-medium" 
-                      value={formData.kampung || ''} 
-                      onChange={handleChange}
-                    >
-                      <option value="">Pilih Kampung/Kelurahan</option>
-                      {SIAK_REGIONAL_DATA[formData.district as keyof typeof SIAK_REGIONAL_DATA]?.map(v => (
-                        <option key={v} value={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -411,10 +486,6 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Nama Pemilik Rekening</label>
                     <input name="bankAccountHolder" type="text" className="form-input-custom font-medium" value={formData.bankAccountHolder || ''} onChange={handleChange} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Kontak Personal (No HP)</label>
-                    <input name="contact" type="text" className="form-input-custom font-medium" value={formData.contact || ''} onChange={handleChange} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Catatan Tambahan Mustahik</label>

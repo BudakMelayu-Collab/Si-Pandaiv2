@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, AlertCircle, ChevronRight, Download, Eye,
   ClipboardList, Loader2, Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, Type,
-  Layout, Save, FilePlus, Settings
+  Layout, Save, FilePlus, Settings, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -61,6 +61,15 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
   const [loadedRecipientId, setLoadedRecipientId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [showExitEditWarning, setShowExitEditWarning] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{title: string; message: string; type: 'success'|'error'} | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Fetch scan from subcollection if it exists but isn't loaded
   useEffect(() => {
@@ -197,7 +206,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     const saved = localStorage.getItem(`ppd_data_${recipient.id}`);
     if (saved) {
       const data = JSON.parse(saved);
-      const options = ["Satriyanda, SE", "Muslikun Thohari, S.IKOM", "Ikhlasul Amal, M.Ag", "Nanag Sujana, S.Hut"];
+      const options = ["Satriyanda, SE", "Muslikhun Thohari, S.I.Kom.", "Ikhlasul Amal, M.Ag.", "Dina Alvinda, S.Pd."];
       return options.includes(data.requestedBy) ? 'select' : 'input';
     }
     return 'select';
@@ -227,9 +236,37 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
   };
 
   // Local state for PPD data with persistence per recipient
-  const [ppdData, setPpdData] = useState({
-    no: `${recipient.registrationId}`,
-    noPpd: `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.001`,
+  const [ppdData, setPpdData] = useState(() => {
+    let defaultNoPpd = '';
+    const bidCode = getBidangCode(recipient.sector || '');
+    const dateObj = new Date();
+    const rmMonth = getRomanMonth(dateObj.getMonth() + 1);
+    
+    let maxCounter = 1;
+    const localSaved = localStorage.getItem('eppd_seq_counter');
+    if (localSaved) {
+      maxCounter = parseInt(localSaved, 10);
+    }
+    if (records && records.length > 0) {
+      records.forEach(r => {
+        if (r.no) {
+          const match = r.no.match(/\.(\d+)$/);
+          if (match) {
+            const seqVal = parseInt(match[1], 10);
+            if (seqVal >= maxCounter) {
+              maxCounter = seqVal + 1;
+            }
+          }
+        }
+      });
+    }
+    const seqStr = String(maxCounter).padStart(3, '0');
+    // E.g. "24.SC.2026.VI.001"
+    defaultNoPpd = `24.${bidCode}.${dateObj.getFullYear()}.${rmMonth}.${seqStr}`;
+    
+    return {
+      no: `${recipient.registrationId}`,
+      noPpd: defaultNoPpd,
     requestedBy: '',
     division: '',
     function: 'Staf',
@@ -289,6 +326,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       footerFinance: 'Divisi Keuangan',
       footerAttachment: 'Lampiran'
     }
+  };
   });
 
   // Sync state when recipient changes
@@ -381,8 +419,31 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
       if (savedData) {
         const parsed = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
-        if (!parsed.noPpd || parsed.noPpd.trim() === '' || !parsed.noPpd.startsWith('24.')) {
-          parsed.noPpd = `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.001`;
+        if (!parsed.noPpd || parsed.noPpd.trim() === '' || !parsed.noPpd.startsWith('24.') || parsed.noPpd.includes('BDG.')) {
+          let maxCounter = 1;
+          const localSaved = localStorage.getItem('eppd_seq_counter');
+          if (localSaved) {
+            maxCounter = parseInt(localSaved, 10);
+          }
+          if (records && records.length > 0) {
+            records.forEach(r => {
+              if (r.no) {
+                const match = r.no.match(/\.(\d+)$/);
+                if (match) {
+                  const seqVal = parseInt(match[1], 10);
+                  if (seqVal >= maxCounter) {
+                    maxCounter = seqVal + 1;
+                  }
+                }
+              }
+            });
+          }
+          const seqStr = String(maxCounter).padStart(3, '0');
+          if (parsed.noPpd && parsed.noPpd.includes('BDG.')) {
+            parsed.noPpd = parsed.noPpd.replace(/BDG\.\d/g, getBidangCode(recipient.sector || ''));
+          } else {
+            parsed.noPpd = `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.${seqStr}`;
+          }
         }
         if (parsed.labels) {
           if (parsed.labels.division === 'Divisi -' || parsed.labels.division === 'Divisi :') parsed.labels.division = 'Divisi';
@@ -417,19 +478,62 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         }
         setPpdData(parsed);
       } else {
+        const sector = (recipient.sector || '').toLowerCase();
+        let defaultRequestedBy = '';
+        if (sector.includes('cerdas') || sector.includes('dakwah')) {
+          defaultRequestedBy = 'Satriyanda, SE';
+        } else if (sector.includes('peduli')) {
+          defaultRequestedBy = 'Muslikhun Thohari, S.I.Kom.';
+        } else if (sector.includes('sehat')) {
+          defaultRequestedBy = 'Dina Alvinda, S.Pd.';
+        } else if (sector.includes('sejahtera')) {
+          defaultRequestedBy = 'Ikhlasul Amal, M.Ag.';
+        }
+
+        const isMultiple = itemsToUse.length > 1;
+        const proposeForStr = recipient.tujuanPengajuan || recipient.purpose || '';
+        const paidForStr = isMultiple ? "Terlampir" : (recipient.name || '');
+        const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
+        const transactionTypeDefault = hasRekening ? 'Transfer' : 'Tunai';
+        let transferDetailsDefault = '';
+        if (transactionTypeDefault === 'Transfer') {
+           transferDetailsDefault = isMultiple ? 'Terlampir' : `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
+        }
+
+        let maxCounter = 1;
+        const localSaved = localStorage.getItem('eppd_seq_counter');
+        if (localSaved) {
+          maxCounter = parseInt(localSaved, 10);
+        }
+        if (records && records.length > 0) {
+          records.forEach(r => {
+            if (r.no) {
+              const match = r.no.match(/\.(\d+)$/);
+              if (match) {
+                const seqVal = parseInt(match[1], 10);
+                if (seqVal >= maxCounter) {
+                  maxCounter = seqVal + 1;
+                }
+              }
+            }
+          });
+        }
+        const seqStr = String(maxCounter).padStart(3, '0');
+        const defaultNoPpd = `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.${seqStr}`;
+
         setPpdData({
           no: `${recipient.registrationId}`,
-          noPpd: `24.${getBidangCode(recipient.sector || '')}.${new Date().getFullYear()}.${getRomanMonth(new Date().getMonth() + 1)}.001`,
-          requestedBy: '',
+          noPpd: defaultNoPpd,
+          requestedBy: defaultRequestedBy,
           division: '',
           function: 'Staf',
           date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           amount: 0,
-          proposeFor: '',
-          paidFor: '',
+          proposeFor: proposeForStr,
+          paidFor: paidForStr,
           refNo: '-',
-          requestDisbursement: '',
-          transferDetails: '',
+          requestDisbursement: transactionTypeDefault,
+          transferDetails: transferDetailsDefault,
           transactionType: 'Pembayaran',
           rows: [
             { id: Date.now(), budgetCode: '', classification: '', total: 0 }
@@ -444,7 +548,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           },
           note: '',
           noteFinance: '',
-          attachment: '',
+          attachment: proposeForStr,
           lampiranRows: initialLampiranRows
         });
       }
@@ -457,10 +561,27 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       
       // Reset modes
       const optionsDiv = ["Pendistribusian", "Pendayagunaan"];
-      const optionsPem = ["Satriyanda, SE", "Muslikun Thohari, S.IKOM", "Ikhlasul Amal, M.Ag", "Nanag Sujana, S.Hut"];
+      const optionsPem = ["Satriyanda, SE", "Muslikhun Thohari, S.I.Kom.", "Ikhlasul Amal, M.Ag.", "Dina Alvinda, S.Pd."];
       
       if (savedData) {
-        const data = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
+        let data = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
+        
+        // Auto-assign requestedBy if it was empty, based on sector
+        if (!data.requestedBy || data.requestedBy.trim() === '') {
+          const sector = (recipient.sector || '').toLowerCase();
+          if (sector.includes('cerdas') || sector.includes('dakwah')) {
+            data.requestedBy = 'Satriyanda, SE';
+          } else if (sector.includes('peduli')) {
+            data.requestedBy = 'Muslikhun Thohari, S.I.Kom.';
+          } else if (sector.includes('sehat')) {
+            data.requestedBy = 'Dina Alvinda, S.Pd.';
+          } else if (sector.includes('sejahtera')) {
+            data.requestedBy = 'Ikhlasul Amal, M.Ag.';
+          }
+          // Also save it to trigger sync
+          setPpdData(prev => ({...prev, requestedBy: data.requestedBy}));
+        }
+
         setDivisiMode(optionsDiv.includes(data.division) ? 'select' : 'input');
         setPemohonMode(optionsPem.includes(data.requestedBy) ? 'select' : 'input');
       } else {
@@ -478,6 +599,14 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     const saveData = async () => {
       setSaveStatus('saving');
       try {
+        const match = ppdData.noPpd?.match(/\.(\d+)$/);
+        if (match) {
+          const seq = parseInt(match[1], 10);
+          const currentCounter = parseInt(localStorage.getItem('eppd_seq_counter') || '1', 10);
+          if (seq >= currentCounter) {
+            localStorage.setItem('eppd_seq_counter', String(seq + 1));
+          }
+        }
         await storage.setItem(`ppd_data_${recipient.id}`, ppdData);
         const { saveRecipientTemplateData } = await import('../firebase');
         await saveRecipientTemplateData(recipient.id, 'eppd', ppdData);
@@ -656,6 +785,30 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
   return (
     <div className="eppd-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:relative print:overflow-visible print:h-auto print:p-0 print:bg-white print:block overflow-hidden">
+      {showExitEditWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 print:hidden">
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+            <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">Keluar Mode Edit</h3>
+            <p className="text-slate-300 text-sm mb-6">Pastikan Anda telah menyimpan perubahan sebelum keluar agar data tidak hilang.</p>
+            <div className="flex gap-3 w-full">
+                <button onClick={() => setShowExitEditWarning(false)} className="flex-1 py-2 text-sm font-bold bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all">Kembali</button>
+                <button onClick={() => { setShowExitEditWarning(false); setIsEditing(false); }} className="flex-1 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-400 text-white rounded-xl transition-all">Selesai Edit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-2xl print:hidden animate-in slide-in-from-top-4 fade-in duration-300">
+          <CheckCircle className="w-6 h-6 text-emerald-500" />
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-sm">{toastMessage.title}</span>
+            <span className="text-slate-300 text-xs">{toastMessage.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="bg-[#1a1c2c] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -765,16 +918,22 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </button>
 
           <button 
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              if (isEditing) {
+                setShowExitEditWarning(true);
+              } else {
+                setIsEditing(true);
+              }
+            }}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold transition-all shrink-0 border",
               isEditing 
-                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
+                ? "bg-amber-400 text-amber-900 border-amber-300 hover:bg-amber-300 shadow-amber-500/20" 
+                : "bg-slate-700/80 text-white border-white/10 hover:bg-slate-600 backdrop-blur-md"
             )}
           >
             {isEditing ? <FileCheck className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-            {isEditing ? "Selesai Edit" : "Edit"}
+            {isEditing ? "Selesai Edit" : "Mode Edit"}
           </button>
 
           <button 
@@ -892,9 +1051,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   >
                     <option value="">-- Pilih Pemohon --</option>
                     <option value="Satriyanda, SE">Satriyanda, SE</option>
-                    <option value="Muslikun Thohari, S.IKOM">Muslikun Thohari, S.IKOM</option>
-                    <option value="Ikhlasul Amal, M.Ag">Ikhlasul Amal, M.Ag</option>
-                    <option value="Nanag Sujana, S.Hut">Nanag Sujana, S.Hut</option>
+                    <option value="Muslikhun Thohari, S.I.Kom.">Muslikhun Thohari, S.I.Kom.</option>
+                    <option value="Dina Alvinda, S.Pd.">Dina Alvinda, S.Pd.</option>
+                    <option value="Ikhlasul Amal, M.Ag.">Ikhlasul Amal, M.Ag.</option>
                   </select>
                 </div>
                 <div>
@@ -1464,9 +1623,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   >
                     <option value="">-- Pilih Pemohon --</option>
                     <option value="Satriyanda, SE">Satriyanda, SE</option>
-                    <option value="Muslikun Thohari, S.IKOM">Muslikun Thohari, S.IKOM</option>
-                    <option value="Ikhlasul Amal, M.Ag">Ikhlasul Amal, M.Ag</option>
-                    <option value="Nanag Sujana, S.Hut">Nanag Sujana, S.Hut</option>
+                    <option value="Muslikhun Thohari, S.I.Kom.">Muslikhun Thohari, S.I.Kom.</option>
+                    <option value="Dina Alvinda, S.Pd.">Dina Alvinda, S.Pd.</option>
+                    <option value="Ikhlasul Amal, M.Ag.">Ikhlasul Amal, M.Ag.</option>
                   </select>
                 ) : (
                   <span className="text-[10px] font-bold">{ppdData.requestedBy || '(Nama Pemohon)'}</span>

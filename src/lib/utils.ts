@@ -13,9 +13,13 @@ export function isRecipientFileTracked(recipient: Recipient, type: 'receipt' | '
       if (recipient.hasSignedReceiptPdf !== undefined) return recipient.hasSignedReceiptPdf;
       return !!recipient.signedReceiptPdfUrl && recipient.signedReceiptPdfUrl.length > 100;
     case 'eppd':
+      // Return true if it was generated OR if it has a signed PDF
+      if (recipient.isEPPDGenerated) return true;
       if (recipient.hasSignedPdf !== undefined) return recipient.hasSignedPdf;
       return !!recipient.signedPdfUrl && recipient.signedPdfUrl.length > 100;
     case 'mpzis':
+      // Return true if it was generated OR if it has a signed PDF
+      if (recipient.isMPZISGenerated) return true;
       if (recipient.hasSignedMPZISPdf !== undefined) return recipient.hasSignedMPZISPdf;
       return !!recipient.signedMPZISPdfUrl && recipient.signedMPZISPdfUrl.length > 100;
     case 'survey':

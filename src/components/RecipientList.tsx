@@ -591,7 +591,7 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                             </th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Nama</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">NIK</th>
-                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Mengajukan Bantuan Untuk</th>
+                                            <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 font-normal min-w-[200px]">Mengajukan Bantuan Untuk</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Status Berkas</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">No Hp</th>
                                             <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">Kecamatan</th>
@@ -630,7 +630,11 @@ export default function RecipientList({ data, onReceipt, onMPZIS, onEPPD, onInte
                                                 </td>
                                                 <td className="px-3.5 py-3 font-normal text-black capitalize border-r border-slate-200/40 whitespace-nowrap">{subItem.name?.toLowerCase() || ''}</td>
                                                 <td className="px-3.5 py-3 text-black font-normal select-all border-r border-slate-200/40 whitespace-nowrap">{subItem.nik}</td>
-                                                <td className="px-3.5 py-3 text-black font-normal border-r border-slate-200/40 whitespace-nowrap">{subItem.purpose || '-'}</td>
+                                                <td className="px-3.5 py-3 text-black font-normal border-r border-slate-200/40 min-w-[200px] max-w-[250px]">
+                                                  <div className="whitespace-normal break-words" title={subItem.purpose || ''}>
+                                                    {subItem.purpose || '-'}
+                                                  </div>
+                                                </td>
                                                 <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
                                                   <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-extrabold font-sans inline-block", (subItem.documentStatus || 'Lengkap') === 'Lengkap' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200")}>
                                                     {subItem.documentStatus || 'Lengkap'}

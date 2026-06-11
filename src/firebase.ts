@@ -66,9 +66,9 @@ const app = initializeApp(finalConfig);
 
 console.log('Using Firestore Database Instance:', dbId);
 
-// Initialize Firestore with experimentalForceLongPolling to bypass iframe WebSocket issues
+// Initialize Firestore with long polling to ensure reliability in proxy/iframe/containers
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  experimentalAutoDetectLongPolling: true,
 }, dbId === '(default)' ? undefined : dbId);
 
 export const auth = getAuth(app);
@@ -435,6 +435,14 @@ export const saveRecipientTemplateData = async (recipientId: string, templateTyp
       data: templateData,
       updatedAt: serverTimestamp()
     });
+    
+    // Also update the generated flag on the Recipient
+    const recipientRef = doc(db, 'recipients', recipientId);
+    if (templateType === 'mpzis') {
+      await updateDoc(recipientRef, { isMPZISGenerated: true, updatedAt: serverTimestamp() });
+    } else if (templateType === 'eppd') {
+      await updateDoc(recipientRef, { isEPPDGenerated: true, updatedAt: serverTimestamp() });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

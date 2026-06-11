@@ -15,6 +15,8 @@ import RumahSinggahModule from './components/RumahSinggahModule';
 import PrintTemplate from './components/PrintTemplate';
 import ReceiptTemplate from './components/ReceiptTemplate';
 import MPZISTemplate from './components/MPZISTemplate';
+import MPZISRiwayatTable from './components/MPZISRiwayatTable';
+import EPPDRiwayatTable from './components/EPPDRiwayatTable';
 import EPPDTemplate from './components/EPPDTemplate';
 import EPPDModule from './components/EPPDModule';
 import PPDRecap from './components/PPDRecap';
@@ -532,6 +534,38 @@ export default function App() {
         return (
           <div className="space-y-12">
             <div className="space-y-4">
+              {shouldSplitMonthly && (
+                <div className="pb-8 space-y-6 border-b border-slate-200 mb-8">
+                  <MPZISRiwayatTable 
+                    data={filteredData} 
+                    sectorName={displaySector}
+                    onEditGroup={(group) => {
+                      setEditingGroupData(group);
+                      setActiveTab('input');
+                    }}
+                    onDuplicateGroup={handleDuplicateGroup}
+                    onDeleteRecipient={handleDeleteRecipient}
+                    onViewDetail={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingMPZIS(true);
+                    }}
+                  />
+                  <EPPDRiwayatTable 
+                    data={filteredData} 
+                    sectorName={displaySector}
+                    onEditGroup={(group) => {
+                      setEditingGroupData(group);
+                      setActiveTab('input');
+                    }}
+                    onDuplicateGroup={handleDuplicateGroup}
+                    onDeleteRecipient={handleDeleteRecipient}
+                    onViewDetail={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingEPPD(true);
+                    }}
+                  />
+                </div>
+              )}
               {shouldSplitMonthly && <h2 className="text-lg font-bold text-slate-800">Layanan Konter - {displaySector}</h2>}
               {activeTab === 'bnba-recap' ? (
                 <BNBARecapTable 
