@@ -7,6 +7,12 @@ import {
 import { SIAK_REGIONAL_DATA, SIAK_SECTORS, SIAK_AID_TYPES, SIAK_PROGRAM_NAMES, SIAK_COMPANIONS } from '../constants';
 import { cn } from '../lib/utils';
 import { AidDocument, Recipient } from '../types';
+import { 
+  getGoogleAccessToken, 
+  loginWithGoogle, 
+  uploadFileToGoogleDrive, 
+  downloadGoogleDriveFileAsBase64 
+} from '../firebase';
 
 interface RecipientFormProps {
   onSubmit: (data: any) => void | Promise<void>;
@@ -123,6 +129,42 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   
   const [isAddingToSub, setIsAddingToSub] = useState(false);
   const [isSavingAll, setIsSavingAll] = useState(false);
+
+  // Google Drive Integration States
+  const [saveToGDrive, setSaveToGDrive] = useState<boolean>(() => {
+    return localStorage.getItem('ppd_save_gdrive') !== 'false';
+  });
+  const [gdriveToken, setGdriveToken] = useState<string | null>(getGoogleAccessToken());
+  const [isConnectingGDrive, setIsConnectingGDrive] = useState<boolean>(false);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [gdriveBase64Data, setGdriveBase64Data] = useState<string | null>(null);
+
+  const handleConnectGDrive = async (): Promise<string | null> => {
+    setIsConnectingGDrive(true);
+    try {
+      await loginWithGoogle();
+      const token = getGoogleAccessToken();
+      setGdriveToken(token);
+      setSaveToGDrive(true);
+      localStorage.setItem('ppd_save_gdrive', 'true');
+      return token;
+    } catch (err: any) {
+      console.error("Gagal menghubungkan Google Drive:", err);
+      alert("Gagal menghubungkan Google Drive: " + (err.message || err));
+      return null;
+    } finally {
+      setIsConnectingGDrive(false);
+    }
+  };
+
+  const handleToggleGDrive = (val: boolean) => {
+    if (val && !getGoogleAccessToken()) {
+      handleConnectGDrive();
+    } else {
+      setSaveToGDrive(val);
+      localStorage.setItem('ppd_save_gdrive', val ? 'true' : 'false');
+    }
+  };
 
   // Local states for 15 slots document upload
   const [documentSlots, setDocumentSlots] = useState<DocumentSlot[]>(() => 
@@ -413,6 +455,27 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     }
   };
 
+  const handleOpenPreview = async (name: string, url: string) => {
+    if (url.startsWith('gdrive:')) {
+      const fileId = url.split(':')[1];
+      setPreviewDoc({ name, url });
+      setPreviewLoading(true);
+      setGdriveBase64Data(null);
+      try {
+        const base64 = await downloadGoogleDriveFileAsBase64(fileId);
+        setGdriveBase64Data(base64);
+      } catch (err: any) {
+        console.error("Gagal memuat pratinjau Drive:", err);
+      } finally {
+        setPreviewLoading(false);
+      }
+    } else {
+      setPreviewDoc({ name, url });
+      setGdriveBase64Data(null);
+      setPreviewLoading(false);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (activeSlotIndex === null) return;
     const file = e.target.files?.[0];
@@ -425,22 +488,48 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       type = 'excel';
     }
 
+    setIsSavingAll(true);
     try {
-      let base64Url = await convertFileToBase64(file);
+      let finalUrl = '';
       let displaySize = `${(file.size / 1024).toFixed(1)} KB`;
 
-      if (type === 'image') {
-        const { compressImage } = await import('../lib/utils');
-        base64Url = await compressImage(base64Url);
-        const compressedSizeInKB = (base64Url.length * 0.75) / 1024;
-        displaySize = `${compressedSizeInKB.toFixed(1)} KB (kompresi)`;
-      }
+      if (saveToGDrive) {
+        // Safe check for GDrive token
+        let token = getGoogleAccessToken();
+        if (!token) {
+          const confirmConnect = window.confirm(
+            'Google Drive aktif sebagai media utama penyimpanan berkas. Namun, Anda belum terhubung atau sesi sudah kadaluarsa.\n\nHubungkan ke Google Drive Anda sekarang untuk mengunggah secara otomatis?'
+          );
+          if (confirmConnect) {
+            token = await handleConnectGDrive();
+          }
+          if (!token) {
+            setIsSavingAll(false);
+            return;
+          }
+        }
 
-      // Check against Firestore single document limit (roughly 1MB)
-      const sizeInBytes = base64Url.length * 0.75;
-      if (sizeInBytes >= 1048500) {
-        alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan ukuran lebih kecil (maksimal 1MB).`);
-        return;
+        const gdriveRes = await uploadFileToGoogleDrive(file);
+        finalUrl = `gdrive:${gdriveRes.id}`;
+        displaySize = `${(file.size / (1024 * 1024)).toFixed(2)} MB (Drive)`;
+      } else {
+        let base64Url = await convertFileToBase64(file);
+
+        if (type === 'image') {
+          const { compressImage } = await import('../lib/utils');
+          base64Url = await compressImage(base64Url);
+          const compressedSizeInKB = (base64Url.length * 0.75) / 1024;
+          displaySize = `${compressedSizeInKB.toFixed(1)} KB (kompresi)`;
+        }
+
+        // Check against Firestore single document limit (roughly 1MB)
+        const sizeInBytes = base64Url.length * 0.75;
+        if (sizeInBytes >= 1048500) {
+          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan ukuran lebih kecil (maksimal 1MB) atau aktifkan penyimpanan Google Drive.`);
+          setIsSavingAll(false);
+          return;
+        }
+        finalUrl = base64Url;
       }
 
       const updatedSlots = [...documentSlots];
@@ -449,15 +538,16 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         file: {
           name: file.name,
           type,
-          url: base64Url,
+          url: finalUrl,
           size: displaySize,
         },
       };
       setDocumentSlots(updatedSlots);
-    } catch (err) {
-      console.error('Failed to read file:', err);
-      alert('Gagal membaca berkas.');
+    } catch (err: any) {
+      console.error('Failed to upload/read file:', err);
+      alert('Gagal mengunggah berkas: ' + (err.message || err));
     } finally {
+      setIsSavingAll(false);
       setActiveSlotIndex(null);
     }
   };
@@ -491,6 +581,86 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     }
   }, [registrationData.sector]);
 
+  // Validate duplicate NIK or Name in database & current batch
+  const checkDuplicate = (nik: string, name: string, subIndexToIgnore: number | null) => {
+    const cleanNik = nik.trim();
+    const cleanName = name.trim().toLowerCase();
+
+    // 1. Check in existingRecipients (database)
+    if (existingRecipients && existingRecipients.length > 0) {
+      const currentEditingId = subIndexToIgnore !== null ? subRecipients[subIndexToIgnore]?.id : null;
+
+      // First check NIK (strictly forbidden if duplicate of another record)
+      const matchedNikDb = existingRecipients.find(r => {
+        if (currentEditingId && r.id === currentEditingId) return false;
+        const isCurrentlyBeingEditedInBatch = subRecipients.some(subR => subR.id === r.id);
+        if (isCurrentlyBeingEditedInBatch) return false;
+        return r.nik && cleanNik && r.nik.trim() === cleanNik;
+      });
+
+      if (matchedNikDb) {
+        return {
+          isDuplicate: true,
+          type: 'NIK',
+          strict: true,
+          message: `Gagal: NIK (${cleanNik}) sudah terdaftar di database atas nama "${matchedNikDb.name}" pada program "${matchedNikDb.programName || '-'}"!`
+        };
+      }
+
+      // Next check Name (warning with confirmation allowed)
+      const matchedNameDb = existingRecipients.find(r => {
+        if (currentEditingId && r.id === currentEditingId) return false;
+        const isCurrentlyBeingEditedInBatch = subRecipients.some(subR => subR.id === r.id);
+        if (isCurrentlyBeingEditedInBatch) return false;
+        return r.name && cleanName && r.name.trim().toLowerCase() === cleanName;
+      });
+
+      if (matchedNameDb) {
+        return {
+          isDuplicate: true,
+          type: 'NAME',
+          strict: false,
+          message: `Peringatan: Penerima dengan Nama "${name.trim()}" sudah ada di database (NIK: ${matchedNameDb.nik}) pada program "${matchedNameDb.programName || '-'}".\n\nApakah Anda yakin ingin tetap mendaftarkan orang ini?`
+        };
+      }
+    }
+
+    // 2. Check in current sub-table batch (subRecipients)
+    // First check NIK (strictly forbidden)
+    const matchedNikBatchIdx = subRecipients.findIndex((r, idx) => {
+      if (subIndexToIgnore !== null && idx === subIndexToIgnore) return false;
+      return r.nik && cleanNik && r.nik.trim() === cleanNik;
+    });
+
+    if (matchedNikBatchIdx !== -1) {
+      const matchedR = subRecipients[matchedNikBatchIdx];
+      return {
+        isDuplicate: true,
+        type: 'NIK',
+        strict: true,
+        message: `Gagal: NIK (${cleanNik}) sudah ada di sub-tabel pendaftaran rombongan ini atas nama "${matchedR.name}"!`
+      };
+    }
+
+    // Next check Name (warning with confirmation allowed)
+    const matchedNameBatchIdx = subRecipients.findIndex((r, idx) => {
+      if (subIndexToIgnore !== null && idx === subIndexToIgnore) return false;
+      return r.name && cleanName && r.name.trim().toLowerCase() === cleanName;
+    });
+
+    if (matchedNameBatchIdx !== -1) {
+      const matchedR = subRecipients[matchedNameBatchIdx];
+      return {
+        isDuplicate: true,
+        type: 'NAME',
+        strict: false,
+        message: `Peringatan: Nama "${name.trim()}" sudah ada di sub-tabel rombongan ini (NIK: ${matchedR.nik}).\n\nApakah Anda yakin ingin tetap mendaftarkannya?`
+      };
+    }
+
+    return { isDuplicate: false, strict: false, message: '', type: '' };
+  };
+
   // Handle addition of a recipient into the sub-table
   const handleAddRecipientToSubTable = async () => {
     if (!recipientInput.name.trim()) {
@@ -512,6 +682,20 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
     if (!recipientInput.district) {
       alert('Kecamatan domisili wajib dipilih.');
       return;
+    }
+
+    // Check for duplicate NIK or Name
+    const dupCheck = checkDuplicate(recipientInput.nik, recipientInput.name, editingIndex);
+    if (dupCheck.isDuplicate) {
+      if (dupCheck.strict) {
+        alert(dupCheck.message);
+        return;
+      } else {
+        const confirmResult = window.confirm(dupCheck.message);
+        if (!confirmResult) {
+          return;
+        }
+      }
     }
 
     setIsAddingToSub(true);
@@ -637,6 +821,20 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       if (recipientInput.nik.length !== 16 || recipientInput.kk.length !== 16) {
         alert('NIK dan No KK harus tepat 16 digit.');
         return;
+      }
+
+      // Check for duplicate NIK or Name for the current draft recipient
+      const dupCheck = checkDuplicate(recipientInput.nik, recipientInput.name, editingIndex);
+      if (dupCheck.isDuplicate) {
+        if (dupCheck.strict) {
+          alert(dupCheck.message);
+          return;
+        } else {
+          const confirmResult = window.confirm(dupCheck.message);
+          if (!confirmResult) {
+            return;
+          }
+        }
       }
 
       const draftDocs: AidDocument[] = documentSlots
@@ -1393,17 +1591,62 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             {/* UNGGAH BERKAS PERSYARATAN BLOK (15 SLOT) */}
             <hr className="border-slate-100" />
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                  <Upload className="w-4 h-4 text-indigo-500 animate-bounce" /> Unggah Berkas Persyaratan (15 Slot)
-                </h4>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-black uppercase tracking-wider font-mono">
-                  Maksimal 15 Berkas Individu
-                </span>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                      <Upload className="w-4 h-4 text-indigo-500 animate-bounce" /> Unggah Berkas Persyaratan (15 Slot)
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                    Unggah pindaian berkas pendukung. Batas Firestore standar adalah <strong className="text-rose-600">1MB</strong>. Aktifkan integrasi Google Drive untuk mengunggah berkas ukuran besar secara aman tanpa limit batas.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 border border-slate-200/80 bg-white px-3 py-1.5 rounded-xl text-xs font-semibold">
+                    <span className="text-slate-600 font-bold">Simpan ke Google Drive:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleGDrive(!saveToGDrive)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        saveToGDrive ? "bg-indigo-600" : "bg-slate-200"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                          saveToGDrive ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {saveToGDrive && (
+                    gdriveToken ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Drive Terhubung
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleConnectGDrive}
+                        disabled={isConnectingGDrive}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isConnectingGDrive ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>Hubungkan Drive</span>
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Sediakan pindaian (scan) berkas pendukung penerima. Klik tombol unggah pada masing-masing slot yang sesuai.
-              </p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {documentSlots.map((slot, idx) => (
@@ -1471,7 +1714,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                           <div className="flex items-center gap-1 pt-1.5 border-t border-slate-200/50">
                             <button
                               type="button"
-                              onClick={() => setPreviewDoc({ name: slot.label, url: slot.file!.url })}
+                              onClick={() => handleOpenPreview(slot.label, slot.file!.url)}
                               className="flex-1 py-1 text-[9px] text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 font-bold border border-indigo-100 rounded-lg transition-colors flex items-center justify-center gap-0.5 cursor-pointer"
                             >
                               <Eye className="w-2.5 h-2.5" />
@@ -1754,8 +1997,95 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               </button>
             </div>
             {/* Modal Body */}
-            <div className="p-6 bg-slate-100 flex items-center justify-center min-h-[300px]">
-              {previewDoc.url.startsWith('data:image') ? (
+            <div className="p-6 bg-slate-100 flex items-center justify-center min-h-[300px] w-full">
+              {previewDoc.url.startsWith('gdrive:') ? (
+                previewLoading ? (
+                  <div className="text-center p-8 space-y-3 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md w-full">
+                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
+                    <p className="font-bold text-slate-800 text-xs">Mengunduh pindaian dari Google Drive...</p>
+                    <p className="text-[10px] text-slate-400">Proses pengambilan data biner secara aman.</p>
+                  </div>
+                ) : gdriveBase64Data ? (
+                  gdriveBase64Data.startsWith('data:image') ? (
+                    <div className="flex flex-col items-center gap-4 w-full">
+                      <img 
+                        src={gdriveBase64Data} 
+                        referrerPolicy="no-referrer" 
+                        className="max-h-[60vh] object-contain rounded-lg shadow-sm border border-slate-200 bg-white" 
+                        alt={previewDoc.name} 
+                      />
+                      <a
+                        href={`https://drive.google.com/file/d/${previewDoc.url.split(':')[1]}/view?usp=drivesdk`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
+                      >
+                        <Eye className="w-4 h-4" /> Buka di Google Drive (Tab Baru)
+                      </a>
+                    </div>
+                  ) : gdriveBase64Data.startsWith('data:application/pdf') ? (
+                    <div className="flex flex-col items-center gap-4 w-full">
+                      <iframe 
+                        src={gdriveBase64Data} 
+                        title={previewDoc.name}
+                        className="w-full h-[60vh] rounded-lg shadow-sm border border-slate-200 bg-white" 
+                      />
+                      <a
+                        href={`https://drive.google.com/file/d/${previewDoc.url.split(':')[1]}/view?usp=drivesdk`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
+                      >
+                        <Eye className="w-4 h-4" /> Buka di Google Drive (Tab Baru)
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center p-8 space-y-4 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md w-full">
+                      <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full w-14 h-14 mx-auto flex items-center justify-center">
+                        <FileText className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">{previewDoc.name}</p>
+                        <p className="text-xs text-slate-400 mt-1">Berkas format non-media siap disimpan.</p>
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        <a 
+                          href={gdriveBase64Data} 
+                          download={previewDoc.name}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                        >
+                          <Upload className="w-3.5 h-3.5 rotate-180" />
+                          Unduh Berkas
+                        </a>
+                        <a
+                          href={`https://drive.google.com/file/d/${previewDoc.url.split(':')[1]}/view?usp=drivesdk`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> Buka di Drive
+                        </a>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-center p-8 space-y-4 bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md w-full">
+                    <div className="p-3 bg-rose-50 text-rose-600 rounded-full w-14 h-14 mx-auto flex items-center justify-center">
+                      <X className="w-8 h-8" />
+                    </div>
+                    <p className="font-bold text-slate-800 text-xs">Gagal mengunduh berkas pratinjau</p>
+                    <p className="text-[10px] text-slate-400">Pastikan akun Google Anda terhubung dan memiliki izin.</p>
+                    <a
+                      href={`https://drive.google.com/file/d/${previewDoc.url.split(':')[1]}/view?usp=drivesdk`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors justify-center w-full"
+                    >
+                      <Eye className="w-4 h-4" /> Buka Langsung di Google Drive (Tab Baru)
+                    </a>
+                  </div>
+                )
+              ) : previewDoc.url.startsWith('data:image') ? (
                 <img 
                   src={previewDoc.url} 
                   referrerPolicy="no-referrer" 

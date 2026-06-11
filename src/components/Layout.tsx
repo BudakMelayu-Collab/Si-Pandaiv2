@@ -31,12 +31,14 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
   settings?: AppSettings | null;
+  allowedMenus?: string[] | null;
+  isAdmin?: boolean;
 }
 
-export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, onLogout, settings, allowedMenus, isAdmin }: SidebarProps) {
   const [isCompanionOpen, setIsCompanionOpen] = useState(false);
 
-  const menuItems = [
+  const allMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'input', label: 'Input Data', icon: UserPlus },
     { id: 'recipients', label: 'Konter Layanan', icon: Users },
@@ -51,7 +53,24 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
     { id: 'assessment', label: 'Asessment', icon: ClipboardCheck },
     { id: 'e-ppd', label: 'Rekap Pencairan', icon: FileText },
     { id: 'gemini-ai', label: 'Asisten AI Gemini', icon: BrainCircuit },
+    { id: 'user-management', label: 'Manajemen User', icon: ClipboardList }
   ];
+
+  const menuItems = allMenuItems.filter(item => {
+    // If the item itself is not explicitly listed in allowedMenus, hide it
+    if (allowedMenus) {
+      return allowedMenus.includes(item.id);
+    }
+    // Fallback: If no custom configuration exists, show everything except user management to standard non-admins
+    if (item.id === 'user-management') {
+      return isAdmin;
+    }
+    return true;
+  });
+
+  const showSettings = allowedMenus 
+    ? allowedMenus.includes('settings') 
+    : isAdmin;
 
   return (
     <div className="w-64 bg-slate-900 text-white h-screen fixed left-0 top-0 flex flex-col p-4 overflow-y-auto hidden-scrollbar print:hidden">
@@ -127,18 +146,20 @@ export function Sidebar({ activeTab, setActiveTab, onLogout, settings }: Sidebar
       </nav>
 
       <div className="pt-4 mt-4 border-t border-slate-800">
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-            activeTab === 'settings' 
-              ? "bg-indigo-600 text-white" 
-              : "text-slate-400 hover:bg-slate-800 hover:text-white"
-          )}
-        >
-          <Settings className="w-5 h-5" />
-          Pengaturan
-        </button>
+        {showSettings && (
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
+              activeTab === 'settings' 
+                ? "bg-indigo-600 text-white" 
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+            Pengaturan
+          </button>
+        )}
         <button 
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-900/30 transition-colors text-sm font-medium mt-2"

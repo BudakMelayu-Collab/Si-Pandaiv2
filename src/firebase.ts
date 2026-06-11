@@ -30,10 +30,11 @@ import {
   Timestamp,
   getDoc,
   DocumentReference,
-  DocumentSnapshot
+  DocumentSnapshot,
+  limit
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { Recipient, AidStatus, PPDRecord, MonthlyPayment, AppSettings, Announcement, Assessment } from './types';
+import { Recipient, AidStatus, PPDRecord, MonthlyPayment, AppSettings, Announcement, Assessment, UserConfig, SystemLog } from './types';
 import { evaluateRecipientStatus } from './lib/utils';
 
 // Priority: JSON Config > Env Vars (to allow user overrides in the UI)
@@ -68,7 +69,7 @@ console.log('Using Firestore Database Instance:', dbId);
 
 // Initialize Firestore with long polling to ensure reliability in proxy/iframe/containers
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
 }, dbId === '(default)' ? undefined : dbId);
 
 export const auth = getAuth(app);
@@ -79,6 +80,212 @@ setPersistence(auth, indexedDBLocalPersistence).catch(err => {
 });
 
 const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+
+let cachedGoogleAccessToken: string | null = null;
+
+// Listen for auth state changes to clear token on logout
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    cachedGoogleAccessToken = null;
+  }
+});
+
+export const getGoogleAccessToken = () => cachedGoogleAccessToken;
+export const setGoogleAccessToken = (token: string | null) => {
+  cachedGoogleAccessToken = token;
+};
+
+const getFileExtensionFromBase64 = (base64DataUrl: string): string => {
+  if (base64DataUrl.includes('data:image/png')) return '.png';
+  if (base64DataUrl.includes('data:image/jpeg') || base64DataUrl.includes('data:image/jpg')) return '.jpg';
+  if (base64DataUrl.includes('data:application/pdf')) return '.pdf';
+  return '.pdf'; // Default
+};
+
+export const uploadBase64ToGoogleDrive = async (
+  base64DataUrl: string, 
+  filename: string
+): Promise<{ id: string; webViewLink: string }> => {
+  const token = getGoogleAccessToken();
+  if (!token) {
+    throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
+  }
+
+  // Parse mime type and base64 helper
+  const parts = base64DataUrl.split(',');
+  const mimeTypeMatch = parts[0].match(/:(.*?);/);
+  const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'application/pdf';
+  const base64Content = parts[1] || parts[0];
+
+  const metadata = {
+    name: filename,
+    mimeType: mimeType,
+  };
+
+  const boundary = 'foo_bar_baz_multipart';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+
+  const multipartRequestBody =
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    'Content-Type: ' + mimeType + '\r\n' +
+    'Content-Transfer-Encoding: base64\r\n\r\n' +
+    base64Content +
+    closeDelimiter;
+
+  const response = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+      },
+      body: multipartRequestBody,
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gagal mengunggah ke Google Drive: ${response.statusText}. Detail: ${errorText}`);
+  }
+
+  const result = await response.json();
+  return { id: result.id, webViewLink: `https://drive.google.com/file/d/${result.id}/view?usp=drivesdk` };
+};
+
+export const syncFileToGoogleDriveIfConnected = async (
+  base64: string,
+  docTypeLabel: string,
+  recipientName: string
+): Promise<string> => {
+  const token = getGoogleAccessToken();
+  if (token) {
+    try {
+      const ext = getFileExtensionFromBase64(base64);
+      const cleanLabel = docTypeLabel.replace(/\s+/g, '_');
+      const cleanName = recipientName.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `${cleanName}_${cleanLabel}${ext}`;
+      
+      console.log(`Auto uploading ${filename} to Google Drive...`);
+      const gdriveRes = await uploadBase64ToGoogleDrive(base64, filename);
+      return `gdrive:${gdriveRes.id}`;
+    } catch (err) {
+      console.error(`Gagal mengunggah otomatis ke Google Drive:`, err);
+    }
+  }
+  return base64; // Fallback to base64
+};
+
+export const ensureGoogleDriveConnected = async (): Promise<boolean> => {
+  let token = getGoogleAccessToken();
+  if (!token) {
+    const confirmOAuth = window.confirm(
+      "Google Drive adalah media penyimpanan utama untuk berkas administratif.\n\nSesi Google Drive Anda belum terhubung atau kadaluarsa. Hubungkan akun Google Anda sekarang?"
+    );
+    if (confirmOAuth) {
+      try {
+        await loginWithGoogle();
+        token = getGoogleAccessToken();
+      } catch (e: any) {
+        console.error("Gagal menghubungkan Google Drive:", e);
+        alert("Gagal menghubungkan Google Drive: " + (e.message || e));
+      }
+    }
+  }
+  return !!token;
+};
+
+export const uploadFileToGoogleDrive = async (file: File): Promise<{ id: string; webViewLink: string }> => {
+  const token = getGoogleAccessToken();
+  if (!token) {
+    throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
+  }
+
+  // Create boundary
+  const boundary = 'foo_bar_baz';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+
+  const metadata = {
+    name: file.name,
+    mimeType: file.type || 'application/octet-stream',
+  };
+
+  // Convert file content to base64 to build the multipart message body
+  const base64Content = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Get only the base64 part
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const multipartRequestBody =
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    'Content-Type: ' + (file.type || 'application/octet-stream') + '\r\n' +
+    'Content-Transfer-Encoding: base64\r\n\r\n' +
+    base64Content +
+    closeDelimiter;
+
+  const response = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+      },
+      body: multipartRequestBody,
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gagal mengunggah ke Google Drive: ${response.statusText}. Detail: ${errorText}`);
+  }
+
+  const result = await response.json();
+  return { id: result.id, webViewLink: `https://drive.google.com/file/d/${result.id}/view?usp=drivesdk` };
+};
+
+export const downloadGoogleDriveFileAsBase64 = async (fileId: string): Promise<string | null> => {
+  try {
+    const token = getGoogleAccessToken();
+    if (!token) {
+      throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan akun Google Anda.");
+    }
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Gagal mengunduh file dari Drive: ${res.statusText}`);
+    }
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Error downloading file from Google Drive:", err);
+    throw err;
+  }
+};
+
 
 export enum OperationType {
   CREATE = 'create',
@@ -208,6 +415,8 @@ export const loginWithEmail = async (email: string, pass: string) => {
 export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    cachedGoogleAccessToken = credential?.accessToken || null;
     return result.user;
   } catch (error: any) {
     const handled = handleAuthError(error);
@@ -356,6 +565,12 @@ export const saveRecipient = async (recipientData: any) => {
       }
     }
 
+    try {
+      await logUserAction('CREATE', 'Penerima Manfaat', `Mendaftarkan penerima manfaat baru: ${recipientData.name} (${recipientData.nik})`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
+
     return recipientId;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
@@ -370,6 +585,13 @@ export const savePPDRecord = async (record: Omit<PPDRecord, 'id' | 'createdAt'> 
       createdAt: serverTimestamp(),
     });
     const docRef = await addDoc(collection(db, path), payload);
+    
+    try {
+      await logUserAction('GENERATION', 'Kuitansi / PPD', `Membuat rekap pencairan PPD No: ${record.no} senilai Rp ${record.amount.toLocaleString('id-ID')}`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
+    
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
@@ -379,9 +601,24 @@ export const savePPDRecord = async (record: Omit<PPDRecord, 'id' | 'createdAt'> 
 export const deletePPDRecordServer = async (id: string) => {
   const path = `ppd_records/${id}`;
   try {
-    // Note: deleteDoc needs a DocumentReference
+    const ref = doc(db, 'ppd_records', id);
+    const snap = await getDoc(ref);
+    let ppdNo = id;
+    let ppdAmount = 0;
+    if (snap.exists()) {
+      const data = snap.data();
+      ppdNo = data.no || id;
+      ppdAmount = data.amount || 0;
+    }
+
     const { deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(doc(db, 'ppd_records', id));
+    await deleteDoc(ref);
+
+    try {
+      await logUserAction('DELETE', 'Kuitansi / PPD', `Menghapus rekap pencairan PPD No: ${ppdNo} senilai Rp ${ppdAmount.toLocaleString('id-ID')}`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -390,16 +627,37 @@ export const deletePPDRecordServer = async (id: string) => {
 export const deleteRecipientServer = async (id: string) => {
   const path = `recipients/${id}`;
   try {
+    const ref = doc(db, 'recipients', id);
+    const snap = await getDoc(ref);
+    let recipientName = '(Tidak Diketahui)';
+    let recipientNik = '';
+    if (snap.exists()) {
+      const data = snap.data();
+      recipientName = data.name || '(Tidak Diketahui)';
+      recipientNik = data.nik || '';
+    }
+
     const { deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(doc(db, 'recipients', id));
+    await deleteDoc(ref);
+
+    try {
+      await logUserAction('DELETE', 'Penerima Manfaat', `Menghapus data penerima manfaat: ${recipientName} ${recipientNik ? `NIK (${recipientNik})` : ''}`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
 
 export const getRecipientFile = async (recipientId: string, fileType: string) => {
-  const path = `recipients/${recipientId}/scans/${fileType}`;
   try {
+    if (fileType && fileType.startsWith('gdrive:')) {
+      const fileId = fileType.split(':')[1];
+      return await downloadGoogleDriveFileAsBase64(fileId);
+    }
+
+    const path = `recipients/${recipientId}/scans/${fileType}`;
     const ref = doc(db, 'recipients', recipientId, 'scans', fileType);
     const snap = await safeGetDoc(ref);
     if (snap.exists()) {
@@ -407,7 +665,7 @@ export const getRecipientFile = async (recipientId: string, fileType: string) =>
     }
     return null;
   } catch (error) {
-    console.warn(`Error loading recipient file for ${path}. Returning null.`, error);
+    console.warn(`Error loading recipient file for. Returning null.`, error);
     return null;
   }
 };
@@ -456,13 +714,14 @@ export const updateRecipientReceiptPdf = async (id: string, pdfBase64: string | 
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Tanda Terima', recipient.name || id) : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
     
     // Save heavy file/delete from subcollection
     const scanRef = doc(db, 'recipients', id, 'scans', 'receipt');
-    if (pdfBase64) {
+    if (finalBase64) {
       await setDoc(scanRef, {
-        base64: pdfBase64,
+        base64: finalBase64,
         updatedAt: serverTimestamp()
       });
     } else {
@@ -494,13 +753,14 @@ export const updateRecipientPdf = async (id: string, pdfBase64: string | null) =
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'E-PPD', recipient.name || id) : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
     const scanRef = doc(db, 'recipients', id, 'scans', 'eppd');
-    if (pdfBase64) {
+    if (finalBase64) {
       await setDoc(scanRef, {
-        base64: pdfBase64,
+        base64: finalBase64,
         updatedAt: serverTimestamp()
       });
     } else {
@@ -532,13 +792,14 @@ export const updateInternalMemoPdf = async (id: string, pdfBase64: string | null
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Internal Memo', recipient.name || id) : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
     const scanRef = doc(db, 'recipients', id, 'scans', 'memo');
-    if (pdfBase64) {
+    if (finalBase64) {
       await setDoc(scanRef, {
-        base64: pdfBase64,
+        base64: finalBase64,
         updatedAt: serverTimestamp()
       });
     } else {
@@ -566,13 +827,14 @@ export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | nu
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'MPZIS', recipient.name || id) : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
     const scanRef = doc(db, 'recipients', id, 'scans', 'mpzis');
-    if (pdfBase64) {
+    if (finalBase64) {
       await setDoc(scanRef, {
-        base64: pdfBase64,
+        base64: finalBase64,
         updatedAt: serverTimestamp()
       });
     } else {
@@ -604,13 +866,14 @@ export const updateRecipientSurveyPdf = async (id: string, pdfBase64: string | n
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const hasFile = !!pdfBase64 && pdfBase64.length > 100;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Lembar Verifikasi', recipient.name || id) : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
     const scanRef = doc(db, 'recipients', id, 'scans', 'survey');
-    if (pdfBase64) {
+    if (finalBase64) {
       await setDoc(scanRef, {
-        base64: pdfBase64,
+        base64: finalBase64,
         updatedAt: serverTimestamp()
       });
     } else {
@@ -638,10 +901,22 @@ export const updateRecipientStatus = async (id: string, status: AidStatus) => {
   const path = `recipients/${id}`;
   try {
     const ref = doc(db, 'recipients', id);
+    const snap = await getDoc(ref);
+    let name = id;
+    if (snap.exists()) {
+      name = snap.data().name || id;
+    }
+    
     await updateDoc(ref, {
       status,
       updatedAt: serverTimestamp()
     });
+
+    try {
+      await logUserAction('UPDATE', 'Status Penerima', `Mengubah status bantuan ${name} menjadi "${status}"`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -694,6 +969,12 @@ export const updateRecipientData = async (id: string, data: Partial<Recipient>) 
           updatedAt: serverTimestamp()
         });
       }
+    }
+
+    try {
+      await logUserAction('UPDATE', 'Penerima Manfaat', `Memperbarui data penerima manfaat: ${data.name || id}`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
     }
     
   } catch (error) {
@@ -1090,4 +1371,183 @@ export const deleteAssessment = async (id: string) => {
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
+};
+
+// User Configurations
+export const streamUserConfigs = (callback: (data: UserConfig[]) => void) => {
+  const path = 'user_configs';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => {
+      const data = d.data();
+      return { 
+        id: d.id, 
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+      } as UserConfig;
+    });
+    callback(data);
+  }, (error) => {
+    if (error.message.includes('requires an index')) {
+      const qNoOrder = query(collection(db, path));
+      return onSnapshot(qNoOrder, (snap) => {
+        const data = snap.docs.map(d => ({ 
+          id: d.id, 
+          ...d.data(),
+          createdAt: d.data().createdAt instanceof Timestamp ? d.data().createdAt.toDate().toISOString() : d.data().createdAt,
+          updatedAt: d.data().updatedAt instanceof Timestamp ? d.data().updatedAt.toDate().toISOString() : d.data().updatedAt,
+        } as UserConfig));
+        callback(data);
+      });
+    }
+    handleFirestoreError(error, OperationType.LIST, path);
+  });
+};
+
+export const streamUserConfigByEmail = (email: string, callback: (data: UserConfig | null) => void) => {
+  const path = 'user_configs';
+  const q = query(collection(db, path), where('email', '==', email.toLowerCase().trim()));
+  
+  return onSnapshot(q, (snapshot) => {
+    if (!snapshot.empty) {
+      const d = snapshot.docs[0];
+      const data = d.data();
+      callback({
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Timestamp ? d.data().updatedAt.toDate().toISOString() : data.updatedAt,
+      } as UserConfig);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    handleFirestoreError(error, OperationType.GET, path);
+  });
+};
+
+export const saveUserConfig = async (email: string, config: Omit<UserConfig, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const path = 'user_configs';
+  try {
+    const q = query(collection(db, 'user_configs'), where('email', '==', email.toLowerCase().trim()));
+    const snapshot = await getDocs(q);
+    
+    let docRef;
+    if (!snapshot.empty) {
+      docRef = doc(db, 'user_configs', snapshot.docs[0].id);
+      await updateDoc(docRef, sanitizeData({
+        ...config,
+        email: email.toLowerCase().trim(),
+        updatedAt: serverTimestamp(),
+      }));
+
+      try {
+        await logUserAction('UPDATE', 'Manajemen User', `Memperbarui hak akses user ${email} (${config.role})`);
+      } catch (logErr) {
+        console.warn('Logging user action failed', logErr);
+      }
+    } else {
+      docRef = doc(collection(db, 'user_configs'));
+      await setDoc(docRef, sanitizeData({
+        ...config,
+        email: email.toLowerCase().trim(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }));
+
+      try {
+        await logUserAction('CREATE', 'Manajemen User', `Menambahkan hak akses baru untuk user ${email} (${config.role})`);
+      } catch (logErr) {
+        console.warn('Logging user action failed', logErr);
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+export const deleteUserConfig = async (id: string) => {
+  const path = `user_configs/${id}`;
+  try {
+    const ref = doc(db, 'user_configs', id);
+    const snap = await getDoc(ref);
+    let targetEmail = id;
+    if (snap.exists()) {
+      targetEmail = snap.data().email || id;
+    }
+
+    await deleteDoc(ref);
+
+    try {
+      await logUserAction('DELETE', 'Manajemen User', `Menghapus hak akses user: ${targetEmail}`);
+    } catch (logErr) {
+      console.warn('Logging user action failed', logErr);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
+// System Audit Logs
+export const addSystemLog = async (logPayload: Omit<SystemLog, 'id' | 'createdAt'>) => {
+  const path = 'system_logs';
+  try {
+    const docRef = doc(collection(db, 'system_logs'));
+    const payload = sanitizeData({
+      ...logPayload,
+      createdAt: serverTimestamp()
+    });
+    await setDoc(docRef, payload);
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+};
+
+export const logUserAction = async (
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'GENERATION', 
+  target: string, 
+  details: string
+) => {
+  const email = auth.currentUser?.email || 'system@si-pandai.or.id';
+  const name = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Staff';
+  return addSystemLog({
+    email,
+    name,
+    action,
+    target,
+    details
+  });
+};
+
+export const streamSystemLogs = (callback: (data: SystemLog[]) => void) => {
+  const path = 'system_logs';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'), limit(150));
+  
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt
+      } as SystemLog;
+    });
+    callback(data);
+  }, (error) => {
+    if (error.message.includes('requires an index')) {
+      const qNoOrder = query(collection(db, path), limit(150));
+      return onSnapshot(qNoOrder, (snap) => {
+        const data = snap.docs.map(d => ({
+          id: d.id,
+          ...d.data(),
+          createdAt: d.data().createdAt instanceof Timestamp ? d.data().createdAt.toDate().toISOString() : d.data().createdAt
+        } as SystemLog));
+        callback(data);
+      });
+    }
+    handleFirestoreError(error, OperationType.LIST, path);
+  });
 };

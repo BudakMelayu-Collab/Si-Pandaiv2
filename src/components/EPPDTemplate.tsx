@@ -739,6 +739,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
     setIsUploading(true);
     try {
+      const { ensureGoogleDriveConnected, getGoogleAccessToken } = await import('../firebase');
+      await ensureGoogleDriveConnected();
+
       const isPdf = file.type === 'application/pdf';
 
       if (!isPdf) {
@@ -751,8 +754,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       reader.onloadend = async () => {
         const base64 = reader.result as string;
 
-        if (!isBase64SizeValid(base64)) {
-          alert('File scan terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB setelah kompresi).');
+        if (!getGoogleAccessToken() && !isBase64SizeValid(base64)) {
+          alert('File scan terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB setelah kompresi) atau hubungkan Google Drive Anda.');
           setIsUploading(false);
           return;
         }

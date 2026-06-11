@@ -229,3 +229,23 @@ export interface RegionData {
     }[];
   }[];
 }
+
+export interface UserConfig {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  allowedMenus: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SystemLog {
+  id: string;
+  email: string;
+  name: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'GENERATION';
+  target: string;
+  details: string;
+  createdAt: string;
+}

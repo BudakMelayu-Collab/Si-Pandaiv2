@@ -178,9 +178,47 @@
         "logoSize": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "UserConfig": {
+      "title": "User Configurations",
+      "description": "Menu visibility and role configuration for users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "allowedMenus": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "allowedMenus"]
+    },
+    "SystemLog": {
+      "title": "System Logs",
+      "description": "Log records of crucial user actions for audit trail and transparency",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "action", "target", "details", "createdAt"]
     }
   },
   "firestore": {
+    "/system_logs/{logId}": {
+      "schema": "SystemLog",
+      "description": "Collection of user audit logs and action logs"
+    },
+    "/user_configs/{configId}": {
+      "schema": "UserConfig",
+      "description": "Collection of user role and menu configurations"
+    },
     "/monthly_payments/{paymentId}": {
       "schema": "MonthlyPayment",
       "description": "Collection of monthly payment tracking for all sectors"

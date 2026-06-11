@@ -51,6 +51,16 @@ service cloud.firestore {
         && data.updatedAt == request.time;
     }
 
+    function isValidSystemLog(data) {
+      return data.keys().hasAll(['email', 'name', 'action', 'target', 'details', 'createdAt'])
+        && data.email is string
+        && data.name is string
+        && data.action is string
+        && data.target is string
+        && data.details is string
+        && data.createdAt == request.time;
+    }
+
     // RECIPIENTS
     match /recipients/{recipientId} {
       // Pillar 8: Secure List Queries. Evaluate resource.data.
@@ -144,6 +154,23 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isVerified();
       allow write: if isAdmin();
+    }
+
+    // USER CONFIGS
+    match /user_configs/{configId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(configId);
+      allow create: if isAdmin() && isValidId(configId) && incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(configId) && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // SYSTEM AUDIT LOGS
+    match /system_logs/{logId} {
+      allow list: if isVerified();
+      allow get: if isVerified() && isValidId(logId);
+      allow create: if isVerified() && isValidId(logId) && isValidSystemLog(incoming());
+      allow update, delete: if false; // Audit logs must be completely immutable to prevent tampering
     }
 
     // ADMINS (Only Admins can manage other admins)

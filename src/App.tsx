@@ -27,7 +27,8 @@ import Settings from './components/Settings';
 import AssessmentComponent from './components/Assessment';
 import GeminiAssistant from './components/GeminiAssistant';
 import EditRecipientModal from './components/EditRecipientModal';
-import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement } from './types';
+import UserManagement from './components/UserManagement';
+import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement, UserConfig } from './types';
 import { SIAK_COMPANIONS } from './constants';
 import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,7 +43,8 @@ import {
   testConnection, 
   logout,
   streamAppSettings,
-  streamAnnouncements
+  streamAnnouncements,
+  streamUserConfigByEmail
 } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { cn } from './lib/utils';
@@ -51,6 +53,10 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [myConfig, setMyConfig] = useState<UserConfig | null>(null);
+  
+  const isAdmin = user?.email === 'muhammad.nawa@gmail.com' || myConfig?.role === 'Super Admin';
+
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [ppdRecords, setPpdRecords] = useState<PPDRecord[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
@@ -215,12 +221,22 @@ export default function App() {
       const unsubscribeSettings = streamAppSettings(setAppSettings);
       const unsubscribeAnnouncements = streamAnnouncements(setAnnouncements);
       
+      let unsubscribeUserConfig = () => {};
+      if (user.email) {
+        unsubscribeUserConfig = streamUserConfigByEmail(user.email, (config) => {
+          setMyConfig(config);
+        });
+      }
+      
       return () => {
         unsubscribeRecipients();
         unsubscribePPD();
         unsubscribeSettings();
         unsubscribeAnnouncements();
+        unsubscribeUserConfig();
       };
+    } else {
+      setMyConfig(null);
     }
   }, [user]);
 
@@ -712,6 +728,13 @@ export default function App() {
         );
       case 'settings':
         return <Settings />;
+      case 'user-management':
+        return (
+          <UserManagement 
+            currentUserEmail={user?.email || null} 
+            onBackToDashboard={() => setActiveTab('dashboard')} 
+          />
+        );
       case 'assessment':
         return <AssessmentComponent recipients={recipients} />;
       case 'e-ppd':
@@ -796,6 +819,7 @@ export default function App() {
       case 'e-ppd': return 'Rekap Pencairan (E-PPD)';
       case 'profile': return 'Profil Pengguna';
       case 'settings': return 'Pengaturan Aplikasi';
+      case 'user-management': return 'Manajemen Hak Akses User';
       case 'assessment': return 'Asessment dan Prensentasi';
       case 'gemini-ai': return 'Asisten AI Gemini - Konsultasi & Analisis Data';
       default: return 'Antrean Layanan';
@@ -811,6 +835,8 @@ export default function App() {
         setActiveTab={setActiveTab} 
         onLogout={handleLogout}
         settings={appSettings}
+        allowedMenus={myConfig?.allowedMenus}
+        isAdmin={isAdmin}
       />
       
       <main className="flex-1 ml-64 min-h-screen print:ml-0 print:min-h-0">

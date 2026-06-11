@@ -53,6 +53,28 @@ export default function CompanionCatalog({ companionId, companionName, recipient
   const handleCreateRecipient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingRecipient(true);
+
+    const cleanNik = recipientForm.nik.trim();
+    const cleanName = recipientForm.name.trim().toLowerCase();
+
+    // 1. Check if NIK already exists in recipients array (General Database)
+    const matchedNikDb = recipients.find(r => r.nik && cleanNik && r.nik.trim() === cleanNik);
+    if (matchedNikDb) {
+      alert(`Gagal: NIK (${cleanNik}) sudah terdaftar di database atas nama "${matchedNikDb.name}" pada program "${matchedNikDb.programName || '-'}"!`);
+      setIsSubmittingRecipient(false);
+      return;
+    }
+
+    // 2. Check if Name already exists in recipients array (Warning with confirmation)
+    const matchedNameDb = recipients.find(r => r.name && cleanName && r.name.trim().toLowerCase() === cleanName);
+    if (matchedNameDb) {
+      const confirmResult = window.confirm(`Peringatan: Penerima dengan Nama "${recipientForm.name.trim()}" sudah ada di database (NIK: ${matchedNameDb.nik}) pada program "${matchedNameDb.programName || '-'}".\n\nApakah Anda yakin ingin tetap mendaftarkan orang ini?`);
+      if (!confirmResult) {
+        setIsSubmittingRecipient(false);
+        return;
+      }
+    }
+
     try {
       await saveRecipient({
         ...recipientForm,

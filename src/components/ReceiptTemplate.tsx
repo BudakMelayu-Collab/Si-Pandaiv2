@@ -370,10 +370,14 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
     setIsUploading(true);
     try {
+      const { ensureGoogleDriveConnected, getGoogleAccessToken } = await import('../firebase');
+      await ensureGoogleDriveConnected();
+
       const isPdf = file.type === 'application/pdf';
 
       if (!isPdf) {
         alert('Mohon upload file dalam format PDF.');
+        setIsUploading(false);
         return;
       }
 
@@ -381,9 +385,9 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       reader.onloadend = async () => {
         const base64 = reader.result as string;
 
-        // Validate size for Firestore (1MB limit)
-        if (!isBase64SizeValid(base64)) {
-          alert('File terlalu besar. Silakan gunakan file yang lebih kecil atau resolusi lebih rendah (Maksimal ~700KB setelah kompresi).');
+        // Validate size for Firestore if Google Drive is not connected (1MB limit)
+        if (!getGoogleAccessToken() && !isBase64SizeValid(base64)) {
+          alert('File terlalu besar. Silakan gunakan file yang lebih kecil atau resolusi lebih rendah (Maksimal ~700KB setelah kompresi) atau hubungkan Google Drive Anda.');
           setIsUploading(false);
           return;
         }

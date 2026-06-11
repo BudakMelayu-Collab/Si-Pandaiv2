@@ -1,6 +1,6 @@
 {
   "name": "Remix2: Si-PANDAI - Sistem Administrasi Bantuan Sosial 2",
-  "description": "Sistem administrasi bantuan sosial (Si-PANDAI) dengan fitur manajemen data mustahik, verifikasi lapangan terstruktur, dan cetak dokumen resmi yang sedang disesuaikan ke template baru.",
+  "description": "Sistem administrasi bantuan sosial (Si-PANDAI) dengan fitur manajemen data mustahik, verifikasi lapangan terstruktur, cetak dokumen resmi, konfigurasi hak akses menu ABAC, dan sistem log audit transparansi administrasi.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

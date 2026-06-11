@@ -3,6 +3,12 @@ import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User, Wand2
 import { Recipient, AidDocument } from '../types';
 import { cn } from '../lib/utils';
 import { SIAK_REGIONAL_DATA } from '../constants';
+import { 
+  getGoogleAccessToken, 
+  loginWithGoogle, 
+  uploadFileToGoogleDrive, 
+  downloadGoogleDriveFileAsBase64 
+} from '../firebase';
 
 interface DocumentSlot {
   label: string;
@@ -85,6 +91,40 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  // Google Drive Integration States during edit
+  const [saveToGDrive, setSaveToGDrive] = useState<boolean>(() => {
+    return localStorage.getItem('ppd_save_gdrive') !== 'false';
+  });
+  const [gdriveToken, setGdriveToken] = useState<string | null>(getGoogleAccessToken());
+  const [isConnectingGDrive, setIsConnectingGDrive] = useState<boolean>(false);
+
+  const handleConnectGDrive = async (): Promise<string | null> => {
+    setIsConnectingGDrive(true);
+    try {
+      await loginWithGoogle();
+      const token = getGoogleAccessToken();
+      setGdriveToken(token);
+      setSaveToGDrive(true);
+      localStorage.setItem('ppd_save_gdrive', 'true');
+      return token;
+    } catch (err: any) {
+      console.error("Gagal menghubungkan Google Drive:", err);
+      alert("Gagal menghubungkan Google Drive: " + (err.message || err));
+      return null;
+    } finally {
+      setIsConnectingGDrive(false);
+    }
+  };
+
+  const handleToggleGDrive = (val: boolean) => {
+    if (val && !getGoogleAccessToken()) {
+      handleConnectGDrive();
+    } else {
+      setSaveToGDrive(val);
+      localStorage.setItem('ppd_save_gdrive', val ? 'true' : 'false');
+    }
+  };
+
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -118,33 +158,66 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
 
     setIsCompressing(true);
     try {
-      let base64Url = '';
+      let finalUrl = '';
       let fileType: any = 'image';
+      let displaySize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
 
       if (file.type === 'application/pdf') {
-        base64Url = await convertFileToBase64(file);
         fileType = 'pdf';
       } else if (file.type.includes('excel') || file.type.includes('spreadsheetml')) {
-        base64Url = await convertFileToBase64(file);
         fileType = 'excel';
       } else {
-        const { compressImage } = await import('../lib/utils');
-        base64Url = await convertFileToBase64(file);
-        base64Url = await compressImage(base64Url);
         fileType = 'image';
+      }
+
+      if (saveToGDrive) {
+        let token = getGoogleAccessToken();
+        if (!token) {
+          const confirmConnect = window.confirm(
+            'Google Drive aktif sebagai media utama penyimpanan berkas. Namun, Anda belum terhubung atau sesi sudah kadaluarsa.\n\nHubungkan ke Google Drive Anda sekarang untuk mengunggah secara otomatis?'
+          );
+          if (confirmConnect) {
+            token = await handleConnectGDrive();
+          }
+          if (!token) {
+            setIsCompressing(false);
+            return;
+          }
+        }
+
+        const gdriveRes = await uploadFileToGoogleDrive(file);
+        finalUrl = `gdrive:${gdriveRes.id}`;
+        displaySize = displaySize + ' (Drive)';
+      } else {
+        let base64Url = await convertFileToBase64(file);
+
+        if (fileType === 'image') {
+          const { compressImage } = await import('../lib/utils');
+          base64Url = await compressImage(base64Url);
+        }
+
+        // Standard Firestore 1MB safety check (approximate base64 length)
+        const sizeInBytes = base64Url.length * 0.75;
+        if (sizeInBytes >= 1048500) {
+          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) untuk disimpan di Firestore. Silakan kecilkan ukuran berkas atau aktifkan integrasi Google Drive.`);
+          setIsCompressing(false);
+          return;
+        }
+
+        finalUrl = base64Url;
       }
 
       const updated = [...documentSlots];
       updated[activeSlotIndex].file = {
         name: file.name,
         type: fileType,
-        url: base64Url,
-        size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+        url: finalUrl,
+        size: displaySize
       };
       setDocumentSlots(updated);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Gagal memproses berkas');
+      alert('Gagal memproses berkas: ' + (error.message || error));
     } finally {
       setIsCompressing(false);
       setActiveSlotIndex(null);
@@ -529,15 +602,66 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
             </div>
 
             <div className="space-y-4 mt-4">
-              <div className="flex items-center justify-between border-b pb-2">
-                <h4 className="font-bold text-indigo-600 border-b-0 pb-0 text-sm flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> Edit Unggah Berkas Persyaratan (15 Slot)
-                </h4>
-                {isCompressing && (
-                  <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-1 flex items-center gap-1 rounded-full font-bold">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Memproses...
-                  </span>
-                )}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest flex items-center gap-1.5 animate-pulse">
+                      <Upload className="w-4 h-4 text-indigo-500 animate-pulse" /> Edit Unggah Berkas Persyaratan (15 Slot)
+                    </h4>
+                    {isCompressing && (
+                      <span className="text-[10px] bg-amber-50 text-amber-650 px-2 py-0.5 flex items-center gap-1 rounded-full font-bold">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Memproses...
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                    Format biner standar terbatas <strong className="text-rose-600">1MB</strong>. Aktifkan Google Drive untuk bypass limit.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 border border-slate-200 bg-white px-2.5 py-1 rounded-lg text-[11px] font-bold">
+                    <span className="text-slate-600">Simpan ke Google Drive:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleGDrive(!saveToGDrive)}
+                      className={cn(
+                        "relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        saveToGDrive ? "bg-indigo-600" : "bg-slate-200"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                          saveToGDrive ? "translate-x-3.5" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {saveToGDrive && (
+                    gdriveToken ? (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-150 text-emerald-700 rounded-lg text-[10px] font-black uppercase">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                        Drive Terhubung
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleConnectGDrive}
+                        disabled={isConnectingGDrive}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-601 hover:bg-indigo-751 text-white rounded-lg text-[10px] font-extrabold cursor-pointer transition-colors shadow-xs"
+                      >
+                        {isConnectingGDrive ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Upload className="w-3 h-3" />
+                        )}
+                        <span>Hubungkan Drive</span>
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {documentSlots.map((slot, idx) => (

@@ -388,47 +388,55 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
     const files = e.target.files;
     if (files) {
       setIsSaving(true);
-      const newFiles: { name: string; data: string }[] = [];
-      const fileList = Array.from(files) as File[];
-      let processedCount = 0;
+      try {
+        const { ensureGoogleDriveConnected, getGoogleAccessToken } = await import('../firebase');
+        await ensureGoogleDriveConnected();
 
-      for (const file of fileList) {
-        if (file.type !== 'application/pdf') {
-          alert(`File "${file.name}" bukan PDF. Harap unggah hanya file PDF.`);
-          processedCount++;
-          if (processedCount === fileList.length) setIsSaving(false);
-          continue;
-        }
+        const newFiles: { name: string; data: string }[] = [];
+        const fileList = Array.from(files) as File[];
+        let processedCount = 0;
 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64 = reader.result as string;
-
-          if (!isBase64SizeValid(base64)) {
-            alert(`File "${file.name}" terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB per file).`);
+        for (const file of fileList) {
+          if (file.type !== 'application/pdf') {
+            alert(`File "${file.name}" bukan PDF. Harap unggah hanya file PDF.`);
             processedCount++;
             if (processedCount === fileList.length) setIsSaving(false);
-            return;
+            continue;
           }
 
-          newFiles.push({
-            name: file.name,
-            data: base64
-          });
-          processedCount++;
-          
-          if (processedCount === fileList.length) {
-            const updated = [...mpzisFiles, ...newFiles];
-            setMpzisFiles(updated);
-            await handleSaveArchives(updated);
-            setIsSaving(false);
-            if (newFiles.length > 0) {
-              alert('Berhasil mengunggah scan MPZIS');
-              setActiveTab('scan'); // Switch to scan tab to show results
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64 = reader.result as string;
+
+            if (!getGoogleAccessToken() && !isBase64SizeValid(base64)) {
+              alert(`File "${file.name}" terlalu besar. Silakan gunakan resolusi lebih rendah atau file yang lebih kecil (Maksimal ~700KB per file) atau hubungkan Google Drive Anda.`);
+              processedCount++;
+              if (processedCount === fileList.length) setIsSaving(false);
+              return;
             }
-          }
-        };
-        reader.readAsDataURL(file);
+
+            newFiles.push({
+              name: file.name,
+              data: base64
+            });
+            processedCount++;
+            
+            if (processedCount === fileList.length) {
+              const updated = [...mpzisFiles, ...newFiles];
+              setMpzisFiles(updated);
+              await handleSaveArchives(updated);
+              setIsSaving(false);
+              if (newFiles.length > 0) {
+                alert('Berhasil mengunggah scan MPZIS');
+                setActiveTab('scan'); // Switch to scan tab to show results
+              }
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err) {
+        console.error("Failed GDrive check on MPZIS upload", err);
+        setIsSaving(false);
       }
     }
   };

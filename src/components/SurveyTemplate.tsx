@@ -200,38 +200,51 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
     }
   };
 
-  const handleScanUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach((file: File) => {
-        if (file.type !== 'application/pdf') {
-          alert('Hanya diperbolehkan mengupload file format PDF.');
-          return;
-        }
+      try {
+        const { ensureGoogleDriveConnected, getGoogleAccessToken, syncFileToGoogleDriveIfConnected } = await import('../firebase');
+        await ensureGoogleDriveConnected();
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const dataUrl = event.target?.result as string;
-          
-          // Check approximate size for PDF
-          const approxSize = dataUrl.length * 0.75;
-          if (approxSize > 950000) { 
-            alert('File PDF terlalu besar. Maksimal 950KB.');
-            return;
+        const fileList = Array.from(files) as File[];
+        for (const file of fileList) {
+          if (file.type !== 'application/pdf') {
+            alert('Hanya diperbolehkan mengupload file format PDF.');
+            continue;
           }
-          
-          setSurveyData(prev => {
-            const newScanUrls = [...(prev.scanUrls || []), dataUrl];
-            const totalSize = JSON.stringify({ ...prev, scanUrls: newScanUrls }).length * 0.75;
-            if (totalSize > 1000000) { 
-              alert('Total ukuran data survey melampaui batas Firestore (1MB). Kurangi jumlah berkas scan.');
-              return prev;
+
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            const dataUrl = event.target?.result as string;
+            
+            let finalUrl = dataUrl;
+            if (getGoogleAccessToken()) {
+              finalUrl = await syncFileToGoogleDriveIfConnected(dataUrl, 'Lembar Verifikasi', recipient.name || recipient.id);
+            } else {
+              // Check approximate size for PDF
+              const approxSize = dataUrl.length * 0.75;
+              if (approxSize > 950000) { 
+                alert('File PDF terlalu besar. Maksimal 950KB. Hubungkan Google Drive Anda.');
+                return;
+              }
             }
-            return { ...prev, scanUrls: newScanUrls };
-          });
-        };
-        reader.readAsDataURL(file);
-      });
+            
+            setSurveyData(prev => {
+              const newScanUrls = [...(prev.scanUrls || []), finalUrl];
+              const totalSize = JSON.stringify({ ...prev, scanUrls: newScanUrls }).length * 0.75;
+              if (!getGoogleAccessToken() && totalSize > 1000000) { 
+                alert('Total ukuran data survey melampaui batas Firestore (1MB). Kurangi jumlah berkas scan atau hubungkan Google Drive Anda.');
+                return prev;
+              }
+              return { ...prev, scanUrls: newScanUrls };
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err) {
+        console.error("GDrive check failed during survey list upload", err);
+      }
     }
   };
 
@@ -291,13 +304,23 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
     setSurveyData(prev => ({ ...prev, [field]: '' }));
   };
 
-  const openPdf = (dataUrl: string) => {
+  const openPdf = async (dataUrl: string) => {
     try {
-      if (!dataUrl.startsWith('data:application/pdf')) {
+      let finalUrl = dataUrl;
+      if (dataUrl.startsWith('gdrive:')) {
+        const { downloadGoogleDriveFileAsBase64 } = await import('../firebase');
+        const downloaded = await downloadGoogleDriveFileAsBase64(dataUrl.split(':')[1]);
+        if (downloaded) {
+          finalUrl = downloaded;
+        } else {
+          throw new Error('Gagal mengunduh berkas dari Google Drive');
+        }
+      }
+      if (!finalUrl.startsWith('data:application/pdf')) {
         alert('Format file bukan PDF yang valid.');
         return;
       }
-      const base64Content = dataUrl.split(',')[1];
+      const base64Content = finalUrl.split(',')[1];
       const byteCharacters = atob(base64Content);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
