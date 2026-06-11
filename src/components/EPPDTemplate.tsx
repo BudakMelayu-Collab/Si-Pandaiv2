@@ -49,7 +49,15 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     region: 'KABUPATEN SIAK',
     subText: 'Badan Amil Zakat Nasional',
     fontSize: 9,
-    logoSize: 48
+    logoSize: 48,
+    printMarginTop: 15,
+    printMarginRight: 15,
+    printMarginBottom: 15,
+    printMarginLeft: 15,
+    printMarginTopLampiran: 15,
+    printMarginRightLampiran: 15,
+    printMarginBottomLampiran: 15,
+    printMarginLeftLampiran: 15
   });
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -128,7 +136,15 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           ...prev,
           ...data,
           fontSize: data.fontSize || 9,
-          logoSize: data.logoSize || 48
+          logoSize: data.logoSize || 48,
+          printMarginTop: data.printMarginTop !== undefined ? Number(data.printMarginTop) : 15,
+          printMarginRight: data.printMarginRight !== undefined ? Number(data.printMarginRight) : 15,
+          printMarginBottom: data.printMarginBottom !== undefined ? Number(data.printMarginBottom) : 15,
+          printMarginLeft: data.printMarginLeft !== undefined ? Number(data.printMarginLeft) : 15,
+          printMarginTopLampiran: data.printMarginTopLampiran !== undefined ? Number(data.printMarginTopLampiran) : 15,
+          printMarginRightLampiran: data.printMarginRightLampiran !== undefined ? Number(data.printMarginRightLampiran) : 15,
+          printMarginBottomLampiran: data.printMarginBottomLampiran !== undefined ? Number(data.printMarginBottomLampiran) : 15,
+          printMarginLeftLampiran: data.printMarginLeftLampiran !== undefined ? Number(data.printMarginLeftLampiran) : 15
         }));
       }
     });
@@ -1344,7 +1360,6 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 page-break-after: always !important;
                 break-after: page !important;
                 margin: 0 !important;
-                padding: 0 !important;
                 border: none !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
@@ -1359,12 +1374,20 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 width: 100% !important;
                 height: 100vh !important;
                 min-height: 100vh !important;
+                padding-top: ${templateConfig.printMarginTop !== undefined ? templateConfig.printMarginTop : 15}mm !important;
+                padding-right: ${templateConfig.printMarginRight !== undefined ? templateConfig.printMarginRight : 15}mm !important;
+                padding-bottom: ${templateConfig.printMarginBottom !== undefined ? templateConfig.printMarginBottom : 15}mm !important;
+                padding-left: ${templateConfig.printMarginLeft !== undefined ? templateConfig.printMarginLeft : 15}mm !important;
               }
 
               .lampiran-print-page {
                 width: 100% !important;
                 height: 100vh !important;
                 min-height: 100vh !important;
+                padding-top: ${templateConfig.printMarginTopLampiran !== undefined ? templateConfig.printMarginTopLampiran : (templateConfig.printMarginTop !== undefined ? templateConfig.printMarginTop : 15)}mm !important;
+                padding-right: ${templateConfig.printMarginRightLampiran !== undefined ? templateConfig.printMarginRightLampiran : (templateConfig.printMarginRight !== undefined ? templateConfig.printMarginRight : 15)}mm !important;
+                padding-bottom: ${templateConfig.printMarginBottomLampiran !== undefined ? templateConfig.printMarginBottomLampiran : (templateConfig.printMarginBottom !== undefined ? templateConfig.printMarginBottom : 15)}mm !important;
+                padding-left: ${templateConfig.printMarginLeftLampiran !== undefined ? templateConfig.printMarginLeftLampiran : (templateConfig.printMarginLeft !== undefined ? templateConfig.printMarginLeft : 15)}mm !important;
               }
               
               .eppd-print-page:last-child, .lampiran-print-page:last-child {
@@ -1453,6 +1476,196 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     />
                   </div>
 
+                  {/* Print Margin Settings Form */}
+                  <div className="border-t border-white/5 pt-6 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-300">Konfigurasi Margin Cetak (Print Margins)</h4>
+                      <p className="text-slate-400 text-xs mt-1">Sesuaikan batas/margin halaman cetak dalam satuan milimeter (mm)</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6 bg-black/20 p-4 rounded-xl border border-white/5">
+                      {/* Margin EPPD */}
+                      <div className="space-y-4">
+                        <span className="text-xs font-bold text-amber-500 block uppercase tracking-wider font-semibold">Template E-PPD</span>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Atas (Top)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginTop !== undefined ? templateConfig.printMarginTop : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginTop: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Bawah (Bot)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginBottom !== undefined ? templateConfig.printMarginBottom : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginBottom: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Kiri (Left)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginLeft !== undefined ? templateConfig.printMarginLeft : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginLeft: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Kanan (Right)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginRight !== undefined ? templateConfig.printMarginRight : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginRight: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Margin Lampiran */}
+                      <div className="space-y-4 border-l border-white/10 pl-6">
+                        <span className="text-xs font-bold text-amber-500 block uppercase tracking-wider font-semibold">Lampiran E-PPD</span>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Atas (Top)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginTopLampiran !== undefined ? templateConfig.printMarginTopLampiran : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginTopLampiran: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Bawah (Bot)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginBottomLampiran !== undefined ? templateConfig.printMarginBottomLampiran : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginBottomLampiran: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Kiri (Left)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginLeftLampiran !== undefined ? templateConfig.printMarginLeftLampiran : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginLeftLampiran: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 font-bold block uppercase">Kanan (Right)</label>
+                            <div className="relative">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max="100"
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 text-center bg-slate-950"
+                                value={templateConfig.printMarginRightLampiran !== undefined ? templateConfig.printMarginRightLampiran : 15}
+                                onChange={(e) => setTemplateConfig(p => ({ ...p, printMarginRightLampiran: Number(e.target.value) }))}
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-500 pointer-events-none">mm</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => setTemplateConfig(p => ({
+                          ...p,
+                          printMarginTop: 15,
+                          printMarginRight: 15,
+                          printMarginBottom: 15,
+                          printMarginLeft: 15,
+                          printMarginTopLampiran: 15,
+                          printMarginRightLampiran: 15,
+                          printMarginBottomLampiran: 15,
+                          printMarginLeftLampiran: 15
+                        }))}
+                        className="text-[10px] font-bold text-slate-400 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        Reset Normal (15mm)
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setTemplateConfig(p => ({
+                          ...p,
+                          printMarginTop: 10,
+                          printMarginRight: 10,
+                          printMarginBottom: 10,
+                          printMarginLeft: 10,
+                          printMarginTopLampiran: 10,
+                          printMarginRightLampiran: 10,
+                          printMarginBottomLampiran: 10,
+                          printMarginLeftLampiran: 10
+                        }))}
+                        className="text-[10px] font-bold text-slate-400 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        Reset Sempit (10mm)
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setTemplateConfig(p => ({
+                          ...p,
+                          printMarginTop: 5,
+                          printMarginRight: 5,
+                          printMarginBottom: 5,
+                          printMarginLeft: 5,
+                          printMarginTopLampiran: 5,
+                          printMarginRightLampiran: 5,
+                          printMarginBottomLampiran: 5,
+                          printMarginLeftLampiran: 5
+                        }))}
+                        className="text-[10px] font-bold text-slate-400 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        Reset Sangat Sempit (5mm)
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Size (Height px)</label>
@@ -1528,7 +1741,13 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
               "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
               isEditing && "ring-4 ring-amber-500/30"
             )}
-            style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
+            style={{ 
+              fontSize: `${templateConfig.fontSize + 2.5}pt`,
+              paddingTop: `${templateConfig.printMarginTop !== undefined ? templateConfig.printMarginTop : 15}mm`,
+              paddingRight: `${templateConfig.printMarginRight !== undefined ? templateConfig.printMarginRight : 15}mm`,
+              paddingBottom: `${templateConfig.printMarginBottom !== undefined ? templateConfig.printMarginBottom : 15}mm`,
+              paddingLeft: `${templateConfig.printMarginLeft !== undefined ? templateConfig.printMarginLeft : 15}mm`,
+            }}
             >
 
               {/* Watermark in E-PPD */}
@@ -2187,7 +2406,13 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           pageIndex > 0 && "print:break-before-page",
           isEditing && "ring-4 ring-amber-500/30"
         )}
-        style={{ fontSize: `${templateConfig.fontSize + 2.5}pt` }}
+        style={{ 
+          fontSize: `${templateConfig.fontSize + 2.5}pt`,
+          paddingTop: `${templateConfig.printMarginTopLampiran !== undefined ? templateConfig.printMarginTopLampiran : (templateConfig.printMarginTop !== undefined ? templateConfig.printMarginTop : 15)}mm`,
+          paddingRight: `${templateConfig.printMarginRightLampiran !== undefined ? templateConfig.printMarginRightLampiran : (templateConfig.printMarginRight !== undefined ? templateConfig.printMarginRight : 15)}mm`,
+          paddingBottom: `${templateConfig.printMarginBottomLampiran !== undefined ? templateConfig.printMarginBottomLampiran : (templateConfig.printMarginBottom !== undefined ? templateConfig.printMarginBottom : 15)}mm`,
+          paddingLeft: `${templateConfig.printMarginLeftLampiran !== undefined ? templateConfig.printMarginLeftLampiran : (templateConfig.printMarginLeft !== undefined ? templateConfig.printMarginLeft : 15)}mm`,
+        }}
         >
           {/* Watermark in Lampiran */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden z-0 print:opacity-[0.03]">
