@@ -96,6 +96,20 @@ export const setGoogleAccessToken = (token: string | null) => {
   cachedGoogleAccessToken = token;
 };
 
+export const fetchSharedGoogleAccessToken = async (): Promise<string | null> => {
+  try {
+    const docRef = doc(db, 'settings', 'gdrive_token');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return data.accessToken || null;
+    }
+  } catch (error) {
+    console.error("Gagal mengambil token shared Google Drive dari Firestore:", error);
+  }
+  return null;
+};
+
 const getFileExtensionFromBase64 = (base64DataUrl: string): string => {
   if (base64DataUrl.includes('data:image/png')) return '.png';
   if (base64DataUrl.includes('data:image/jpeg') || base64DataUrl.includes('data:image/jpg')) return '.jpg';
@@ -105,9 +119,19 @@ const getFileExtensionFromBase64 = (base64DataUrl: string): string => {
 
 export const uploadBase64ToGoogleDrive = async (
   base64DataUrl: string, 
-  filename: string
+  filename: string,
+  recipientName: string = 'Umum',
+  recipientIdOrNik: string = '',
+  sector: string = 'Umum',
+  programName: string = ''
 ): Promise<{ id: string; webViewLink: string }> => {
-  const token = getGoogleAccessToken();
+  let token = getGoogleAccessToken();
+  if (!token) {
+    token = await fetchSharedGoogleAccessToken();
+    if (token) {
+      cachedGoogleAccessToken = token;
+    }
+  }
   if (!token) {
     throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
   }
@@ -118,10 +142,16 @@ export const uploadBase64ToGoogleDrive = async (
   const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'application/pdf';
   const base64Content = parts[1] || parts[0];
 
-  const metadata = {
+  // Resolve directory parent
+  const parentId = await getOrCreateFolderHierarchy(recipientName, token, recipientIdOrNik, sector, programName);
+
+  const metadata: any = {
     name: filename,
     mimeType: mimeType,
   };
+  if (parentId && parentId !== 'root') {
+    metadata.parents = [parentId];
+  }
 
   const boundary = 'foo_bar_baz_multipart';
   const delimiter = `\r\n--${boundary}\r\n`;
@@ -161,18 +191,27 @@ export const uploadBase64ToGoogleDrive = async (
 export const syncFileToGoogleDriveIfConnected = async (
   base64: string,
   docTypeLabel: string,
-  recipientName: string
+  recipientName: string,
+  recipientIdOrNik: string = '',
+  sector: string = 'Umum',
+  programName: string = ''
 ): Promise<string> => {
-  const token = getGoogleAccessToken();
+  let token = getGoogleAccessToken();
+  if (!token) {
+    token = await fetchSharedGoogleAccessToken();
+    if (token) {
+      cachedGoogleAccessToken = token;
+    }
+  }
   if (token) {
     try {
       const ext = getFileExtensionFromBase64(base64);
-      const cleanLabel = docTypeLabel.replace(/\s+/g, '_');
-      const cleanName = recipientName.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `${cleanName}_${cleanLabel}${ext}`;
+      const cleanLabel = docTypeLabel.trim();
+      const cleanName = recipientName.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+      const filename = `${cleanLabel} - ${cleanName}${ext}`;
       
-      console.log(`Auto uploading ${filename} to Google Drive...`);
-      const gdriveRes = await uploadBase64ToGoogleDrive(base64, filename);
+      console.log(`Auto uploading ${filename} to Google Drive under recipient folder ${recipientName}...`);
+      const gdriveRes = await uploadBase64ToGoogleDrive(base64, filename, recipientName, recipientIdOrNik, sector, programName);
       return `gdrive:${gdriveRes.id}`;
     } catch (err) {
       console.error(`Gagal mengunggah otomatis ke Google Drive:`, err);
@@ -184,37 +223,303 @@ export const syncFileToGoogleDriveIfConnected = async (
 export const ensureGoogleDriveConnected = async (): Promise<boolean> => {
   let token = getGoogleAccessToken();
   if (!token) {
-    const confirmOAuth = window.confirm(
-      "Google Drive adalah media penyimpanan utama untuk berkas administratif.\n\nSesi Google Drive Anda belum terhubung atau kadaluarsa. Hubungkan akun Google Anda sekarang?"
-    );
-    if (confirmOAuth) {
-      try {
-        await loginWithGoogle();
-        token = getGoogleAccessToken();
-      } catch (e: any) {
-        console.error("Gagal menghubungkan Google Drive:", e);
-        alert("Gagal menghubungkan Google Drive: " + (e.message || e));
+    token = await fetchSharedGoogleAccessToken();
+    if (token) {
+      cachedGoogleAccessToken = token;
+    }
+  }
+  if (!token) {
+    const currentUser = auth.currentUser;
+    const isSuperAdmin = currentUser?.email === 'muhammad.nawa@gmail.com';
+    if (isSuperAdmin) {
+      const confirmOAuth = window.confirm(
+        "Sesi Google Drive Super Admin belum terhubung atau kadaluarsa.\n\nHubungkan akun Google Drive Super Admin Anda sekarang agar seluruh Staff dapat melakukan sinkronisasi otomatis?"
+      );
+      if (confirmOAuth) {
+        try {
+          await loginWithGoogle();
+          token = getGoogleAccessToken();
+        } catch (e: any) {
+          console.error("Gagal menghubungkan Google Drive:", e);
+          alert("Gagal menghubungkan Google Drive: " + (e.message || e));
+        }
       }
+    } else {
+      console.warn("Shared Google Drive token is missing or expired. Falling back to local Firestore storage.");
     }
   }
   return !!token;
 };
 
-export const uploadFileToGoogleDrive = async (file: File): Promise<{ id: string; webViewLink: string }> => {
-  const token = getGoogleAccessToken();
+// Folder Cache to optimize network roundtrips
+const folderCache: Record<string, string> = {};
+
+export const getOrCreateFolderHierarchy = async (
+  recipientName: string,
+  token: string,
+  recipientIdOrNik: string = '',
+  sector: string = 'Umum',
+  programName: string = ''
+): Promise<string> => {
+  const mainFolderName = 'SI-PANDAI Berkas Administratif';
+  const cleanSector = (sector || 'Umum').trim();
+  const cleanProgram = (programName || '').trim();
+  
+  // Create beautiful uppercase folder name for each recipient
+  const cleanRecipient = (recipientName || 'Umum').trim()
+    .toUpperCase()
+    .replace(/[/\\?%*:|"<>\s]+/g, '_');
+  const cleanNikOrId = (recipientIdOrNik || '').trim()
+    .replace(/[/\\?%*:|"<>\s]+/g, '_');
+  
+  const recipientFolderName = `${cleanRecipient}${cleanNikOrId ? `_${cleanNikOrId}` : ''}`;
+  const cacheKey = `${mainFolderName}/${cleanSector}/${cleanProgram ? `${cleanProgram}/` : ''}${recipientFolderName}`;
+  
+  if (folderCache[cacheKey]) {
+    return folderCache[cacheKey];
+  }
+  
+  try {
+    // 1. Get or create main folder
+    let mainFolderId = folderCache[mainFolderName];
+    if (!mainFolderId) {
+      const qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`;
+      const searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
+      
+      const searchMainRes = await fetch(searchMainUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (searchMainRes.ok) {
+        const data = await searchMainRes.json();
+        if (data.files && data.files.length > 0) {
+          mainFolderId = data.files[0].id;
+        }
+      }
+      
+      if (!mainFolderId) {
+        const createMainRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: mainFolderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: ['root']
+          })
+        });
+        
+        if (createMainRes.ok) {
+          const data = await createMainRes.json();
+          mainFolderId = data.id;
+        } else {
+          console.error("Gagal membuat folder utama di Google Drive:", await createMainRes.text());
+        }
+      }
+      
+      if (mainFolderId) {
+        folderCache[mainFolderName] = mainFolderId;
+      }
+    }
+    
+    if (!mainFolderId) {
+      return 'root';
+    }
+
+    // 2. Get or create Sector (bidang) folder under the main folder
+    const sectorCacheKey = `${mainFolderName}/${cleanSector}`;
+    let sectorFolderId = folderCache[sectorCacheKey];
+    if (!sectorFolderId) {
+      const qSector = `name='${cleanSector.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${mainFolderId}' in parents and trashed=false`;
+      const searchSectorUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qSector)}&fields=files(id)`;
+      
+      const searchSectorRes = await fetch(searchSectorUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (searchSectorRes.ok) {
+        const data = await searchSectorRes.json();
+        if (data.files && data.files.length > 0) {
+          sectorFolderId = data.files[0].id;
+        }
+      }
+      
+      if (!sectorFolderId) {
+        const createSectorRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: cleanSector,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [mainFolderId]
+          })
+        });
+        
+        if (createSectorRes.ok) {
+          const data = await createSectorRes.json();
+          sectorFolderId = data.id;
+        } else {
+          console.error(`Gagal membuat folder bidang ${cleanSector}:`, await createSectorRes.text());
+        }
+      }
+      
+      if (sectorFolderId) {
+        folderCache[sectorCacheKey] = sectorFolderId;
+      }
+    }
+
+    let parentFolderIdForRecipient = sectorFolderId || mainFolderId;
+
+    // 2b. Optional: Get or create Program folder under Bidang
+    if (cleanProgram && cleanProgram !== '-') {
+      const programCacheKey = `${mainFolderName}/${cleanSector}/${cleanProgram}`;
+      let programFolderId = folderCache[programCacheKey];
+      if (!programFolderId) {
+        const qProgram = `name='${cleanProgram.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentFolderIdForRecipient}' in parents and trashed=false`;
+        const searchProgramUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qProgram)}&fields=files(id)`;
+        
+        const searchProgramRes = await fetch(searchProgramUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (searchProgramRes.ok) {
+          const data = await searchProgramRes.json();
+          if (data.files && data.files.length > 0) {
+            programFolderId = data.files[0].id;
+          }
+        }
+        
+        if (!programFolderId) {
+          const createProgramRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: cleanProgram,
+              mimeType: 'application/vnd.google-apps.folder',
+              parents: [parentFolderIdForRecipient]
+            })
+          });
+          
+          if (createProgramRes.ok) {
+            const data = await createProgramRes.json();
+            programFolderId = data.id;
+          } else {
+            console.error(`Gagal membuat folder program ${cleanProgram}:`, await createProgramRes.text());
+          }
+        }
+        
+        if (programFolderId) {
+          folderCache[programCacheKey] = programFolderId;
+        }
+      }
+      if (programFolderId) {
+        parentFolderIdForRecipient = programFolderId;
+      }
+    }
+    
+    // 3. Get or create subfolder inside Sector or Program folder for this specific recipient
+    let subFolderId = '';
+    const qSub = `name='${recipientFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentFolderIdForRecipient}' in parents and trashed=false`;
+    const searchSubUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qSub)}&fields=files(id)`;
+    
+    const searchSubRes = await fetch(searchSubUrl, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (searchSubRes.ok) {
+      const data = await searchSubRes.json();
+      if (data.files && data.files.length > 0) {
+        subFolderId = data.files[0].id;
+      }
+    }
+    
+    if (!subFolderId) {
+      const createSubRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: recipientFolderName,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentFolderIdForRecipient]
+        })
+      });
+      
+      if (createSubRes.ok) {
+        const data = await createSubRes.json();
+        subFolderId = data.id;
+      } else {
+        console.error(`Gagal membuat subfolder ${recipientFolderName}:`, await createSubRes.text());
+      }
+    }
+    
+    if (subFolderId) {
+      folderCache[cacheKey] = subFolderId;
+      return subFolderId;
+    }
+    
+    return parentFolderIdForRecipient;
+  } catch (error) {
+    console.error("Gagal memproses struktur folder Google Drive:", error);
+    return 'root';
+  }
+};
+
+export const uploadFileToGoogleDrive = async (
+  file: File,
+  recipientName: string = 'Umum',
+  recipientIdOrNik: string = '',
+  slotLabel: string = '',
+  sector: string = 'Umum',
+  programName: string = ''
+): Promise<{ id: string; webViewLink: string }> => {
+  let token = getGoogleAccessToken();
+  if (!token) {
+    token = await fetchSharedGoogleAccessToken();
+    if (token) {
+      cachedGoogleAccessToken = token;
+    }
+  }
   if (!token) {
     throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
   }
+
+  // Resolve directory parent
+  const parentId = await getOrCreateFolderHierarchy(recipientName, token, recipientIdOrNik, sector, programName);
 
   // Create boundary
   const boundary = 'foo_bar_baz';
   const delimiter = `\r\n--${boundary}\r\n`;
   const closeDelimiter = `\r\n--${boundary}--`;
 
-  const metadata = {
-    name: file.name,
+  let displayFilename = file.name;
+  if (slotLabel) {
+    const extIdx = file.name.lastIndexOf('.');
+    const ext = extIdx !== -1 ? file.name.slice(extIdx) : '';
+    const baseName = extIdx !== -1 ? file.name.substring(0, extIdx) : file.name;
+    // Avoid double labeling if filename already contains slotLabel
+    if (!baseName.toLowerCase().includes(slotLabel.toLowerCase())) {
+      displayFilename = `${slotLabel} - ${file.name}`;
+    }
+  }
+
+  const metadata: any = {
+    name: displayFilename,
     mimeType: file.type || 'application/octet-stream',
   };
+  if (parentId && parentId !== 'root') {
+    metadata.parents = [parentId];
+  }
 
   // Convert file content to base64 to build the multipart message body
   const base64Content = await new Promise<string>((resolve, reject) => {
@@ -417,6 +722,22 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     cachedGoogleAccessToken = credential?.accessToken || null;
+    
+    if (cachedGoogleAccessToken && result.user.email === 'muhammad.nawa@gmail.com') {
+      try {
+        const docRef = doc(db, 'settings', 'gdrive_token');
+        await setDoc(docRef, {
+          accessToken: cachedGoogleAccessToken,
+          updatedAt: new Date().toISOString(),
+          email: result.user.email,
+          displayName: result.user.displayName
+        });
+        console.log('Successfully saved Super Admin Google Drive token to settings/gdrive_token in Firestore.');
+      } catch (saveErr) {
+        console.error('Failed to save shared GDrive token to Firestore:', saveErr);
+      }
+    }
+
     return result.user;
   } catch (error: any) {
     const handled = handleAuthError(error);
@@ -714,7 +1035,7 @@ export const updateRecipientReceiptPdf = async (id: string, pdfBase64: string | 
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Tanda Terima', recipient.name || id) : null;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Tanda Terima', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
     const hasFile = !!finalBase64 && finalBase64.length > 5;
     
     // Save heavy file/delete from subcollection
@@ -753,7 +1074,7 @@ export const updateRecipientPdf = async (id: string, pdfBase64: string | null) =
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'E-PPD', recipient.name || id) : null;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'E-PPD', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
     const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
@@ -792,7 +1113,7 @@ export const updateInternalMemoPdf = async (id: string, pdfBase64: string | null
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Internal Memo', recipient.name || id) : null;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Internal Memo', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
     const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
@@ -827,7 +1148,7 @@ export const updateRecipientMPZISPdf = async (id: string, pdfBase64: string | nu
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'MPZIS', recipient.name || id) : null;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'MPZIS', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
     const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection
@@ -866,7 +1187,7 @@ export const updateRecipientSurveyPdf = async (id: string, pdfBase64: string | n
     if (!snap.exists()) throw new Error('Recipient not found');
     
     const recipient = snap.data() as Recipient;
-    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Lembar Verifikasi', recipient.name || id) : null;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Lembar Verifikasi', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
     const hasFile = !!finalBase64 && finalBase64.length > 5;
 
     // Save heavy file/delete from subcollection

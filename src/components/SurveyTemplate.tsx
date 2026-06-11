@@ -220,7 +220,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             
             let finalUrl = dataUrl;
             if (getGoogleAccessToken()) {
-              finalUrl = await syncFileToGoogleDriveIfConnected(dataUrl, 'Lembar Verifikasi', recipient.name || recipient.id);
+              finalUrl = await syncFileToGoogleDriveIfConnected(dataUrl, 'Lembar Verifikasi', recipient.name || recipient.id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '');
             } else {
               // Check approximate size for PDF
               const approxSize = dataUrl.length * 0.75;

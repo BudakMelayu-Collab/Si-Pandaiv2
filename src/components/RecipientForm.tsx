@@ -9,9 +9,12 @@ import { cn } from '../lib/utils';
 import { AidDocument, Recipient } from '../types';
 import { 
   getGoogleAccessToken, 
+  setGoogleAccessToken,
   loginWithGoogle, 
   uploadFileToGoogleDrive, 
-  downloadGoogleDriveFileAsBase64 
+  downloadGoogleDriveFileAsBase64,
+  fetchSharedGoogleAccessToken,
+  auth
 } from '../firebase';
 
 interface RecipientFormProps {
@@ -181,6 +184,16 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   const [customProgramNames, setCustomProgramNames] = useState<Record<string, string[]>>({});
   const [customCompanions, setCustomCompanions] = useState<string[]>([]);
   const [customPersonInCharge, setCustomPersonInCharge] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      const token = await fetchSharedGoogleAccessToken();
+      if (token) {
+        setGdriveToken(token);
+      }
+    };
+    fetchToken();
+  }, []);
 
   useEffect(() => {
     if (initialGroupRecipients && initialGroupRecipients.length > 0) {
@@ -493,26 +506,35 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
       let finalUrl = '';
       let displaySize = `${(file.size / 1024).toFixed(1)} KB`;
 
-      if (saveToGDrive) {
-        // Safe check for GDrive token
-        let token = getGoogleAccessToken();
-        if (!token) {
-          const confirmConnect = window.confirm(
-            'Google Drive aktif sebagai media utama penyimpanan berkas. Namun, Anda belum terhubung atau sesi sudah kadaluarsa.\n\nHubungkan ke Google Drive Anda sekarang untuk mengunggah secara otomatis?'
-          );
-          if (confirmConnect) {
-            token = await handleConnectGDrive();
-          }
-          if (!token) {
-            setIsSavingAll(false);
-            return;
-          }
+      // Try to get Google Drive token (either cached or shared in Firestore)
+      let token = getGoogleAccessToken();
+      if (!token) {
+        token = await fetchSharedGoogleAccessToken();
+        if (token) {
+          setGoogleAccessToken(token);
+          setGdriveToken(token);
         }
+      }
 
-        const gdriveRes = await uploadFileToGoogleDrive(file);
-        finalUrl = `gdrive:${gdriveRes.id}`;
-        displaySize = `${(file.size / (1024 * 1024)).toFixed(2)} MB (Drive)`;
-      } else {
+      // If token exists, attempt to upload to Google Drive
+      if (token) {
+        try {
+          const slotLabel = documentSlots[activeSlotIndex]?.label || 'Berkas_Penerima';
+          const recipientName = recipientInput.name || 'Penerima_Tanpa_Nama';
+          const recipientNik = recipientInput.nik || '';
+          const sectorVal = registrationData.sector || 'Umum';
+          const programVal = registrationData.programName || '';
+          const gdriveRes = await uploadFileToGoogleDrive(file, recipientName, recipientNik, slotLabel, sectorVal, programVal);
+          finalUrl = `gdrive:${gdriveRes.id}`;
+          displaySize = `${(file.size / (1024 * 1024)).toFixed(2)} MB (Drive)`;
+        } catch (gdriveErr) {
+          console.error("Gagal mengunggah ke Google Drive, dialihkan ke penyimpanan lokal:", gdriveErr);
+          token = null; // trigger fallback
+        }
+      }
+
+      // If no token or upload to Google Drive failed, fall back to base64
+      if (!token) {
         let base64Url = await convertFileToBase64(file);
 
         if (type === 'image') {
@@ -525,7 +547,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         // Check against Firestore single document limit (roughly 1MB)
         const sizeInBytes = base64Url.length * 0.75;
         if (sizeInBytes >= 1048500) {
-          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan ukuran lebih kecil (maksimal 1MB) atau aktifkan penyimpanan Google Drive.`);
+          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan ukuran lebih kecil (maksimal 1MB) atau sambungkan Google Drive Super Admin kembali.`);
           setIsSavingAll(false);
           return;
         }
@@ -1604,46 +1626,32 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
-                  <div className="flex items-center gap-2 border border-slate-200/80 bg-white px-3 py-1.5 rounded-xl text-xs font-semibold">
-                    <span className="text-slate-600 font-bold">Simpan ke Google Drive:</span>
+                  {gdriveToken ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Sinkronisasi Google Drive Aktif (Super Admin)
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold font-sans">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Google Drive Belum Tersambung
+                    </div>
+                  )}
+
+                  {auth.currentUser?.email === 'muhammad.nawa@gmail.com' && (
                     <button
                       type="button"
-                      onClick={() => handleToggleGDrive(!saveToGDrive)}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                        saveToGDrive ? "bg-indigo-600" : "bg-slate-200"
-                      )}
+                      onClick={handleConnectGDrive}
+                      disabled={isConnectingGDrive}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
                     >
-                      <span
-                        className={cn(
-                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
-                          saveToGDrive ? "translate-x-4" : "translate-x-0"
-                        )}
-                      />
+                      {isConnectingGDrive ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="w-3.5 h-3.5" />
+                      )}
+                      <span>{gdriveToken ? 'Sambungkan Ulang' : 'Sambungkan Drive Super Admin'}</span>
                     </button>
-                  </div>
-
-                  {saveToGDrive && (
-                    gdriveToken ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Drive Terhubung
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleConnectGDrive}
-                        disabled={isConnectingGDrive}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
-                      >
-                        {isConnectingGDrive ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Upload className="w-3.5 h-3.5" />
-                        )}
-                        <span>Hubungkan Drive</span>
-                      </button>
-                    )
                   )}
                 </div>
               </div>
