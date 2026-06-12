@@ -744,7 +744,7 @@ export const loginWithGoogle = async () => {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     cachedGoogleAccessToken = credential?.accessToken || null;
     
-    if (cachedGoogleAccessToken && result.user.email === 'muhammad.nawa@gmail.com') {
+    if (cachedGoogleAccessToken) {
       try {
         const docRef = doc(db, 'settings', 'gdrive_token');
         await setDoc(docRef, {
@@ -753,7 +753,7 @@ export const loginWithGoogle = async () => {
           email: result.user.email,
           displayName: result.user.displayName
         });
-        console.log('Successfully saved Super Admin Google Drive token to settings/gdrive_token in Firestore.');
+        console.log('Successfully saved shared Google Drive token to settings/gdrive_token in Firestore.');
       } catch (saveErr) {
         console.error('Failed to save shared GDrive token to Firestore:', saveErr);
       }

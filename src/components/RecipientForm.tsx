@@ -1629,6 +1629,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                   </p>
                 </div>
 
+                {!isPublic && (
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
                   {gdriveToken ? (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
@@ -1642,22 +1643,21 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     </div>
                   )}
 
-                  {auth.currentUser?.email === 'muhammad.nawa@gmail.com' && (
-                    <button
-                      type="button"
-                      onClick={handleConnectGDrive}
-                      disabled={isConnectingGDrive}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
-                    >
-                      {isConnectingGDrive ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Upload className="w-3.5 h-3.5" />
-                      )}
-                      <span>{gdriveToken ? 'Sambungkan Ulang' : 'Sambungkan Drive Super Admin'}</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleConnectGDrive}
+                    disabled={isConnectingGDrive}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {isConnectingGDrive ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>{gdriveToken ? 'Sambungkan Ulang' : 'Sambungkan Google Drive'}</span>
+                  </button>
                 </div>
+                )}
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
