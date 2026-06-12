@@ -22,6 +22,7 @@ interface RecipientFormProps {
   onCancel: () => void;
   existingRecipients?: Recipient[];
   initialGroupRecipients?: Recipient[];
+  isPublic?: boolean;
 }
 
 interface DocumentSlot {
@@ -95,7 +96,7 @@ const PERSON_IN_CHARGE_OPTIONS = [
   "Syarifah Suci Merza"
 ];
 
-export default function RecipientForm({ onSubmit, onCancel, existingRecipients, initialGroupRecipients }: RecipientFormProps) {
+export default function RecipientForm({ onSubmit, onCancel, existingRecipients, initialGroupRecipients, isPublic = false }: RecipientFormProps) {
   const generateRegId = () => `REG-${Math.floor(100000 + Math.random() * 900000)}`;
 
   // Main Registration Data State (Tabel Utama)
@@ -549,8 +550,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
         // Check against Firestore single document limit (roughly 1MB)
         const sizeInBytes = base64Url.length * 0.75;
-        if (sizeInBytes >= 1048500) {
-          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan ukuran lebih kecil (maksimal 1MB) atau sambungkan Google Drive Super Admin kembali.`);
+        if (sizeInBytes >= 700000) {
+          alert(`Gagal: Berkas "${file.name}" terlalu besar (${(sizeInBytes / 1024).toFixed(1)} KB) bahkan setelah dikompresi. Mohon pilih berkas dengan resolusi lebih kecil (maksimal 700KB) agar form dapat dikirim.`);
           setIsSavingAll(false);
           return;
         }
@@ -1624,7 +1625,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     </h4>
                   </div>
                   <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                    Unggah pindaian berkas pendukung. Batas Firestore standar adalah <strong className="text-rose-600">1MB</strong>. Aktifkan integrasi Google Drive untuk mengunggah berkas ukuran besar secara aman tanpa limit batas.
+                    Unggah pindaian berkas pendukung. Pastikan ukuran file tidak melebihi batas batas penyimpanan.
                   </p>
                 </div>
 
@@ -1632,12 +1633,12 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                   {gdriveToken ? (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Sinkronisasi Google Drive Aktif (Super Admin)
+                      Sinkronisasi Google Drive Internal Terhubung
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold font-sans">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      Google Drive Belum Tersambung
+                      Google Drive Kantor Belum Tersambung
                     </div>
                   )}
 

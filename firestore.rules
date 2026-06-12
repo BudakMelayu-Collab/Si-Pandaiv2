@@ -152,7 +152,7 @@ service cloud.firestore {
 
     // SETTINGS
     match /settings/{settingId} {
-      allow read: if isVerified();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

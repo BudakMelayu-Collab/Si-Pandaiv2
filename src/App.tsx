@@ -358,6 +358,7 @@ export default function App() {
             <p className="text-slate-500 mt-2 font-medium">Badan Amil Zakat Nasional Kabupaten Siak</p>
           </div>
           <RecipientForm 
+            isPublic={true}
             onSubmit={(recipient) => {
               handleCreateRecipient(recipient).then(() => {
                 alert("Data berhasil dikirim. Terima kasih.");
