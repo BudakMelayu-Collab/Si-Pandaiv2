@@ -30,7 +30,7 @@ import EditRecipientModal from './components/EditRecipientModal';
 import UserManagement from './components/UserManagement';
 import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement, UserConfig } from './types';
 import { SIAK_COMPANIONS } from './constants';
-import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2, Link as LinkIcon, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   auth, 
@@ -297,7 +297,8 @@ export default function App() {
       });
       setShowSuccessToast(true);
     } catch (error) {
-      alert('Gagal menyimpan data. Pastikan Anda memiliki akses.');
+      alert('Gagal menyimpan data. Pastikan Anda memiliki akses atau koneksi internet stabil.');
+      throw error;
     }
   };
 
@@ -342,6 +343,38 @@ export default function App() {
       }
     }
   }, [activeTab]);
+
+  const isPublicRoute = new URLSearchParams(window.location.search).get('publicInput') === 'true';
+
+  if (isPublicRoute) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-24 border-t-8 border-indigo-600">
+        <div className="p-6 pb-12 mt-8 max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-200">
+              <CheckCircle2 className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Formulir Pendaftaran Bantuan / Layanan</h1>
+            <p className="text-slate-500 mt-2 font-medium">Badan Amil Zakat Nasional Kabupaten Siak</p>
+          </div>
+          <RecipientForm 
+            onSubmit={(recipient) => {
+              handleCreateRecipient(recipient).then(() => {
+                alert("Data berhasil dikirim. Terima kasih.");
+                window.location.reload();
+              }).catch((e: any) => {
+                alert("Gagal mengirim data. " + e.message);
+              });
+            }} 
+            onCancel={() => {
+              window.location.href = "https://baznassiak.id";
+            }}
+            existingRecipients={[]} 
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -500,7 +533,26 @@ export default function App() {
         return <Dashboard recipients={recipients} />;
       case 'input':
         return (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('publicInput', 'true');
+                  navigator.clipboard.writeText(url.toString());
+                  setToastConfig({
+                    title: 'Tautan Disalin!',
+                    description: 'Tautan form pendaftaran publik berhasil disalin ke clipboard.',
+                    type: 'success'
+                  });
+                  setShowSuccessToast(true);
+                }}
+                className="px-4 py-2.5 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all"
+              >
+                <Share2 className="w-5 h-5" />
+                Bagikan Form Publik
+              </button>
+            </div>
             <RecipientForm 
               onSubmit={editingGroupData ? handleUpdateGroupData : handleCreateRecipient} 
               onCancel={() => {

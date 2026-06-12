@@ -747,13 +747,6 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         </tbody>
       </table>
       
-      {/* Logos/Watermark at bottom */}
-      <div className="flex items-center gap-1.5 pb-8 opacity-90 shrink-0">
-        <div className="w-4 h-4 bg-[#1B29E3] rounded-bl-xl rounded-tr-xl rounded-tl rounded-br-sm -rotate-12 translate-y-0.5"></div>
-        <span className="text-[#1B29E3] font-black tracking-tight text-xl" style={{ fontFamily: 'sans-serif' }}>
-          Sebari
-        </span>
-      </div>
     </div>
   );
 

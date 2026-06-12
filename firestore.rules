@@ -67,7 +67,7 @@ service cloud.firestore {
       allow list: if isVerified(); 
       allow get: if isVerified() && isValidId(recipientId);
       
-      allow create: if isVerified() && isValidId(recipientId) && isValidRecipient(incoming());
+      allow create: if isValidId(recipientId) && isValidRecipient(incoming());
       
       allow update: if isVerified() && isValidRecipientUpdate(incoming())
         && incoming().get('createdAt', null) == existing().get('createdAt', null)
@@ -99,7 +99,7 @@ service cloud.firestore {
       }
       match /scans/{scanId} {
         allow read: if isVerified();
-        allow write: if isVerified() && isValidId(scanId);
+        allow write: if isValidId(scanId);
       }
     }
 
