@@ -189,11 +189,12 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           parsed.classification = recipient.sector || 'Siak Sejahtera';
         }
         // 2. Clear old hardcoded purposes / ashnaf / source / description
-        if (parsed.purpose?.startsWith('Melaksanakan program ')) parsed.purpose = recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '';
+        if (parsed.purpose?.startsWith('Melaksanakan program ') || parsed.purpose === 'Biaya Penddikan' || !parsed.purpose) {
+          parsed.purpose = recipient.purpose || '';
+        }
         if (parsed.ashnaf === 'Miskin' || !parsed.ashnaf) parsed.ashnaf = recipient.ashnaf || '';
         if (parsed.source === 'Zakat / Infaq / Shadaqah' || !parsed.source) parsed.source = recipient.fundingSource || '';
         if (parsed.budgetPost === recipient.aidType || !parsed.budgetPost) parsed.budgetPost = recipient.programName || '';
-        if (parsed.purpose === 'Biaya Penddikan' || !parsed.purpose) parsed.purpose = recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '';
 
         
         // Fix old `nomor` format dynamically if it contains the old pattern or uses BDG.
@@ -230,7 +231,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
             return {
               id: existingRow ? existingRow.id : (Date.now() + Math.random()),
-              description: r.purpose || recipient.purpose || existingRow?.description || '',
+              description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || existingRow?.description || '',
               name: r.name || existingRow?.name || '',
               nik: r.nik || existingRow?.nik || '',
               amount: Number(r.amountProposed) || (existingRow ? Number(existingRow.amount) : 0)
@@ -240,7 +241,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           parsed.rows[0].name = recipient.name || parsed.rows[0].name || '';
           parsed.rows[0].nik = recipient.nik || parsed.rows[0].nik || '';
           parsed.rows[0].amount = Number(recipient.amountProposed) || parsed.rows[0].amount || 0;
-          parsed.rows[0].description = recipient.purpose || parsed.rows[0].description || '';
+          parsed.rows[0].description = recipient.tujuanPengajuan || recipient.purpose || parsed.rows[0].description || '';
         }
 
         parsed.purpose = recipient.purpose || parsed.purpose || '';
@@ -536,7 +537,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
     programValue: recipient.sector || '',
     headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     classification: recipient.sector || 'Siak Sehat',
-    purpose: recipient.programName ? `Melaksanakan Program ${recipient.programName}` : '',
+    purpose: recipient.purpose || '',
     ashnaf: recipient.ashnaf || '',
     source: recipient.fundingSource || '',
     budgetPost: recipient.programName || '',
@@ -550,7 +551,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
     rows: lampiranItems && lampiranItems.length > 0 
       ? lampiranItems.map(r => ({
           id: Date.now() + Math.random(),
-          description: r.purpose || recipient.purpose || '',
+          description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || '',
           name: r.name || '',
           nik: r.nik || '',
           amount: Number(r.amountProposed) || 0
@@ -558,7 +559,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       : [
       { 
         id: Date.now(), 
-        description: recipient.purpose || '', 
+        description: recipient.tujuanPengajuan || recipient.purpose || '', 
         name: recipient.name, 
         nik: recipient.nik,
         amount: Number(recipient.amountProposed) 
