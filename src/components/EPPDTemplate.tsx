@@ -284,7 +284,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       no: `${recipient.registrationId}`,
       noPpd: defaultNoPpd,
     requestedBy: '',
-    division: '',
+    division: 'Pendistribusian',
     function: 'Staf',
     date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     amount: 0,
@@ -487,12 +487,35 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           }
         }
 
-        // Always update lampiran from selection if it was provided, or if none exists
-        if (lampiranItems && lampiranItems.length > 0) {
-          parsed.lampiranRows = initialLampiranRows;
-        } else if (!parsed.lampiranRows) {
-          parsed.lampiranRows = initialLampiranRows;
+        const calculatedTotalAmount = itemsToUse.reduce((sum, r) => sum + (Number(r.amountProposed) || 0), 0);
+        
+        parsed.amount = calculatedTotalAmount;
+        if (parsed.rows && parsed.rows.length === 1) {
+          parsed.rows[0].total = calculatedTotalAmount;
         }
+
+        const isMultiple = itemsToUse.length > 1;
+        const currentRekeningStr = `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
+        
+        if (!isMultiple) {
+          parsed.transferDetails = currentRekeningStr;
+          parsed.paidFor = recipient.name || '';
+          if (parsed.transactionType === 'Transfer' && currentRekeningStr.length < 5) {
+             parsed.transactionType = 'Tunai'; 
+          }
+        } else {
+          if (!parsed.transferDetails || parsed.transferDetails.trim() === '') {
+             parsed.transferDetails = 'Terlampir';
+          }
+        }
+
+        // Always update lampiran from selection if it was provided, or if none exists
+        // This ensures name and amount updates in subRecipients reflect here too
+        parsed.lampiranRows = initialLampiranRows;
+        
+        parsed.proposeFor = recipient.tujuanPengajuan || recipient.purpose || parsed.proposeFor || '';
+        parsed.attachment = recipient.tujuanPengajuan || recipient.purpose || parsed.attachment || '';
+
         setPpdData(parsed);
       } else {
         const sector = (recipient.sector || '').toLowerCase();
@@ -516,6 +539,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         if (transactionTypeDefault === 'Transfer') {
            transferDetailsDefault = isMultiple ? 'Terlampir' : `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
         }
+
+        const calculatedTotalAmount = itemsToUse.reduce((sum, r) => sum + (Number(r.amountProposed) || 0), 0);
 
         let maxCounter = 1;
         const localSaved = localStorage.getItem('eppd_seq_counter');
@@ -542,18 +567,18 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           no: `${recipient.registrationId}`,
           noPpd: defaultNoPpd,
           requestedBy: defaultRequestedBy,
-          division: '',
+          division: 'Pendistribusian',
           function: 'Staf',
           date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-          amount: 0,
+          amount: calculatedTotalAmount,
           proposeFor: proposeForStr,
           paidFor: paidForStr,
           refNo: '-',
           requestDisbursement: transactionTypeDefault,
           transferDetails: transferDetailsDefault,
-          transactionType: 'Pembayaran',
+          transactionType: transactionTypeDefault,
           rows: [
-            { id: Date.now(), budgetCode: '', classification: '', total: 0 }
+            { id: Date.now(), budgetCode: '', classification: '', total: calculatedTotalAmount }
           ],
           signers: {
             staff: { name: '', role: 'Staf' },
@@ -607,7 +632,19 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       }
     };
     loadSaved();
-  }, [recipient.id]);
+  }, [
+    recipient.id,
+    recipient.name,
+    recipient.amountProposed,
+    recipient.kampung,
+    recipient.district,
+    recipient.bankAccountNo,
+    recipient.bankName,
+    recipient.bankAccountHolder,
+    recipient.sector,
+    recipient.purpose,
+    recipient.tujuanPengajuan
+  ]);
 
   // Save changes to storage automatically
   useEffect(() => {

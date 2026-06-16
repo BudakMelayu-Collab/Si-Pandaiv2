@@ -134,6 +134,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   const [isAddingToSub, setIsAddingToSub] = useState(false);
   const [isSavingAll, setIsSavingAll] = useState(false);
 
+  // Step for Wizard UI
+  const [currentStep, setCurrentStep] = useState(1);
+  
   // Google Drive Integration States
   const [saveToGDrive, setSaveToGDrive] = useState<boolean>(() => {
     return localStorage.getItem('ppd_save_gdrive') !== 'false';
@@ -910,11 +913,50 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
   };
 
   return (
-    <div className="space-y-10 pb-36">
+    <div className="space-y-8 pb-36">
+      
+      {/* Stepper Progress */}
+      <div className="bg-white p-4 sm:px-8 sm:py-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between relative">
+        <div className="absolute top-1/2 left-8 right-8 h-1 bg-slate-100 -translate-y-1/2 rounded-full hidden sm:block z-0"></div>
+        <div 
+          className="absolute top-1/2 left-8 h-1 bg-indigo-600 -translate-y-1/2 rounded-full hidden sm:block z-0 transition-all duration-500"
+          style={{ width: currentStep === 1 ? '0%' : currentStep === 2 ? '50%' : '100%' }}
+        ></div>
+        
+        {[
+          { step: 1, label: 'Parameter Registrasi' },
+          { step: 2, label: 'Input Data Penerima' },
+          { step: 3, label: 'Konfirmasi Data' }
+        ].map((item) => (
+          <button 
+            key={item.step}
+            type="button"
+            onClick={() => setCurrentStep(item.step)}
+            className="relative z-10 flex flex-col items-center gap-2 group outline-none"
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ring-4 ${
+              currentStep === item.step 
+                ? 'bg-indigo-600 text-white ring-indigo-50 scale-110 shadow-md' 
+                : currentStep > item.step
+                  ? 'bg-indigo-600 text-white ring-transparent'
+                  : 'bg-white text-slate-400 border-2 border-slate-200 ring-transparent group-hover:border-indigo-300'
+            }`}>
+              {currentStep > item.step ? <Check className="w-5 h-5" /> : item.step}
+            </div>
+            <span className={`text-xs font-semibold hidden sm:block ${
+              currentStep === item.step ? 'text-indigo-700' : currentStep > item.step ? 'text-slate-800' : 'text-slate-400'
+            }`}>
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={e => e.preventDefault()} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
         
         {/* SECTION 1: TABEL UTAMA - PARAMETER REGISTRASI & PENGAJUAN */}
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+        {currentStep === 1 && (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
             <div className="p-2 bg-indigo-50 rounded-lg">
               <Layers className="w-5 h-5 text-indigo-600" />
@@ -932,8 +974,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Kategori Administrasi</label>
+              <label className="text-sm font-semibold text-slate-700">Kategori Administrasi *</label>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.adminCategory} 
                 onChange={e => handleAdminCategoryChange(e.target.value)}
@@ -945,8 +988,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Jenis Layanan</label>
+              <label className="text-sm font-semibold text-slate-700">Jenis Layanan *</label>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.serviceType} 
                 onChange={e => handleServiceTypeChange(e.target.value)}
@@ -965,8 +1009,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Ashnaf</label>
+              <label className="text-sm font-semibold text-slate-700">Ashnaf *</label>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.ashnaf} 
                 onChange={e => setRegistrationData({...registrationData, ashnaf: e.target.value})}
@@ -984,8 +1029,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Sumber Berkas</label>
+              <label className="text-sm font-semibold text-slate-700">Sumber Berkas *</label>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.source} 
                 onChange={e => {
@@ -1010,8 +1056,9 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Sumber Dana</label>
+              <label className="text-sm font-semibold text-slate-700">Sumber Dana *</label>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.fundingSource} 
                 onChange={e => setRegistrationData({...registrationData, fundingSource: e.target.value})}
@@ -1156,7 +1203,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Nama Program</label>
+                <label className="text-sm font-semibold text-slate-700">Nama Program *</label>
                 {registrationData.sector && (
                   <button 
                     type="button" 
@@ -1168,6 +1215,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 )}
               </div>
               <select 
+                required
                 className="form-input-custom font-medium" 
                 value={registrationData.programName} 
                 onChange={e => handleProgramNameChange(e.target.value)}
@@ -1297,10 +1345,25 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               )}
             </div>
           </div>
+
+          <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              Berikutnya <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+        )}
 
         {/* SECTION 2: FORM INPUT DETIL PENERIMA (ADD / EDIT) */}
-        <div id="form-input-penerima" className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600">
+        {currentStep === 2 && (
+        <div id="form-input-penerima" className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600 animate-in fade-in slide-in-from-right-4 duration-500">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -1403,6 +1466,23 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     setRecipientInput({...recipientInput, contact: val});
                   }} 
                 />
+              </div>
+
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">Jumlah Bantuan (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium whitespace-nowrap">Rp</span>
+                  <input 
+                    type="text" 
+                    className="form-input-custom font-bold pl-12" 
+                    placeholder="0"
+                    value={recipientInput.amountProposed ? Number(recipientInput.amountProposed).toLocaleString('id-ID') : ''} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setRecipientInput({...recipientInput, amountProposed: val});
+                    }} 
+                  />
+                </div>
               </div>
 
               <div className="space-y-2 lg:col-span-2">
@@ -1768,46 +1848,74 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             />
 
             {/* ACTIONS ADD/CANCEL FOR SUB RECIPIENT */}
-            <div className="pt-4 flex items-center justify-end gap-3">
-              {editingIndex !== null && (
-                <button
-                  type="button"
-                  onClick={handleCancelEditRecipient}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Batalkan Edit
-                </button>
-              )}
+            <div className="pt-6 mt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
               <button
                 type="button"
-                onClick={handleAddRecipientToSubTable}
-                disabled={isAddingToSub}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-sm select-none",
-                  editingIndex !== null 
-                    ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100 cursor-pointer" 
-                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer",
-                  isAddingToSub ? "opacity-75 cursor-not-allowed" : ""
-                )}
+                onClick={() => {
+                  setCurrentStep(1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
               >
-                {editingIndex !== null ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Simpan Perubahan Penerima</span>
-                  </>
-                ) : (
-                  <>
-                    {isAddingToSub ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    <span>{isAddingToSub ? 'Memproses...' : 'Tambahkan Penerima ke Sub Tabel'}</span>
-                  </>
-                )}
+                Kembali
               </button>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                {editingIndex !== null && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditRecipient}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer w-full sm:w-auto"
+                  >
+                    Batalkan Edit
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleAddRecipientToSubTable}
+                  disabled={isAddingToSub}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all shadow-sm select-none w-full sm:w-auto",
+                    editingIndex !== null 
+                      ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100 cursor-pointer" 
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer",
+                    isAddingToSub ? "opacity-75 cursor-not-allowed" : ""
+                  )}
+                >
+                  {editingIndex !== null ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Simpan Perubahan</span>
+                    </>
+                  ) : (
+                    <>
+                      {isAddingToSub ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      <span>{isAddingToSub ? 'Memproses...' : 'Tambahkan Penerima'}</span>
+                    </>
+                  )}
+                </button>
+                
+                {subRecipients.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(3);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-emerald-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto sm:ml-2"
+                  >
+                    Berikutnya <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
+        )}
 
         {/* SECTION 3: SUB TABEL PENERIMA TERDAFTAR (LIST IN ACTIVE FORM) */}
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+        {currentStep === 3 && (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -1842,6 +1950,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nama Penerima</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">NIK</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Nomor KK</th>
+                    <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-right">Jumlah Bantuan</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Alamat</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kampung</th>
                     <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">Kecamatan</th>
@@ -1863,6 +1972,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                       <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-slate-800 capitalize whitespace-nowrap">{sub.name.toLowerCase()}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.nik}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.kk}</td>
+                      <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap text-right font-bold font-mono">Rp{Number(sub.amountProposed || 0).toLocaleString('id-ID')}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap max-w-[200px] truncate" title={sub.address}>{sub.address || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.kampung || '-'}</td>
                       <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">{sub.district || '-'}</td>
@@ -1955,37 +2065,82 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               </div>
             )}
           </div>
+
+          <div className="flex justify-start pt-6 mt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="bg-slate-100 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl hover:bg-slate-200 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              Kembali
+            </button>
+          </div>
         </div>
+        )}
 
         {/* COMPACT FLOATING FOOTER ACTION ACCORDING TO SYSTEM DESIGN PHILOSOPHY */}
-        <div className="fixed bottom-0 right-0 left-64 bg-white/85 backdrop-blur-md border-t border-slate-200 p-4 px-8 flex items-center justify-end z-20 shadow-lg">
+        <div className="fixed bottom-0 left-0 sm:left-64 right-0 bg-white/85 backdrop-blur-md border-t border-slate-200 p-4 px-4 sm:px-8 flex items-center justify-between z-20 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
           
+          <div className="flex items-center gap-2">
+             <button 
+                type="button" 
+                onClick={onCancel} 
+                className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+              >
+                Batalkan
+              </button>
+          </div>
+
           <div className="flex items-center gap-3">
-            <button 
-              type="button" 
-              onClick={onCancel} 
-              className="px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-            >
-              Batalkan
-            </button>
-            <div className="h-8 w-px bg-slate-200 mx-1"></div>
-            
-            <button 
-              onClick={handleSaveAllData}
-              type="button"
-              disabled={isSavingAll}
-              className={cn(
-                "px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
-                isSavingAll ? "opacity-75 cursor-not-allowed" : "hover:bg-indigo-750 active:scale-95 cursor-pointer"
-              )}
-            >
-              {isSavingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>
-                {isSavingAll ? 'Menyimpan...' : (subRecipients.length > 0 
-                  ? `Simpan Seluruh Registrasi (${subRecipients.length} Penerima)` 
-                  : 'Simpan')}
-              </span>
-            </button>
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(currentStep - 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="hidden sm:flex px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
+              >
+                Kembali
+              </button>
+            )}
+
+            {currentStep < 3 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const formElement = document.querySelector('form');
+                  if (formElement && !formElement.reportValidity()) {
+                    return;
+                  }
+                  setCurrentStep(currentStep + 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-6 sm:px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-2 hover:bg-indigo-750 transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
+              </button>
+            ) : (
+              <button 
+                onClick={handleSaveAllData}
+                type="button"
+                disabled={isSavingAll}
+                className={cn(
+                  "px-6 sm:px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
+                  isSavingAll ? "opacity-75 cursor-not-allowed" : "hover:bg-emerald-750 active:scale-95 cursor-pointer"
+                )}
+              >
+                {isSavingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                <span className="truncate max-w-[150px] sm:max-w-none">
+                  {isSavingAll ? 'Menyimpan...' : (subRecipients.length > 0 
+                    ? `Simpan Registrasi` 
+                    : 'Simpan')}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </form>

@@ -224,23 +224,26 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           }
         }
         
-        // Always update rows from selection if it was provided
+        // Always update core basic data (name, nik, amount) to keep it in sync with Recipient Data
         if (lampiranItems && lampiranItems.length > 0) {
           parsed.rows = lampiranItems.map(r => {
             const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
             return {
               id: existingRow ? existingRow.id : (Date.now() + Math.random()),
-              description: (existingRow && existingRow.description) ? existingRow.description : (r.purpose || recipient.purpose || ''),
-              name: r.name || '',
-              nik: r.nik || '',
-              amount: existingRow ? Number(existingRow.amount) : (Number(r.amountProposed) || 0)
+              description: r.purpose || recipient.purpose || existingRow?.description || '',
+              name: r.name || existingRow?.name || '',
+              nik: r.nik || existingRow?.nik || '',
+              amount: Number(r.amountProposed) || (existingRow ? Number(existingRow.amount) : 0)
             };
           });
         } else if (parsed.rows && parsed.rows.length === 1) {
-          if (!parsed.rows[0].description) {
-            parsed.rows[0].description = recipient.purpose || '';
-          }
+          parsed.rows[0].name = recipient.name || parsed.rows[0].name || '';
+          parsed.rows[0].nik = recipient.nik || parsed.rows[0].nik || '';
+          parsed.rows[0].amount = Number(recipient.amountProposed) || parsed.rows[0].amount || 0;
+          parsed.rows[0].description = recipient.purpose || parsed.rows[0].description || '';
         }
+
+        parsed.purpose = recipient.purpose || parsed.purpose || '';
 
         setMemoData(parsed);
       }
@@ -281,7 +284,14 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       }
     };
     loadData();
-  }, [recipient.id, recipient.nik, recipient.hasSignedMPZISPdf]);
+  }, [
+    recipient.id, 
+    recipient.nik, 
+    recipient.hasSignedMPZISPdf, 
+    recipient.name, 
+    recipient.amountProposed, 
+    recipient.purpose
+  ]);
 
   // Listen to real-time updates for global configuration
   useEffect(() => {

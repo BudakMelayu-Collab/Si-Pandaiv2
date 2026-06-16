@@ -336,6 +336,23 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                 <input name="name" type="text" className="form-input-custom font-medium" value={formData.name || ''} onChange={handleChange} placeholder="Nama lengkap sesuai KTP" />
               </div>
 
+              <div className="space-y-2 lg:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">Jumlah Bantuan (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium whitespace-nowrap">Rp</span>
+                  <input 
+                    type="text" 
+                    className="form-input-custom font-bold pl-12" 
+                    placeholder="0"
+                    value={formData.amountProposed ? Number(formData.amountProposed).toLocaleString('id-ID') : ''} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormData({...formData, amountProposed: val});
+                    }} 
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">NIK *</label>
                 <input name="nik" type="text" maxLength={16} className="form-input-custom font-mono" value={formData.nik || ''} onChange={handleChange} placeholder="16 Digit NIK" />
