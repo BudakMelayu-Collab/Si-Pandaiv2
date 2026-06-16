@@ -931,7 +931,15 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
           <button 
             key={item.step}
             type="button"
-            onClick={() => setCurrentStep(item.step)}
+            onClick={() => {
+              if (currentStep === 1 && item.step > 1) {
+                const formElement = document.getElementById('recipient-form') as HTMLFormElement;
+                if (formElement && !formElement.reportValidity()) {
+                  return;
+                }
+              }
+              setCurrentStep(item.step);
+            }}
             className="relative z-10 flex flex-col items-center gap-2 group outline-none"
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ring-4 ${
@@ -952,7 +960,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
         ))}
       </div>
 
-      <form onSubmit={e => e.preventDefault()} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <form id="recipient-form" onSubmit={e => e.preventDefault()} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
         
         {/* SECTION 1: TABEL UTAMA - PARAMETER REGISTRASI & PENGAJUAN */}
         {currentStep === 1 && (
@@ -977,6 +985,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Kategori Administrasi *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.adminCategory} 
                 onChange={e => handleAdminCategoryChange(e.target.value)}
@@ -991,6 +1001,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Jenis Layanan *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.serviceType} 
                 onChange={e => handleServiceTypeChange(e.target.value)}
@@ -1012,6 +1024,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Ashnaf *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.ashnaf} 
                 onChange={e => setRegistrationData({...registrationData, ashnaf: e.target.value})}
@@ -1032,6 +1046,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Sumber Berkas *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.source} 
                 onChange={e => {
@@ -1059,6 +1075,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Sumber Dana *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.fundingSource} 
                 onChange={e => setRegistrationData({...registrationData, fundingSource: e.target.value})}
@@ -1076,6 +1094,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                 <label className="text-sm font-semibold text-slate-700">Nama Lembaga *</label>
                 <input 
                   required
+                  onInvalid={e => (e.target as HTMLInputElement).setCustomValidity('Harap isi bidang ini.')}
+                  onInput={e => (e.target as HTMLInputElement).setCustomValidity('')}
                   type="text" 
                   placeholder="Ketik nama lembaga/instansi/UPZ"
                   className="form-input-custom font-medium animate-in slide-in-from-top-1 duration-250 border-indigo-200" 
@@ -1087,7 +1107,15 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Tgl Masuk Berkas *</label>
-              <input required type="date" className="form-input-custom font-medium" value={registrationData.submissionDate} onChange={e => setRegistrationData({...registrationData, submissionDate: e.target.value})} />
+              <input 
+                required 
+                onInvalid={e => (e.target as HTMLInputElement).setCustomValidity('Harap isi bidang ini.')}
+                onInput={e => (e.target as HTMLInputElement).setCustomValidity('')}
+                type="date" 
+                className="form-input-custom font-medium" 
+                value={registrationData.submissionDate} 
+                onChange={e => setRegistrationData({...registrationData, submissionDate: e.target.value})} 
+              />
             </div>
 
             <div className="space-y-2">
@@ -1186,6 +1214,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <label className="text-sm font-semibold text-slate-700">Bidang *</label>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.sector} 
                 onChange={e => setRegistrationData({...registrationData, sector: e.target.value, subSector: '', aidType: '', programName: ''})}
@@ -1216,6 +1246,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               </div>
               <select 
                 required
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.programName} 
                 onChange={e => handleProgramNameChange(e.target.value)}
@@ -1287,6 +1319,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               </div>
               <select 
                 required 
+                onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                 className="form-input-custom font-medium" 
                 value={registrationData.aidType} 
                 onChange={e => setRegistrationData({...registrationData, aidType: e.target.value as any})}
@@ -1350,6 +1384,10 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
             <button
               type="button"
               onClick={() => {
+                const formElement = document.getElementById('recipient-form') as HTMLFormElement;
+                if (formElement && !formElement.reportValidity()) {
+                  return;
+                }
                 setCurrentStep(2);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
@@ -1584,6 +1622,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                   <label className="text-sm font-semibold text-slate-700">Kecamatan *</label>
                   <select 
                     required 
+                    onInvalid={e => (e.target as HTMLSelectElement).setCustomValidity('Harap pilih item dalam daftar ini.')}
+                    onInput={e => (e.target as HTMLSelectElement).setCustomValidity('')}
                     className="form-input-custom font-medium" 
                     value={recipientInput.district} 
                     onChange={e => setRecipientInput({...recipientInput, district: e.target.value, kampung: ''})}
@@ -1682,6 +1722,8 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
                       <label className="text-xs font-bold text-rose-700 uppercase tracking-wider block">Keterangan Tidak Lengkap *</label>
                       <input
                         required
+                        onInvalid={e => (e.target as HTMLInputElement).setCustomValidity('Harap isi bidang ini.')}
+                        onInput={e => (e.target as HTMLInputElement).setCustomValidity('')}
                         type="text"
                         placeholder="Contoh: Kurang KK / NIK tidak jelas / dll"
                         className="form-input-custom font-medium bg-white border-rose-200"
@@ -2112,7 +2154,7 @@ export default function RecipientForm({ onSubmit, onCancel, existingRecipients, 
               <button
                 type="button"
                 onClick={() => {
-                  const formElement = document.querySelector('form');
+                  const formElement = document.getElementById('recipient-form') as HTMLFormElement;
                   if (formElement && !formElement.reportValidity()) {
                     return;
                   }
