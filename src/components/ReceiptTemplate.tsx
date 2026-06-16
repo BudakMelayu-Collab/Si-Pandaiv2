@@ -666,7 +666,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
     return (
       <div 
-        className="w-full bg-white border border-slate-200 print:border-none min-h-[1131px] p-12 print:p-0 relative font-sans text-black print:w-full print:break-before-page"
+        className="w-full bg-white print:border-none p-12 print:p-8 relative font-sans text-black print:w-full min-h-full"
         style={{ fontSize: `${Math.max(6, templateConfig.fontSize - 1)}pt` }}
       >
         {/* Header */}
@@ -902,7 +902,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   };
 
   return (
-    <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:static print:bg-white print:block overflow-hidden print:overflow-visible print:h-auto">
       {/* Toolbar */}
       <div className="bg-[#111827] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
@@ -1028,12 +1028,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px] print:block bg-slate-950">
+      <div className="flex-1 overflow-hidden print:overflow-visible print:h-auto grid grid-cols-1 lg:grid-cols-[1fr_320px] print:block bg-slate-950">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
-              margin: 10mm 10mm;
+              margin: 0;
             }
             #root > div > *:not(.receipt-template-overlay) {
               display: none !important;
@@ -1073,6 +1073,46 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               page-break-before: always !important;
               break-before: page !important;
             }
+            .receipt-template-overlay {
+              position: relative !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              background-color: white !important;
+              z-index: auto !important;
+              display: block !important;
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+            }
+            .receipt-scrollable-container {
+              overflow: visible !important;
+              height: auto !important;
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              padding: 0 !important;
+              background-color: white !important;
+            }
+            .receipt-print-page {
+              page-break-after: always !important;
+              break-after: page !important;
+              margin: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+              width: 210mm !important;
+              min-height: 330mm !important;
+              background-color: white !important;
+              transform: none !important;
+              padding: 0 !important;
+            }
+            .receipt-print-page:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            .no-print {
+              display: none !important;
+            }
             /* Reset any screen-only styling that might interfere */
             * {
               -webkit-print-color-adjust: exact !important;
@@ -1081,7 +1121,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           }
         `}} />
         {/* Document Area */}
-        <div className="flex-1 p-4 md:p-10 overflow-y-auto bg-slate-950/20 flex flex-col items-center print:p-0 print:bg-white print:block scroll-smooth">
+        <div className="receipt-scrollable-container flex-1 p-4 md:p-10 overflow-y-auto print:overflow-visible print:h-auto bg-slate-950/20 flex flex-col items-center print:p-0 print:bg-white print:block scroll-smooth">
           {viewMode === 'template' && (
             <div className="mb-6 w-full max-w-[800px] bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-start gap-4 print:hidden">
               <div className="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">
@@ -1099,20 +1139,20 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                {viewMode === 'template' ? (
             <div className="flex flex-col items-center w-full">
               <div 
-                className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset"
+                className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
                 style={{ transform: `scale(${scale})` }}
               >
                 <div 
-                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative"
-                  style={{ minHeight: paperSize === 'A4' ? '1120px' : '1250px' }}
+                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0"
+                  style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
                 >
                   {renderReceiptContent('PEMOHON')}
                   {renderReceiptContent('ARSIP')}
                 </div>
                 
                 <div 
-                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative page-break"
-                  style={{ minHeight: paperSize === 'A4' ? '1120px' : '1250px' }}
+                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 p-0"
+                  style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
                 >
                   {renderApplicationForm()}
                 </div>
