@@ -3,75 +3,112 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Sidebar, Header } from './components/Layout';
-import Dashboard from './components/Dashboard';
-import RecipientForm from './components/RecipientForm';
-import RecipientList from './components/RecipientList';
-import BNBARecapTable from './components/BNBARecapTable';
-import SectorReportTable from './components/SectorReportTable';
-import MonthlyPaymentTable from './components/MonthlyPaymentTable';
-import RumahSinggahModule from './components/RumahSinggahModule';
-import PrintTemplate from './components/PrintTemplate';
-import ReceiptTemplate from './components/ReceiptTemplate';
-import MPZISTemplate from './components/MPZISTemplate';
-import MPZISRiwayatTable from './components/MPZISRiwayatTable';
-import EPPDRiwayatTable from './components/EPPDRiwayatTable';
-import EPPDTemplate from './components/EPPDTemplate';
-import EPPDModule from './components/EPPDModule';
-import PPDRecap from './components/PPDRecap';
-import SurveyTemplate from './components/SurveyTemplate';
-import InternalMemoTemplate from './components/InternalMemoTemplate';
-import CompanionCatalog from './components/CompanionCatalog';
-import Settings from './components/Settings';
-import AssessmentComponent from './components/Assessment';
-import GeminiAssistant from './components/GeminiAssistant';
-import EditRecipientModal from './components/EditRecipientModal';
-import UserManagement from './components/UserManagement';
-import { Recipient, AidStatus, PPDRecord, AppSettings, Announcement, UserConfig } from './types';
-import { SIAK_COMPANIONS } from './constants';
-import { Plus, CheckCircle2, LogIn, Bell, Info, AlertTriangle, AlertCircle, X, Trash2, Link as LinkIcon, Share2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  auth, 
-  loginWithGoogle, 
-  loginWithEmail, 
-  registerWithEmail, 
-  streamRecipients, 
-  streamPPDRecords, 
-  saveRecipient, 
-  testConnection, 
+import React, { useState, useEffect } from "react";
+import { Sidebar, Header } from "./components/Layout";
+import Dashboard from "./components/Dashboard";
+import RecipientForm from "./components/RecipientForm";
+import RecipientList from "./components/RecipientList";
+import BNBARecapTable from "./components/BNBARecapTable";
+import SectorReportTable from "./components/SectorReportTable";
+import MonthlyPaymentTable from "./components/MonthlyPaymentTable";
+import RumahSinggahModule from "./components/RumahSinggahModule";
+import PrintTemplate from "./components/PrintTemplate";
+import ReceiptTemplate from "./components/ReceiptTemplate";
+import MPZISTemplate from "./components/MPZISTemplate";
+import MPZISRiwayatTable from "./components/MPZISRiwayatTable";
+import EPPDRiwayatTable from "./components/EPPDRiwayatTable";
+import EPPDTemplate from "./components/EPPDTemplate";
+import EPPDModule from "./components/EPPDModule";
+import PPDRecap from "./components/PPDRecap";
+import SurveyTemplate from "./components/SurveyTemplate";
+import InternalMemoTemplate from "./components/InternalMemoTemplate";
+import CompanionCatalog from "./components/CompanionCatalog";
+import Settings from "./components/Settings";
+import AssessmentComponent from "./components/Assessment";
+import GeminiAssistant from "./components/GeminiAssistant";
+import EditRecipientModal from "./components/EditRecipientModal";
+import UserManagement from "./components/UserManagement";
+import {
+  Recipient,
+  AidStatus,
+  PPDRecord,
+  AppSettings,
+  Announcement,
+  UserConfig,
+} from "./types";
+import { SIAK_COMPANIONS } from "./constants";
+import {
+  Plus,
+  CheckCircle2,
+  LogIn,
+  Bell,
+  Info,
+  AlertTriangle,
+  AlertCircle,
+  X,
+  Trash2,
+  Link as LinkIcon,
+  Share2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  auth,
+  loginWithGoogle,
+  loginWithEmail,
+  registerWithEmail,
+  streamRecipients,
+  streamPPDRecords,
+  saveRecipient,
+  testConnection,
   logout,
   streamAppSettings,
   streamAnnouncements,
-  streamUserConfigByEmail
-} from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { cn } from './lib/utils';
+  streamUserConfigByEmail,
+} from "./firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { cn } from "./lib/utils";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [myConfig, setMyConfig] = useState<UserConfig | null>(null);
-  
-  const isAdmin = user?.email === 'muhammad.nawa@gmail.com' || myConfig?.role === 'Super Admin';
+
+  const isAdmin =
+    user?.email === "muhammad.nawa@gmail.com" ||
+    myConfig?.role === "Super Admin";
 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(true);
   const [ppdRecords, setPpdRecords] = useState<PPDRecord[]>([]);
-  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
+  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(
+    null,
+  );
   const [selectedLampiran, setSelectedLampiran] = useState<Recipient[]>([]);
-  const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null);
-  const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(null);
-  const [prefilledGroupData, setPrefilledGroupData] = useState<Recipient[] | null>(null);
+  const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(
+    null,
+  );
+  const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(
+    null,
+  );
+  const [prefilledGroupData, setPrefilledGroupData] = useState<
+    Recipient[] | null
+  >(null);
 
   const handleUpdateGroupData = async (data: any) => {
     try {
-      const { updateRecipientData, saveRecipient, deleteRecipientServer } = await import('./firebase');
-      
+      const { updateRecipientData, saveRecipient, deleteRecipientServer } =
+        await import("./firebase");
+
       const updatedRecipients = Array.isArray(data) ? data : [data];
-      const initialIds = new Set<string>(editingGroupData?.filter(r => r.id).map(r => r.id as string) || []);
-      const newIds = new Set<string>(updatedRecipients.filter((r: any) => r.id).map((r: any) => r.id as string));
+      const initialIds = new Set<string>(
+        editingGroupData?.filter((r) => r.id).map((r) => r.id as string) || [],
+      );
+      const newIds = new Set<string>(
+        updatedRecipients
+          .filter((r: any) => r.id)
+          .map((r: any) => r.id as string),
+      );
 
       // 1. Delete removed recipients
       for (const id of Array.from(initialIds)) {
@@ -92,15 +129,15 @@ export default function App() {
       }
 
       setEditingGroupData(null);
-      setActiveTab('recipients');
+      setActiveTab("recipients");
       setToastConfig({
-        title: 'Berhasil Diperbarui!',
-        description: 'Data grup pendaftaran berhasil diperbarui.',
-        type: 'success'
+        title: "Berhasil Diperbarui!",
+        description: "Data grup pendaftaran berhasil diperbarui.",
+        type: "success",
       });
       setShowSuccessToast(true);
     } catch (error: any) {
-      alert(error.message || 'Gagal menyimpan perubahan');
+      alert(error.message || "Gagal menyimpan perubahan");
     }
   };
   const [isPrinting, setIsPrinting] = useState(false);
@@ -110,46 +147,54 @@ export default function App() {
   const [isShowingInternalMemo, setIsShowingInternalMemo] = useState(false);
   const [isShowingSurvey, setIsShowingSurvey] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [toastConfig, setToastConfig] = useState<{ title: string; description: string; type: 'success' | 'delete' }>({
-    title: 'Berhasil Disimpan!',
-    description: 'Data penerima bantuan telah masuk ke sistem.',
-    type: 'success'
+  const [toastConfig, setToastConfig] = useState<{
+    title: string;
+    description: string;
+    type: "success" | "delete";
+  }>({
+    title: "Berhasil Disimpan!",
+    description: "Data penerima bantuan telah masuk ke sistem.",
+    type: "success",
   });
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
 
-  const savePPDRecordLocal = async (record: Omit<PPDRecord, 'id' | 'createdAt'>) => {
+  const savePPDRecordLocal = async (
+    record: Omit<PPDRecord, "id" | "createdAt">,
+  ) => {
     try {
-      const { savePPDRecord } = await import('./firebase');
+      const { savePPDRecord } = await import("./firebase");
       await savePPDRecord(record);
       setToastConfig({
-        title: 'Berhasil Disimpan!',
-        description: 'Rekapitulasi pencairan dana berhasil diperbarui.',
-        type: 'success'
+        title: "Berhasil Disimpan!",
+        description: "Rekapitulasi pencairan dana berhasil diperbarui.",
+        type: "success",
       });
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     } catch (error) {
-      alert('Gagal menyimpan rekap PPD.');
+      alert("Gagal menyimpan rekap PPD.");
     }
   };
 
   const deletePPDRecordLocal = async (id: string) => {
     try {
-      const { deletePPDRecordServer } = await import('./firebase');
+      const { deletePPDRecordServer } = await import("./firebase");
       await deletePPDRecordServer(id);
     } catch (error) {
-      alert('Gagal menghapus rekap PPD.');
+      alert("Gagal menghapus rekap PPD.");
     }
   };
 
   const [authError, setAuthError] = useState<string | null>(null);
-  const [connectionWarning, setConnectionWarning] = useState<string | null>(null);
+  const [connectionWarning, setConnectionWarning] = useState<string | null>(
+    null,
+  );
   const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
   const handleLoginWithGoogle = async () => {
@@ -158,10 +203,14 @@ export default function App() {
       setAuthLoading(true);
       await loginWithGoogle();
     } catch (error: any) {
-      if (error.code === 'auth/unauthorized-domain') {
-        setAuthError('Domain tidak terdaftar. Silakan tambahkan domain ini ke "Authorized domains" di Firebase Console Anda.');
+      if (error.code === "auth/unauthorized-domain") {
+        setAuthError(
+          'Domain tidak terdaftar. Silakan tambahkan domain ini ke "Authorized domains" di Firebase Console Anda.',
+        );
       } else {
-        setAuthError('Gagal login: ' + (error.message || 'Error tidak diketahui'));
+        setAuthError(
+          "Gagal login: " + (error.message || "Error tidak diketahui"),
+        );
       }
     } finally {
       setAuthLoading(false);
@@ -174,7 +223,7 @@ export default function App() {
     setAuthLoading(true);
     try {
       if (isRegistering) {
-        if (!displayName) throw new Error('Nama lengkap wajib diisi');
+        if (!displayName) throw new Error("Nama lengkap wajib diisi");
         await registerWithEmail(email, password, displayName);
       } else {
         await loginWithEmail(email, password);
@@ -188,19 +237,19 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribeAuth: (() => void) | null = null;
-    
+
     const init = async () => {
       const connError = await testConnection();
       if (connError) {
         setConnectionWarning(connError);
       }
-      
+
       unsubscribeAuth = onAuthStateChanged(auth, (u) => {
         setUser(u);
         setLoading(false);
       });
     };
-    
+
     init();
 
     return () => {
@@ -212,22 +261,26 @@ export default function App() {
     if (user) {
       const unsubscribeRecipients = streamRecipients((data) => {
         setRecipients(data);
+        setIsLoadingRecipients(false);
       });
-      
+
       const unsubscribePPD = streamPPDRecords((data: PPDRecord[]) => {
         setPpdRecords(data);
       });
 
       const unsubscribeSettings = streamAppSettings(setAppSettings);
       const unsubscribeAnnouncements = streamAnnouncements(setAnnouncements);
-      
+
       let unsubscribeUserConfig = () => {};
       if (user.email) {
-        unsubscribeUserConfig = streamUserConfigByEmail(user.email, (config) => {
-          setMyConfig(config);
-        });
+        unsubscribeUserConfig = streamUserConfigByEmail(
+          user.email,
+          (config) => {
+            setMyConfig(config);
+          },
+        );
       }
-      
+
       return () => {
         unsubscribeRecipients();
         unsubscribePPD();
@@ -240,21 +293,46 @@ export default function App() {
     }
   }, [user]);
 
+  // Data auto-migration background task
+  useEffect(() => {
+    if (user && recipients.length > 0) {
+      const typoRecords = recipients.filter(
+        (r) =>
+          r.programName === "Transfortasi Pasien" ||
+          r.programName === "Trasnfortasi Pasien" ||
+          r.programName === "Trasportasi Pasien",
+      );
+
+      if (typoRecords.length > 0) {
+        import("./firebase").then(({ updateRecipientData }) => {
+          typoRecords.forEach((r) => {
+            updateRecipientData(r.id, {
+              programName: "Transportasi Pasien",
+            }).catch((e) => console.error("Migration failed for", r.id, e));
+          });
+        });
+      }
+    }
+  }, [user, recipients]);
+
   // Keep selectedRecipient in sync with latest data from recipients stream
   useEffect(() => {
     if (selectedRecipient) {
-      const latest = recipients.find(r => r.id === selectedRecipient.id);
-      if (latest && (
-        latest.status !== selectedRecipient.status ||
-        latest.signedPdfUrl !== selectedRecipient.signedPdfUrl ||
-        latest.signedReceiptPdfUrl !== selectedRecipient.signedReceiptPdfUrl ||
-        latest.signedMPZISPdfUrl !== selectedRecipient.signedMPZISPdfUrl ||
-        latest.signedSurveyPdfUrl !== selectedRecipient.signedSurveyPdfUrl ||
-        latest.hasSignedPdf !== selectedRecipient.hasSignedPdf ||
-        latest.hasSignedReceiptPdf !== selectedRecipient.hasSignedReceiptPdf ||
-        latest.hasSignedMPZISPdf !== selectedRecipient.hasSignedMPZISPdf ||
-        latest.hasSignedSurveyPdf !== selectedRecipient.hasSignedSurveyPdf
-      )) {
+      const latest = recipients.find((r) => r.id === selectedRecipient.id);
+      if (
+        latest &&
+        (latest.status !== selectedRecipient.status ||
+          latest.signedPdfUrl !== selectedRecipient.signedPdfUrl ||
+          latest.signedReceiptPdfUrl !==
+            selectedRecipient.signedReceiptPdfUrl ||
+          latest.signedMPZISPdfUrl !== selectedRecipient.signedMPZISPdfUrl ||
+          latest.signedSurveyPdfUrl !== selectedRecipient.signedSurveyPdfUrl ||
+          latest.hasSignedPdf !== selectedRecipient.hasSignedPdf ||
+          latest.hasSignedReceiptPdf !==
+            selectedRecipient.hasSignedReceiptPdf ||
+          latest.hasSignedMPZISPdf !== selectedRecipient.hasSignedMPZISPdf ||
+          latest.hasSignedSurveyPdf !== selectedRecipient.hasSignedSurveyPdf)
+      ) {
         setSelectedRecipient(latest);
       }
     }
@@ -269,7 +347,7 @@ export default function App() {
 
   const handleDuplicateGroup = (groupItems: Recipient[]) => {
     // Strip ids and registrationIds so they are treated as new insertions
-    const newItems = groupItems.map(item => {
+    const newItems = groupItems.map((item) => {
       const newItem = { ...item };
       delete newItem.id;
       delete newItem.registrationId;
@@ -277,7 +355,7 @@ export default function App() {
     });
     setPrefilledGroupData(newItems);
     setEditingGroupData(null);
-    setActiveTab('input');
+    setActiveTab("input");
   };
 
   const handleCreateRecipient = async (data: any) => {
@@ -289,42 +367,47 @@ export default function App() {
       } else {
         await saveRecipient(data);
       }
-      setActiveTab('recipients');
+      setActiveTab("recipients");
       setToastConfig({
-        title: 'Berhasil Disimpan!',
-        description: 'Data penerima bantuan telah masuk ke sistem.',
-        type: 'success'
+        title: "Berhasil Disimpan!",
+        description: "Data penerima bantuan telah masuk ke sistem.",
+        type: "success",
       });
       setShowSuccessToast(true);
     } catch (error) {
-      alert('Gagal menyimpan data. Pastikan Anda memiliki akses atau koneksi internet stabil.');
+      alert(
+        "Gagal menyimpan data. Pastikan Anda memiliki akses atau koneksi internet stabil.",
+      );
       throw error;
     }
   };
 
   const handleDeleteRecipient = async (recipient: Recipient) => {
     try {
-      const { deleteRecipientServer } = await import('./firebase');
+      const { deleteRecipientServer } = await import("./firebase");
       await deleteRecipientServer(recipient.id);
       setToastConfig({
-        title: 'Berhasil Dihapus!',
+        title: "Berhasil Dihapus!",
         description: `Berkas penerima atas nama "${recipient.name}" telah dihapus secara permanen.`,
-        type: 'delete'
+        type: "delete",
       });
       setShowSuccessToast(true);
     } catch (error) {
-      alert('Gagal menghapus data penerima. Pastikan Anda memiliki akses.');
+      alert("Gagal menghapus data penerima. Pastikan Anda memiliki akses.");
     }
   };
 
-  const handleUpdateRecipientData = async (id: string, data: Partial<Recipient>) => {
+  const handleUpdateRecipientData = async (
+    id: string,
+    data: Partial<Recipient>,
+  ) => {
     try {
-      const { updateRecipientData } = await import('./firebase');
+      const { updateRecipientData } = await import("./firebase");
       await updateRecipientData(id, data);
       setToastConfig({
-        title: 'Berhasil Diperbarui!',
-        description: 'Data penerima bantuan berhasil diperbarui.',
-        type: 'success'
+        title: "Berhasil Diperbarui!",
+        description: "Data penerima bantuan berhasil diperbarui.",
+        type: "success",
       });
       setShowSuccessToast(true);
     } catch (error) {
@@ -334,17 +417,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (activeTab.startsWith('companion-')) {
+    if (activeTab.startsWith("companion-")) {
       // Find the actual companion name from the slugs
-      const slug = activeTab.replace('companion-', '');
-      const name = SIAK_COMPANIONS.find(c => c.toLowerCase().replace(/\s+/g, '-') === slug);
+      const slug = activeTab.replace("companion-", "");
+      const name = SIAK_COMPANIONS.find(
+        (c) => c.toLowerCase().replace(/\s+/g, "-") === slug,
+      );
       if (name) {
         // No-op for now, just useful for mapping
       }
     }
   }, [activeTab]);
 
-  const isPublicRoute = new URLSearchParams(window.location.search).get('publicInput') === 'true';
+  const isPublicRoute =
+    new URLSearchParams(window.location.search).get("publicInput") === "true";
 
   if (isPublicRoute) {
     return (
@@ -354,23 +440,29 @@ export default function App() {
             <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-200">
               <CheckCircle2 className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Formulir Pendaftaran Bantuan / Layanan</h1>
-            <p className="text-slate-500 mt-2 font-medium">Badan Amil Zakat Nasional Kabupaten Siak</p>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+              Formulir Pendaftaran Bantuan / Layanan
+            </h1>
+            <p className="text-slate-500 mt-2 font-medium">
+              Badan Amil Zakat Nasional Kabupaten Siak
+            </p>
           </div>
-          <RecipientForm 
+          <RecipientForm
             isPublic={true}
             onSubmit={(recipient) => {
-              handleCreateRecipient(recipient).then(() => {
-                alert("Data berhasil dikirim. Terima kasih.");
-                window.location.reload();
-              }).catch((e: any) => {
-                alert("Gagal mengirim data. " + e.message);
-              });
-            }} 
+              handleCreateRecipient(recipient)
+                .then(() => {
+                  alert("Data berhasil dikirim. Terima kasih.");
+                  window.location.reload();
+                })
+                .catch((e: any) => {
+                  alert("Gagal mengirim data. " + e.message);
+                });
+            }}
             onCancel={() => {
               window.location.href = "https://baznassiak.id";
             }}
-            existingRecipients={[]} 
+            existingRecipients={[]}
           />
         </div>
       </div>
@@ -382,7 +474,9 @@ export default function App() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-white font-medium animate-pulse">Memuat Sistem Si-PANDAI...</p>
+          <p className="text-white font-medium animate-pulse">
+            Memuat Sistem Si-PANDAI...
+          </p>
         </div>
       </div>
     );
@@ -391,7 +485,7 @@ export default function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] overflow-y-auto">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full text-center my-8"
@@ -400,14 +494,18 @@ export default function App() {
             <CheckCircle2 className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-2xl font-black text-slate-800 mb-1">Si-PANDAI</h1>
-          <p className="text-slate-500 mb-6 font-medium text-sm">Sistem Administrasi Bantuan Sosial</p>
-          
+          <p className="text-slate-500 mb-6 font-medium text-sm">
+            Sistem Administrasi Bantuan Sosial
+          </p>
+
           <form onSubmit={handleEmailAuth} className="space-y-4 mb-6 text-left">
             {isRegistering && (
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">Nama Lengkap</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">
+                  Nama Lengkap
+                </label>
+                <input
+                  type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
@@ -417,9 +515,11 @@ export default function App() {
               </div>
             )}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">Email</label>
-              <input 
-                type="email" 
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">
+                Email
+              </label>
+              <input
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
@@ -428,9 +528,11 @@ export default function App() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">Kata Sandi</label>
-              <input 
-                type="password" 
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 px-1">
+                Kata Sandi
+              </label>
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
@@ -438,22 +540,32 @@ export default function App() {
                 required
               />
             </div>
-            <button 
+            <button
               type="submit"
               disabled={authLoading}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
             >
-              {authLoading ? 'Memproses...' : (isRegistering ? 'Daftar Akun' : 'Masuk ke Sistem')}
+              {authLoading
+                ? "Memproses..."
+                : isRegistering
+                  ? "Daftar Akun"
+                  : "Masuk ke Sistem"}
             </button>
           </form>
 
           <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Atau</span></div>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-100"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-400 font-bold">
+                Atau
+              </span>
+            </div>
           </div>
 
           <div className="space-y-4">
-            <button 
+            <button
               onClick={handleLoginWithGoogle}
               disabled={authLoading}
               className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all transform active:scale-95 shadow-lg disabled:opacity-50"
@@ -461,14 +573,16 @@ export default function App() {
               <LogIn className="w-5 h-5" />
               Masuk dengan Google
             </button>
-            
-            <button 
+
+            <button
               onClick={() => setIsRegistering(!isRegistering)}
               className="text-indigo-600 font-bold text-sm hover:underline"
             >
-              {isRegistering ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
+              {isRegistering
+                ? "Sudah punya akun? Masuk"
+                : "Belum punya akun? Daftar"}
             </button>
-            
+
             {authError && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-[10px] font-medium text-left space-y-2">
                 <div className="flex items-center gap-2 font-bold mb-1 text-xs">
@@ -476,23 +590,29 @@ export default function App() {
                   <span>Kesalahan Akses</span>
                 </div>
                 <p className="font-bold">{authError}</p>
-                
-                {authError.includes('Domain tidak terdaftar') && (
+
+                {authError.includes("Domain tidak terdaftar") && (
                   <div className="mt-2 space-y-2">
                     <p className="bg-white p-2 rounded border border-red-100">
-                      Domain <code className="font-bold text-slate-800">{window.location.hostname}</code> belum terdaftar di Authorized domains.
+                      Domain{" "}
+                      <code className="font-bold text-slate-800">
+                        {window.location.hostname}
+                      </code>{" "}
+                      belum terdaftar di Authorized domains.
                     </p>
                   </div>
                 )}
-                
-                {(authError.includes('API Key') || authError.includes('API key')) && (
+
+                {(authError.includes("API Key") ||
+                  authError.includes("API key")) && (
                   <div className="mt-2 space-y-2">
                     <p className="bg-white p-2 rounded border border-red-100">
                       Kunci API Firebase tidak valid atau belum terpasang.
                     </p>
                     <div className="bg-slate-900 text-slate-400 p-3 rounded-lg font-mono text-[9px] leading-relaxed">
-                      Sistem otomatis mengalami kegagalan izin (Permission Denied). 
-                      Penyebab: Proyek cloud ini memerlukan aktivasi Firebase manual.
+                      Sistem otomatis mengalami kegagalan izin (Permission
+                      Denied). Penyebab: Proyek cloud ini memerlukan aktivasi
+                      Firebase manual.
                     </div>
                   </div>
                 )}
@@ -505,12 +625,18 @@ export default function App() {
                   <AlertTriangle className="w-4 h-4 text-amber-550" />
                   <span>Sistem Berjalan dalam Mode Offline</span>
                 </div>
-                <p className="leading-relaxed">Aplikasi tidak mendeteksi koneksi langsung ke server Firestore (Kemungkinan karena firewall jaringan atau batasan browser iframe). Anda tetap dapat menggunakan data lokal/cache dan mengumpulkan data secara offline.</p>
+                <p className="leading-relaxed">
+                  Aplikasi tidak mendeteksi koneksi langsung ke server Firestore
+                  (Kemungkinan karena firewall jaringan atau batasan browser
+                  iframe). Anda tetap dapat menggunakan data lokal/cache dan
+                  mengumpulkan data secara offline.
+                </p>
               </div>
             )}
 
             <p className="text-[10px] text-slate-400 font-medium px-4">
-              Akses terbatas hanya untuk staff administrasi lembaga yang telah terverifikasi.
+              Akses terbatas hanya untuk staff administrasi lembaga yang telah
+              terverifikasi.
             </p>
           </div>
         </motion.div>
@@ -522,29 +648,30 @@ export default function App() {
     try {
       await logout();
       setUser(null);
-      setActiveTab('dashboard');
+      setActiveTab("dashboard");
     } catch (error) {
-      alert('Gagal logout.');
+      alert("Gagal logout.");
     }
   };
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
+      case "dashboard":
         return <Dashboard recipients={recipients} />;
-      case 'input':
+      case "input":
         return (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex justify-end mb-4">
               <button
                 onClick={() => {
                   const url = new URL(window.location.href);
-                  url.searchParams.set('publicInput', 'true');
+                  url.searchParams.set("publicInput", "true");
                   navigator.clipboard.writeText(url.toString());
                   setToastConfig({
-                    title: 'Tautan Disalin!',
-                    description: 'Tautan form pendaftaran publik berhasil disalin ke clipboard.',
-                    type: 'success'
+                    title: "Tautan Disalin!",
+                    description:
+                      "Tautan form pendaftaran publik berhasil disalin ke clipboard.",
+                    type: "success",
                   });
                   setShowSuccessToast(true);
                 }}
@@ -554,50 +681,76 @@ export default function App() {
                 Bagikan Form Publik
               </button>
             </div>
-            <RecipientForm 
-              onSubmit={editingGroupData ? handleUpdateGroupData : handleCreateRecipient} 
+            <RecipientForm
+              onSubmit={
+                editingGroupData ? handleUpdateGroupData : handleCreateRecipient
+              }
               onCancel={() => {
                 setEditingGroupData(null);
                 setPrefilledGroupData(null);
-                setActiveTab('dashboard');
+                setActiveTab("dashboard");
               }}
               existingRecipients={recipients}
-              initialGroupRecipients={editingGroupData || prefilledGroupData || undefined}
+              initialGroupRecipients={
+                editingGroupData || prefilledGroupData || undefined
+              }
             />
           </div>
         );
-      case 'recipients':
-      case 'siak-cerdas':
-      case 'siak-dakwah':
-      case 'siak-peduli':
-      case 'siak-sehat':
-      case 'siak-sejahtera':
-      case 'atm-beras':
-      case 'bnba-recap':
+      case "recipients":
+      case "siak-cerdas":
+      case "siak-dakwah":
+      case "siak-peduli":
+      case "siak-sehat":
+      case "siak-sejahtera":
+      case "atm-beras":
+      case "bnba-recap":
         let filteredData = [];
-        let currentSector = '';
-        
-        if (activeTab === 'recipients' || activeTab === 'bnba-recap') {
+        let currentSector = "";
+
+        if (activeTab === "recipients" || activeTab === "bnba-recap") {
           // Antrean Layanan excludes Program Bulanan and ATM Beras entirely. BNBA Recap can show all EXCEPT Rumah Singgah.
-          if (activeTab === 'recipients') {
-            filteredData = recipients.filter(r => r.serviceType !== 'Program Bulanan' && !(r.programName?.toLowerCase().includes('atm beras')) && !(r.programName?.toLowerCase().includes('rumah singgah')));
+          if (activeTab === "recipients") {
+            filteredData = recipients.filter(
+              (r) =>
+                r.serviceType !== "Program Bulanan" &&
+                !r.programName?.toLowerCase().includes("atm beras") &&
+                !r.programName?.toLowerCase().includes("rumah singgah"),
+            );
           } else {
-            filteredData = recipients.filter(r => !(r.programName?.toLowerCase().includes('rumah singgah')));
+            filteredData = recipients.filter(
+              (r) => !r.programName?.toLowerCase().includes("rumah singgah"),
+            );
           }
-        } else if (activeTab === 'atm-beras') {
-          filteredData = recipients.filter(r => r.programName?.toLowerCase().includes('atm beras') || (r.sector === 'Siak Sejahtera' && r.programName?.toLowerCase().includes('beras')));
+        } else if (activeTab === "atm-beras") {
+          filteredData = recipients.filter(
+            (r) =>
+              r.programName?.toLowerCase().includes("atm beras") ||
+              (r.sector === "Siak Sejahtera" &&
+                r.programName?.toLowerCase().includes("beras")),
+          );
         } else {
-          currentSector = activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          filteredData = recipients.filter(r => 
-            r.sector === currentSector && 
-            !r.programName?.toLowerCase().includes('atm beras') && 
-            !r.programName?.toLowerCase().includes('rumah singgah')
+          currentSector = activeTab
+            .split("-")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          filteredData = recipients.filter(
+            (r) =>
+              r.sector === currentSector &&
+              !r.programName?.toLowerCase().includes("atm beras") &&
+              !r.programName?.toLowerCase().includes("rumah singgah"),
           );
         }
-        
-        const isSectorTab = ['Siak Cerdas', 'Siak Dakwah', 'Siak Peduli', 'Siak Sehat', 'Siak Sejahtera'].includes(currentSector);
-        const isMonthlySector = activeTab === 'atm-beras';
-        const displaySector = isMonthlySector ? 'ATM Beras' : currentSector;
+
+        const isSectorTab = [
+          "Siak Cerdas",
+          "Siak Dakwah",
+          "Siak Peduli",
+          "Siak Sehat",
+          "Siak Sejahtera",
+        ].includes(currentSector);
+        const isMonthlySector = activeTab === "atm-beras";
+        const displaySector = isMonthlySector ? "ATM Beras" : currentSector;
         const shouldSplitMonthly = isSectorTab || isMonthlySector;
 
         return (
@@ -605,12 +758,12 @@ export default function App() {
             <div className="space-y-4">
               {shouldSplitMonthly && (
                 <div className="pb-8 space-y-6 border-b border-slate-200 mb-8">
-                  <MPZISRiwayatTable 
-                    data={filteredData} 
+                  <MPZISRiwayatTable
+                    data={filteredData}
                     sectorName={displaySector}
                     onEditGroup={(group) => {
                       setEditingGroupData(group);
-                      setActiveTab('input');
+                      setActiveTab("input");
                     }}
                     onDuplicateGroup={handleDuplicateGroup}
                     onDeleteRecipient={handleDeleteRecipient}
@@ -619,12 +772,12 @@ export default function App() {
                       setIsShowingMPZIS(true);
                     }}
                   />
-                  <EPPDRiwayatTable 
-                    data={filteredData} 
+                  <EPPDRiwayatTable
+                    data={filteredData}
                     sectorName={displaySector}
                     onEditGroup={(group) => {
                       setEditingGroupData(group);
-                      setActiveTab('input');
+                      setActiveTab("input");
                     }}
                     onDuplicateGroup={handleDuplicateGroup}
                     onDeleteRecipient={handleDeleteRecipient}
@@ -635,10 +788,14 @@ export default function App() {
                   />
                 </div>
               )}
-              {shouldSplitMonthly && <h2 className="text-lg font-bold text-slate-800">Layanan Konter - {displaySector}</h2>}
-              {activeTab === 'bnba-recap' ? (
-                <BNBARecapTable 
-                  data={filteredData} 
+              {shouldSplitMonthly && (
+                <h2 className="text-lg font-bold text-slate-800">
+                  Layanan Konter - {displaySector}
+                </h2>
+              )}
+              {activeTab === "bnba-recap" ? (
+                <BNBARecapTable
+                  data={filteredData}
                   onReceipt={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
@@ -664,8 +821,15 @@ export default function App() {
                   onDeleteRecipient={handleDeleteRecipient}
                 />
               ) : (
-                <RecipientList 
-                  data={shouldSplitMonthly ? filteredData.filter(r => r.serviceType !== 'Program Bulanan') : filteredData} 
+                <RecipientList
+                  isLoading={isLoadingRecipients}
+                  data={
+                    shouldSplitMonthly
+                      ? filteredData.filter(
+                          (r) => r.serviceType !== "Program Bulanan",
+                        )
+                      : filteredData
+                  }
                   onReceipt={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingReceipt(true);
@@ -692,19 +856,24 @@ export default function App() {
                   onEditRecipient={(rec) => setEditingRecipient(rec)}
                   onEditGroup={(group) => {
                     setEditingGroupData(group);
-                    setActiveTab('input');
+                    setActiveTab("input");
                   }}
                   onDuplicateGroup={handleDuplicateGroup}
                 />
               )}
             </div>
-            
+
             {shouldSplitMonthly && (
               <div className="space-y-12">
                 <div className="space-y-4 pt-8 border-t border-slate-200">
-                  <h2 className="text-lg font-bold text-slate-800">Program Bulanan - {displaySector}</h2>
-                  <RecipientList 
-                    data={filteredData.filter(r => r.serviceType === 'Program Bulanan')} 
+                  <h2 className="text-lg font-bold text-slate-800">
+                    Program Bulanan - {displaySector}
+                  </h2>
+                  <RecipientList
+                    isLoading={isLoadingRecipients}
+                    data={filteredData.filter(
+                      (r) => r.serviceType === "Program Bulanan",
+                    )}
                     onReceipt={(rec) => {
                       setSelectedRecipient(rec);
                       setIsShowingReceipt(true);
@@ -731,7 +900,7 @@ export default function App() {
                     onEditRecipient={(rec) => setEditingRecipient(rec)}
                     onEditGroup={(group) => {
                       setEditingGroupData(group);
-                      setActiveTab('input');
+                      setActiveTab("input");
                     }}
                     onDuplicateGroup={handleDuplicateGroup}
                   />
@@ -741,15 +910,20 @@ export default function App() {
             {isMonthlySector && <MonthlyPaymentTable sector={displaySector} />}
           </div>
         );
-      case 'profile':
+      case "profile":
         return (
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 max-w-2xl mx-auto">
             <div className="flex items-center gap-6 mb-8 pb-8 border-b border-slate-100">
               <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-lg overflow-hidden">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.displayName || 'Felix'}`} alt="avatar" />
+                <img
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.displayName || "Felix"}`}
+                  alt="avatar"
+                />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-800">{user?.displayName}</h2>
+                <h2 className="text-2xl font-bold text-slate-800">
+                  {user?.displayName}
+                </h2>
                 <p className="text-slate-500 font-medium">{user?.email}</p>
                 <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -757,21 +931,32 @@ export default function App() {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-slate-50 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">UID Pengguna</p>
-                <p className="text-sm font-mono text-slate-600 truncate">{user?.uid}</p>
+                <p className="text-xs font-bold text-slate-400 uppercase mb-1">
+                  UID Pengguna
+                </p>
+                <p className="text-sm font-mono text-slate-600 truncate">
+                  {user?.uid}
+                </p>
               </div>
               <div className="bg-slate-50 p-4 rounded-2xl">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Terakhir Masuk</p>
+                <p className="text-xs font-bold text-slate-400 uppercase mb-1">
+                  Terakhir Masuk
+                </p>
                 <p className="text-sm font-medium text-slate-600">
-                  {user?.metadata.lastSignInTime ? new Date(user.metadata.lastSignInTime).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}
+                  {user?.metadata.lastSignInTime
+                    ? new Date(user.metadata.lastSignInTime).toLocaleDateString(
+                        "id-ID",
+                        { dateStyle: "long" },
+                      )
+                    : "-"}
                 </p>
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
             >
@@ -779,20 +964,20 @@ export default function App() {
             </button>
           </div>
         );
-      case 'settings':
+      case "settings":
         return <Settings />;
-      case 'user-management':
+      case "user-management":
         return (
-          <UserManagement 
-            currentUserEmail={user?.email || null} 
-            onBackToDashboard={() => setActiveTab('dashboard')} 
+          <UserManagement
+            currentUserEmail={user?.email || null}
+            onBackToDashboard={() => setActiveTab("dashboard")}
           />
         );
-      case 'assessment':
+      case "assessment":
         return <AssessmentComponent recipients={recipients} />;
-      case 'e-ppd':
+      case "e-ppd":
         return (
-          <EPPDModule 
+          <EPPDModule
             recipients={recipients}
             ppdRecords={ppdRecords}
             onSelectEPPD={(rec, lampiran) => {
@@ -818,31 +1003,33 @@ export default function App() {
             onEditRecipient={(rec) => setEditingRecipient(rec)}
             onEditGroup={(group) => {
               setEditingGroupData(group);
-              setActiveTab('input');
+              setActiveTab("input");
             }}
             onDuplicateGroup={handleDuplicateGroup}
-            onCloseRecap={() => setActiveTab('dashboard')}
+            onCloseRecap={() => setActiveTab("dashboard")}
           />
         );
 
-      case 'rumah-singgah':
+      case "rumah-singgah":
         return (
-          <RumahSinggahModule 
+          <RumahSinggahModule
             recipients={recipients}
-            onBack={() => setActiveTab('dashboard')}
-            onCheckInCompleted={() => setActiveTab('rumah-singgah')}
+            onBack={() => setActiveTab("dashboard")}
+            onCheckInCompleted={() => setActiveTab("rumah-singgah")}
           />
         );
-      case 'gemini-ai':
+      case "gemini-ai":
         return <GeminiAssistant recipients={recipients} />;
       default:
-        if (activeTab.startsWith('companion-')) {
-          const slug = activeTab.replace('companion-', '');
-          const name = SIAK_COMPANIONS.find(c => c.toLowerCase().replace(/\s+/g, '-') === slug);
+        if (activeTab.startsWith("companion-")) {
+          const slug = activeTab.replace("companion-", "");
+          const name = SIAK_COMPANIONS.find(
+            (c) => c.toLowerCase().replace(/\s+/g, "-") === slug,
+          );
           return (
-            <CompanionCatalog 
-              companionId={slug} 
-              companionName={name || 'Pendamping'} 
+            <CompanionCatalog
+              companionId={slug}
+              companionName={name || "Pendamping"}
               recipients={recipients}
             />
           );
@@ -852,71 +1039,105 @@ export default function App() {
   };
 
   const getHeaderTitle = () => {
-    if (activeTab.startsWith('companion-')) {
-      const slug = activeTab.replace('companion-', '');
-      const name = SIAK_COMPANIONS.find(c => c.toLowerCase().replace(/\s+/g, '-') === slug);
-      return `Pendamping: ${name || 'Program'}`;
+    if (activeTab.startsWith("companion-")) {
+      const slug = activeTab.replace("companion-", "");
+      const name = SIAK_COMPANIONS.find(
+        (c) => c.toLowerCase().replace(/\s+/g, "-") === slug,
+      );
+      return `Pendamping: ${name || "Program"}`;
     }
     switch (activeTab) {
-      case 'dashboard': return 'Overview Dashboard';
-      case 'input': return 'Input Data Baru';
-      case 'recipients': return 'Antrean Layanan';
-      case 'siak-cerdas': return 'Bidang Pendistribusian: Siak Cerdas';
-      case 'siak-dakwah': return 'Bidang Pendistribusian: Siak Dakwah';
-      case 'siak-peduli': return 'Bidang Pendistribusian: Siak Peduli';
-      case 'siak-sehat': return 'Bidang Pendistribusian: Siak Sehat';
-      case 'siak-sejahtera': return 'Bidang Pendistribusian: Siak Sejahtera';
-      case 'atm-beras': return 'Program Khusus: ATM Beras';
-      case 'rumah-singgah': return 'Program Khusus: Rumah Singgah';
-      case 'bnba-recap': return 'Rekap BNBA (By Name By Address)';
-      case 'e-ppd': return 'Rekap Pencairan (E-PPD)';
-      case 'profile': return 'Profil Pengguna';
-      case 'settings': return 'Pengaturan Aplikasi';
-      case 'user-management': return 'Manajemen Hak Akses User';
-      case 'assessment': return 'Asessment dan Prensentasi';
-      case 'gemini-ai': return 'Asisten AI Gemini - Konsultasi & Analisis Data';
-      default: return 'Antrean Layanan';
+      case "dashboard":
+        return "Overview Dashboard";
+      case "input":
+        return "Input Data Baru";
+      case "recipients":
+        return "Antrean Layanan";
+      case "siak-cerdas":
+        return "Bidang Pendistribusian: Siak Cerdas";
+      case "siak-dakwah":
+        return "Bidang Pendistribusian: Siak Dakwah";
+      case "siak-peduli":
+        return "Bidang Pendistribusian: Siak Peduli";
+      case "siak-sehat":
+        return "Bidang Pendistribusian: Siak Sehat";
+      case "siak-sejahtera":
+        return "Bidang Pendistribusian: Siak Sejahtera";
+      case "atm-beras":
+        return "Program Khusus: ATM Beras";
+      case "rumah-singgah":
+        return "Program Khusus: Rumah Singgah";
+      case "bnba-recap":
+        return "Rekap BNBA (By Name By Address)";
+      case "e-ppd":
+        return "Rekap Pencairan (E-PPD)";
+      case "profile":
+        return "Profil Pengguna";
+      case "settings":
+        return "Pengaturan Aplikasi";
+      case "user-management":
+        return "Manajemen Hak Akses User";
+      case "assessment":
+        return "Asessment dan Prensentasi";
+      case "gemini-ai":
+        return "Asisten AI Gemini - Konsultasi & Analisis Data";
+      default:
+        return "Antrean Layanan";
     }
   };
 
-  const activeAnnouncements = announcements.filter(a => a.isActive);
+  const activeAnnouncements = announcements.filter((a) => a.isActive);
 
   return (
     <div className="min-h-screen bg-slate-50 flex print:bg-white print:block">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         onLogout={handleLogout}
         settings={appSettings}
         allowedMenus={myConfig?.allowedMenus}
         isAdmin={isAdmin}
       />
-      
+
       <main className="flex-1 ml-64 min-h-screen print:ml-0 print:min-h-0">
-        <Header 
-          title={getHeaderTitle()} 
+        <Header
+          title={getHeaderTitle()}
           user={user}
-          onProfileClick={() => setActiveTab('profile')}
+          onProfileClick={() => setActiveTab("profile")}
           onNotificationClick={() => setShowAnnouncements(true)}
           notificationCount={activeAnnouncements.length}
         />
-        
+
         <div className="p-8 pt-24 max-w-7xl mx-auto print:hidden">
           {connectionWarning && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-xs flex items-start gap-3 shadow-sm">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-0.5 text-left">
-                <p className="font-bold text-amber-900 text-sm">Mode Offline / Sinkronisasi Terbatas</p>
-                <p className="leading-relaxed">Sistem tidak memiliki koneksi real-time langsung ke server Google Cloud Firestore. Anda tetap dapat membaca, memperbarui data, mengunggah scan/berkas, atau mengisi form karena data tersimpan dan disimulasikan aman secara lokal. Sinkronisasi penuh akan segera terpicu otomatis saat koneksi internet Anda pulih.</p>
+                <p className="font-bold text-amber-900 text-sm">
+                  Mode Offline / Sinkronisasi Terbatas
+                </p>
+                <p className="leading-relaxed">
+                  Sistem tidak memiliki koneksi real-time langsung ke server
+                  Google Cloud Firestore. Anda tetap dapat membaca, memperbarui
+                  data, mengunggah scan/berkas, atau mengisi form karena data
+                  tersimpan dan disimulasikan aman secara lokal. Sinkronisasi
+                  penuh akan segera terpicu otomatis saat koneksi internet Anda
+                  pulih.
+                </p>
               </div>
             </div>
           )}
-          {activeTab !== 'input' && activeTab !== 'assessment' && activeTab !== 'gemini-ai' && (
-            (activeTab === 'dashboard' || activeTab === 'recipients' || activeTab.startsWith('siak-')) ? (
+          {activeTab !== "input" &&
+            activeTab !== "assessment" &&
+            activeTab !== "gemini-ai" &&
+            (activeTab === "dashboard" ||
+            activeTab === "recipients" ||
+            activeTab.startsWith("siak-") ? (
               <div className={cn("flex items-center mb-8", "justify-end")}>
-                {(activeTab === 'recipients' || activeTab.startsWith('siak-')) && (
-                  <button 
-                    onClick={() => setActiveTab('input')}
+                {(activeTab === "recipients" ||
+                  activeTab.startsWith("siak-")) && (
+                  <button
+                    onClick={() => setActiveTab("input")}
                     className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 scale-100 hover:scale-105 active:scale-95"
                   >
                     <Plus className="w-5 h-5" />
@@ -924,8 +1145,7 @@ export default function App() {
                   </button>
                 )}
               </div>
-            ) : null
-          )}
+            ) : null)}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -943,9 +1163,9 @@ export default function App() {
 
       <AnimatePresence>
         {isPrinting && selectedRecipient && (
-          <PrintTemplate 
-            recipient={selectedRecipient} 
-            onClose={() => setIsPrinting(false)} 
+          <PrintTemplate
+            recipient={selectedRecipient}
+            onClose={() => setIsPrinting(false)}
           />
         )}
       </AnimatePresence>
@@ -958,7 +1178,7 @@ export default function App() {
             onEdit={(rec) => {
               setIsShowingReceipt(false);
               setSelectedRecipient(rec);
-              setActiveTab('input');
+              setActiveTab("input");
             }}
           />
         )}
@@ -1018,18 +1238,18 @@ export default function App() {
       <AnimatePresence>
         {showAnnouncements && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAnnouncements(false)}
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80]"
             />
-            <motion.div 
-              initial={{ x: '100%' }}
+            <motion.div
+              initial={{ x: "100%" }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-[90] flex flex-col"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -1037,49 +1257,77 @@ export default function App() {
                   <Bell className="w-5 h-5 text-indigo-600" />
                   <h3 className="font-black text-slate-800">Pemberitahuan</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowAnnouncements(false)}
                   className="p-2 hover:bg-slate-100 rounded-lg text-slate-400"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {activeAnnouncements.length > 0 ? activeAnnouncements.map((ann) => (
-                  <div key={ann.id} className={cn(
-                    "p-4 rounded-2xl border-l-4 shadow-sm",
-                    ann.type === 'info' ? "bg-blue-50 border-blue-500" : 
-                    ann.type === 'warning' ? "bg-amber-50 border-amber-500" : "bg-red-50 border-red-500"
-                  )}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {ann.type === 'info' ? <Info className="w-4 h-4 text-blue-600" /> : 
-                       ann.type === 'warning' ? <AlertTriangle className="w-4 h-4 text-amber-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-widest",
-                        ann.type === 'info' ? "text-blue-600" : 
-                        ann.type === 'warning' ? "text-amber-600" : "text-red-600"
-                      )}>{ann.type}</span>
+                {activeAnnouncements.length > 0 ? (
+                  activeAnnouncements.map((ann) => (
+                    <div
+                      key={ann.id}
+                      className={cn(
+                        "p-4 rounded-2xl border-l-4 shadow-sm",
+                        ann.type === "info"
+                          ? "bg-blue-50 border-blue-500"
+                          : ann.type === "warning"
+                            ? "bg-amber-50 border-amber-500"
+                            : "bg-red-50 border-red-500",
+                      )}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {ann.type === "info" ? (
+                          <Info className="w-4 h-4 text-blue-600" />
+                        ) : ann.type === "warning" ? (
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-600" />
+                        )}
+                        <span
+                          className={cn(
+                            "text-[10px] font-black uppercase tracking-widest",
+                            ann.type === "info"
+                              ? "text-blue-600"
+                              : ann.type === "warning"
+                                ? "text-amber-600"
+                                : "text-red-600",
+                          )}
+                        >
+                          {ann.type}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">
+                        {ann.title}
+                      </h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {ann.content}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                        {new Date(ann.createdAt).toLocaleDateString("id-ID", {
+                          dateStyle: "medium",
+                        })}
+                      </p>
                     </div>
-                    <h4 className="font-bold text-slate-800 text-sm mb-1">{ann.title}</h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">{ann.content}</p>
-                    <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                      {new Date(ann.createdAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
-                    </p>
-                  </div>
-                )) : (
+                  ))
+                ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-40">
                     <Bell className="w-12 h-12 text-slate-300 mb-4" />
-                    <p className="text-slate-400 font-bold">Tidak ada pemberitahuan baru.</p>
+                    <p className="text-slate-400 font-bold">
+                      Tidak ada pemberitahuan baru.
+                    </p>
                   </div>
                 )}
               </div>
-              
+
               <div className="p-4 border-t border-slate-100 bg-slate-50">
-                <button 
+                <button
                   onClick={() => {
                     setShowAnnouncements(false);
-                    setActiveTab('settings');
+                    setActiveTab("settings");
                   }}
                   className="w-full py-3 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                 >
@@ -1093,26 +1341,32 @@ export default function App() {
 
       <AnimatePresence>
         {showSuccessToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 50 }}
             className={cn(
               "fixed bottom-8 right-8 text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 backdrop-blur-md border border-white/10",
-              toastConfig.type === 'delete' ? "bg-rose-600/95" : "bg-green-600/95"
+              toastConfig.type === "delete"
+                ? "bg-rose-600/95"
+                : "bg-green-600/95",
             )}
           >
-            {toastConfig.type === 'delete' ? (
+            {toastConfig.type === "delete" ? (
               <Trash2 className="w-6 h-6 text-rose-100" />
             ) : (
               <CheckCircle2 className="w-6 h-6 text-green-100" />
             )}
             <div>
               <p className="font-bold">{toastConfig.title}</p>
-              <p className={cn(
-                "text-xs font-semibold",
-                toastConfig.type === 'delete' ? "text-rose-100" : "text-green-100"
-              )}>
+              <p
+                className={cn(
+                  "text-xs font-semibold",
+                  toastConfig.type === "delete"
+                    ? "text-rose-100"
+                    : "text-green-100",
+                )}
+              >
                 {toastConfig.description}
               </p>
             </div>
@@ -1122,5 +1376,3 @@ export default function App() {
     </div>
   );
 }
-
-

@@ -36,6 +36,7 @@ import { mergeRecipientScans } from "../lib/pdfMerger";
 import ActivityTicker from "./ActivityTicker";
 
 interface RecipientListProps {
+  isLoading?: boolean;
   data: Recipient[];
   onReceipt: (recipient: Recipient) => void;
   onMPZIS: (recipient: Recipient, lampiranItems?: Recipient[]) => void;
@@ -132,6 +133,7 @@ function getRelativeTimeDetails(
 }
 
 export default function RecipientList({
+  isLoading,
   data,
   onReceipt,
   onMPZIS,
@@ -329,7 +331,82 @@ export default function RecipientList({
 
       {/* Recipient Queue Table grouped inside a single unified scrollable wrapper */}
       <div className="overflow-x-auto pb-48 min-h-[500px]">
-        {filteredData.length > 0 ? (
+        {isLoading ? (
+          <div className="min-w-[1200px] divide-y divide-slate-200">
+            <div className="bg-white">
+              <div className="bg-slate-100 border-b border-slate-200/80 pl-6 pr-6 py-2.5 flex items-center gap-2 sticky top-0 z-30">
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-pulse" />
+                <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
+              </div>
+              <table className="w-full text-left border-collapse relative">
+                <thead className="bg-slate-50/75 border-b border-slate-200 sticky top-[41px] z-20 backdrop-blur-sm shadow-sm">
+                  <tr>
+                    <th className="pl-6 pr-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap text-center w-12">
+                      No
+                    </th>
+                    <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
+                      No. Reg & Tanggal
+                    </th>
+                    <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
+                      Program & Jenis Bantuan
+                    </th>
+                    <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap text-center">
+                      Jumlah Penerima
+                    </th>
+                    <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
+                      Sumber Berkas & Nama Lembaga
+                    </th>
+                    <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
+                      Penanggung Jawab (PIC)
+                    </th>
+                    <th className="pr-6 pl-3 py-3.5 text-sm font-normal text-black tracking-wider text-right sticky right-0 bg-slate-50 whitespace-nowrap lg:p-0 lg:w-0 lg:border-none lg:overflow-hidden lg:opacity-0">
+                      <span className="lg:hidden">Aksi</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <tr
+                      key={`skeleton-${idx}`}
+                      className="bg-white hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="pl-6 pr-3 py-4 whitespace-nowrap text-center">
+                        <div className="h-4 w-4 bg-slate-200/70 rounded animate-pulse mx-auto" />
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-2">
+                          <div className="h-4 w-24 bg-slate-200/70 rounded animate-pulse" />
+                          <div className="h-3 w-16 bg-slate-100/70 rounded animate-pulse" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-2">
+                          <div className="h-4 w-40 bg-slate-200/70 rounded animate-pulse" />
+                          <div className="h-3 w-24 bg-slate-100/70 rounded animate-pulse" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-center">
+                        <div className="h-4 w-12 bg-slate-200/70 rounded animate-pulse mx-auto" />
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-2">
+                          <div className="h-4 w-20 bg-slate-200/70 rounded animate-pulse" />
+                          <div className="h-3 w-24 bg-slate-100/70 rounded animate-pulse" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <div className="h-4 w-28 bg-slate-200/70 rounded animate-pulse" />
+                      </td>
+                      <td className="pr-6 pl-3 py-4 whitespace-nowrap text-right sticky right-0 bg-white">
+                        <div className="h-8 w-24 bg-slate-200/70 rounded-lg animate-pulse ml-auto" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : filteredData.length > 0 ? (
           <div className="min-w-[1200px] divide-y divide-slate-200">
             {(() => {
               // Grouping logic for rows
@@ -413,19 +490,14 @@ export default function RecipientList({
                             No. Reg & Tanggal
                           </th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
-                            Program
+                            Program & Jenis Bantuan
+                          </th>
+                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap text-center">
+                            Jumlah Penerima
                           </th>
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
-                            Jenis Bantuan
+                            Sumber Berkas & Nama Lembaga
                           </th>
-                          <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
-                            Sumber Berkas
-                          </th>
-                          {showInstitutionColumns && (
-                            <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
-                              Nama Lembaga
-                            </th>
-                          )}
                           <th className="px-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap">
                             Penanggung Jawab (PIC)
                           </th>
@@ -501,47 +573,57 @@ export default function RecipientList({
                                       </div>
                                     </td>
 
-                                    {/* Program */}
+                                    {/* Program & Jenis Bantuan */}
                                     <td className="px-3 py-4 text-sm whitespace-nowrap">
-                                      <div
-                                        className="text-sm text-black font-normal leading-snug"
-                                        title={item.programName}
-                                      >
-                                        {item.programName}
+                                      <div className="flex flex-col">
+                                        <span
+                                          className="text-sm text-black font-normal leading-snug truncate max-w-[200px]"
+                                          title={item.programName}
+                                        >
+                                          {item.programName}
+                                        </span>
+                                        <span className="text-sm font-normal text-black mt-0.5">
+                                          {item.aidType}
+                                        </span>
                                       </div>
                                     </td>
 
-                                    {/* Jenis */}
-                                    <td className="px-3 py-4 text-sm whitespace-nowrap">
-                                      <span className="font-normal text-black">
-                                        {item.aidType}
+                                    {/* Jumlah Penerima */}
+                                    <td className="px-3 py-4 text-sm whitespace-nowrap text-center">
+                                      <span className="text-black font-normal">
+                                        {groupItems.length} orang
                                       </span>
                                     </td>
 
-                                    {/* Sumber Berkas */}
+                                    {/* Sumber Berkas & Nama Lembaga */}
                                     <td className="px-3 py-4 text-sm whitespace-nowrap">
-                                      <span className="font-normal text-black">
-                                        {item.source || "KLM"}
-                                      </span>
+                                      <div className="flex flex-col">
+                                        <span className="font-normal text-black">
+                                          {item.source || "KLM"}
+                                        </span>
+                                        {showInstitutionColumns &&
+                                          [
+                                            "UPZ",
+                                            "Online",
+                                            "Instansi",
+                                            "Lembaga",
+                                          ].includes(item.source) &&
+                                          item.institutionName &&
+                                          item.institutionName !== "-" && (
+                                            <span className="font-semibold text-black mt-0.5">
+                                              {item.institutionName}
+                                            </span>
+                                          )}
+                                      </div>
                                     </td>
-
-                                    {showInstitutionColumns && (
-                                      /* Nama Lembaga */
-                                      <td className="px-3 py-4 text-sm whitespace-nowrap text-black font-semibold">
-                                        {[
-                                          "UPZ",
-                                          "Online",
-                                          "Instansi",
-                                          "Lembaga",
-                                        ].includes(item.source)
-                                          ? item.institutionName || "-"
-                                          : "-"}
-                                      </td>
-                                    )}
 
                                     {/* Penanggung Jawab (PIC) */}
                                     <td className="px-3 py-4 text-sm whitespace-nowrap text-black font-medium">
-                                      {item.personInCharge || "-"}
+                                      {item.personInCharge || (
+                                        <span className="text-slate-300 font-normal">
+                                          -
+                                        </span>
+                                      )}
                                     </td>
 
                                     {/* Aksi Berkas */}
@@ -688,7 +770,7 @@ export default function RecipientList({
                                       transition={{ duration: 0.2 }}
                                     >
                                       <td
-                                        colSpan={showInstitutionColumns ? 9 : 8}
+                                        colSpan={7}
                                         className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40"
                                       >
                                         <div className="border border-slate-200/80 rounded-2xl shadow-xs bg-white overflow-hidden">
@@ -816,19 +898,13 @@ export default function RecipientList({
                                                     Status Berkas
                                                   </th>
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
-                                                    No Hp
+                                                    No Hp & Alamat
                                                   </th>
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
-                                                    Kecamatan
+                                                    Kampung & Kecamatan
                                                   </th>
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
                                                     Info Rekening
-                                                  </th>
-                                                  <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
-                                                    Alamat
-                                                  </th>
-                                                  <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
-                                                    Kampung
                                                   </th>
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal text-center">
                                                     Aksi
@@ -919,8 +995,11 @@ export default function RecipientList({
                                                               ""
                                                             }
                                                           >
-                                                            {subItem.purpose ||
-                                                              "-"}
+                                                            {subItem.purpose || (
+                                                              <span className="text-slate-300 font-normal">
+                                                                -
+                                                              </span>
+                                                            )}
                                                           </div>
                                                         </td>
                                                         <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
@@ -955,46 +1034,77 @@ export default function RecipientList({
                                                             )}
                                                         </td>
                                                         <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
-                                                          {subItem.contact ? (
-                                                            <a
-                                                              href={`https://wa.me/${subItem.contact.replace(/\D/g, "")}`}
-                                                              target="_blank"
-                                                              rel="noopener noreferrer"
-                                                              className="text-black font-mono font-normal hover:underline"
+                                                          <div className="flex flex-col">
+                                                            {subItem.contact ? (
+                                                              <a
+                                                                href={`https://wa.me/${subItem.contact.replace(/\D/g, "")}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-black font-mono font-normal hover:underline"
+                                                              >
+                                                                {
+                                                                  subItem.contact
+                                                                }
+                                                              </a>
+                                                            ) : (
+                                                              <span className="text-slate-300 font-normal">
+                                                                -
+                                                              </span>
+                                                            )}
+                                                            <span
+                                                              className="text-black font-normal truncate max-w-[220px] mt-0.5"
+                                                              title={
+                                                                subItem.address
+                                                              }
                                                             >
-                                                              {subItem.contact}
-                                                            </a>
-                                                          ) : (
-                                                            "-"
-                                                          )}
+                                                              {subItem.address || (
+                                                                <span className="text-slate-300 font-normal">
+                                                                  -
+                                                                </span>
+                                                              )}
+                                                            </span>
+                                                          </div>
                                                         </td>
                                                         <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">
-                                                          {subItem.district ||
-                                                            "-"}
+                                                          <div className="flex flex-col">
+                                                            <span className="text-black font-normal">
+                                                              {subItem.kampung || (
+                                                                <span className="text-slate-300 font-normal">
+                                                                  -
+                                                                </span>
+                                                              )}
+                                                            </span>
+                                                            <span className="text-black font-normal mt-0.5">
+                                                              {subItem.district || (
+                                                                <span className="text-slate-300 font-normal">
+                                                                  -
+                                                                </span>
+                                                              )}
+                                                            </span>
+                                                          </div>
                                                         </td>
                                                         <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">
                                                           {subItem.bankAccountNo ? (
                                                             <div className="flex flex-col">
-                                                              <span>{subItem.bankName || "BCA"}</span>
-                                                              <span>{subItem.bankAccountNo}</span>
-                                                              <span className="font-bold">{subItem.bankAccountHolder || subItem.name}</span>
+                                                              <span>
+                                                                {subItem.bankName ||
+                                                                  "BCA"}
+                                                              </span>
+                                                              <span>
+                                                                {
+                                                                  subItem.bankAccountNo
+                                                                }
+                                                              </span>
+                                                              <span className="font-bold">
+                                                                {subItem.bankAccountHolder ||
+                                                                  subItem.name}
+                                                              </span>
                                                             </div>
                                                           ) : (
-                                                            "-"
+                                                            <span className="text-slate-300 font-normal">
+                                                              -
+                                                            </span>
                                                           )}
-                                                        </td>
-                                                        <td
-                                                          className="px-3.5 py-3 text-black border-r border-slate-200/40 truncate max-w-[220px]"
-                                                          title={
-                                                            subItem.address
-                                                          }
-                                                        >
-                                                          {subItem.address ||
-                                                            "-"}
-                                                        </td>
-                                                        <td className="px-3.5 py-3 text-black border-r border-slate-200/40 font-normal whitespace-nowrap">
-                                                          {subItem.kampung ||
-                                                            "-"}
                                                         </td>
                                                         <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap text-center">
                                                           <div className="flex items-center justify-center gap-1.5">
@@ -1158,20 +1268,6 @@ export default function RecipientList({
                                 <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
                                   -
                                 </td>
-                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
-                                  -
-                                </td>
-                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
-                                  -
-                                </td>
-                                <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
-                                  -
-                                </td>
-                                {showInstitutionColumns && (
-                                  <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
-                                    -
-                                  </td>
-                                )}
                                 <td className="px-3 py-4 text-sm font-normal text-slate-300 whitespace-nowrap text-center">
                                   -
                                 </td>
