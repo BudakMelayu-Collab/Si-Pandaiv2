@@ -430,7 +430,7 @@ export default function MonthlyPaymentTable({ sector }: MonthlyPaymentTableProps
                       </button>
                     </td>
                     <td className="px-2 py-4 text-sm text-slate-600 whitespace-nowrap">{p.registrationId}</td>
-                    <td className="px-2 py-4 text-sm text-slate-600 whitespace-nowrap">
+                    <td className="px-2 py-4 text-sm text-slate-600 font-bold whitespace-nowrap">
                       {p.programName}
                     </td>
                     <td className="px-2 py-4 text-sm text-slate-600 whitespace-nowrap">{p.asnaf}</td>

@@ -481,7 +481,7 @@ export default function RecipientList({
                     </div>
 
                     <table className="w-full text-left border-collapse relative">
-                      <thead className="bg-slate-50/75 border-b border-slate-200 sticky top-[41px] z-20 backdrop-blur-sm shadow-sm">
+                      <thead className="bg-slate-50/80 border-b border-slate-200 sticky top-[41px] z-20 backdrop-blur-sm shadow-sm">
                         <tr>
                           <th className="pl-6 pr-3 py-3.5 text-sm font-normal text-black tracking-wider whitespace-nowrap text-center w-12">
                             No
@@ -542,7 +542,12 @@ export default function RecipientList({
                                       duration: 0.3,
                                       ease: "easeOut",
                                     }}
-                                    className="hover:bg-slate-50/80 transition-colors group"
+                                    className={cn(
+                                      "transition-all duration-200 group border-l-4",
+                                      expandedRows[regId] !== false
+                                        ? "bg-indigo-50/30 border-indigo-500"
+                                        : "bg-white border-transparent hover:bg-slate-50/50"
+                                    )}
                                   >
                                     {/* Nomor */}
                                     <td className="pl-6 pr-3 py-4 text-sm font-normal text-black whitespace-nowrap text-center">
@@ -577,7 +582,7 @@ export default function RecipientList({
                                     <td className="px-3 py-4 text-sm whitespace-nowrap">
                                       <div className="flex flex-col">
                                         <span
-                                          className="text-sm text-black font-normal leading-snug truncate max-w-[200px]"
+                                          className="text-sm text-black font-bold leading-snug truncate max-w-[200px]"
                                           title={item.programName}
                                         >
                                           {item.programName}
@@ -771,9 +776,9 @@ export default function RecipientList({
                                     >
                                       <td
                                         colSpan={7}
-                                        className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40"
+                                        className="pl-6 pr-6 pb-4 pt-1 bg-slate-50/40 shadow-inner"
                                       >
-                                        <div className="border border-slate-200/80 rounded-2xl shadow-xs bg-white overflow-hidden">
+                                        <div className="border border-slate-200/40 rounded-xl bg-white overflow-hidden">
                                           <div className="px-4.5 py-3 bg-slate-50 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
                                               <FileStack className="w-4 h-4 text-indigo-600" />
@@ -846,7 +851,7 @@ export default function RecipientList({
                                           </div>
                                           <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
                                             <table className="w-full text-left border-collapse table-auto">
-                                              <thead className="bg-slate-50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal sticky top-0 z-10 shadow-sm">
+                                              <thead className="bg-slate-100/50 border-b border-slate-200/60 text-black text-sm tracking-wider font-normal sticky top-0 z-10 shadow-sm">
                                                 <tr>
                                                   <th className="px-3.5 py-2.5 text-center text-black w-16 border-r border-slate-200/40 font-normal">
                                                     <div className="flex items-center justify-center gap-2">
@@ -891,9 +896,7 @@ export default function RecipientList({
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
                                                     Nama & NIK
                                                   </th>
-                                                  <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 font-normal min-w-[200px]">
-                                                    Mengajukan Bantuan Untuk
-                                                  </th>
+
                                                   <th className="px-3.5 py-2.5 text-black border-r border-slate-200/40 whitespace-nowrap font-normal">
                                                     Status Berkas
                                                   </th>
@@ -987,21 +990,7 @@ export default function RecipientList({
                                                             </span>
                                                           </div>
                                                         </td>
-                                                        <td className="px-3.5 py-3 text-black font-normal border-r border-slate-200/40 min-w-[200px] max-w-[250px]">
-                                                          <div
-                                                            className="whitespace-normal break-words"
-                                                            title={
-                                                              subItem.purpose ||
-                                                              ""
-                                                            }
-                                                          >
-                                                            {subItem.purpose || (
-                                                              <span className="text-slate-300 font-normal">
-                                                                -
-                                                              </span>
-                                                            )}
-                                                          </div>
-                                                        </td>
+
                                                         <td className="px-3.5 py-3 border-r border-slate-200/40 whitespace-nowrap">
                                                           <span
                                                             className={cn(
@@ -1247,7 +1236,7 @@ export default function RecipientList({
                             blankRows.push(
                               <tr
                                 key={`blank-${i}`}
-                                className="hover:bg-slate-50/80 transition-colors h-[72px]"
+                                className="bg-white hover:bg-slate-50/50 transition-colors h-[72px]"
                               >
                                 <td className="pl-6 pr-3 py-4 text-sm font-normal text-slate-400 whitespace-nowrap text-center">
                                   <div className="flex items-center justify-center gap-2">

@@ -228,7 +228,7 @@ export default function PPDRecap({ records, onDelete, onClose }: PPDRecapProps) 
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.recipientNik || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.familyStatus || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.asnaf || '-'}</td>
-                  <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.programName || '-'}</td>
+                  <td className="py-4 px-2 text-[11px] font-bold text-black whitespace-nowrap">{record.programName || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.kampung || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.district || '-'}</td>
                   <td className="py-4 px-2 text-[11px] font-normal text-black whitespace-nowrap">{record.paymentMethod || '-'}</td>

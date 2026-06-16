@@ -4,7 +4,7 @@ import { Recipient } from '../types';
 import { 
   Printer, X, FileCheck, Edit3, Upload, Image as ImageIcon, 
   Trash2, Eye, FileText, AlertCircle, ChevronRight, Loader2,
-  Download, Settings, Save
+  Download, Settings, Save, QrCode
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
@@ -405,13 +405,13 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   const renderReceiptContent = (type: 'PEMOHON' | 'ARSIP') => (
     <div 
       className={cn(
-        "w-full px-8 py-4 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
-        type === 'PEMOHON' ? "border-b border-dashed pb-4 mb-2 print:mb-0 print:pb-2" : "pt-1"
+        "w-full px-10 py-6 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
+        type === 'PEMOHON' ? "border-b border-dashed pb-6 mb-4 print:mb-0 print:pb-4" : "pt-4"
       )}
       style={{ fontSize: `${templateConfig.fontSize}pt` }}
     >
       {/* Header */}
-      <div className="flex items-center gap-4 mb-2 border-b border-black pb-1">
+      <div className="flex items-center gap-4 mb-4 border-b border-black pb-3">
         <div 
           className="flex-shrink-0 flex items-center justify-center border-2 border-dashed border-slate-200 relative group overflow-hidden rounded bg-white print:border-none print:bg-transparent"
           style={{ width: `${templateConfig.logoSize + 16}px`, height: `${templateConfig.logoSize + 16}px` }}
@@ -447,9 +447,9 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       </div>
 
       {/* Title */}
-      <div className="text-center mb-1 relative">
-        <h2 className="text-lg font-bold underline mb-0 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
-        <p className="text-[11px] mt-0.5 font-bold">
+      <div className="text-center mb-3 relative">
+        <h2 className="text-lg font-bold underline mb-1 uppercase tracking-widest leading-none">TANDA TERIMA</h2>
+        <p className="text-[11px] mt-1 font-bold">
           Nomor: {recipient.registrationId}/TT/{
             recipient.sector === 'Siak Cerdas' ? 'SC' :
             recipient.sector === 'Siak Dakwah' ? 'SD' :
@@ -463,12 +463,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         </div>
       </div>
 
-      <p className="mb-1 text-sm">
+      <p className="mb-3">
         Telah di terima berkas permohonan bantuan atas nama :
       </p>
 
       {/* Data Body */}
-      <div className="space-y-0.5 mb-2 text-sm">
+      <div className="space-y-1.5 mb-4">
         {[
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
@@ -478,32 +478,32 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           { label: 'Alamat Lengkap', value: receiptData.address, key: 'address', multiline: true }
         ].map((item) => (
           <div key={item.key} className="grid grid-cols-[160px_20px_1fr] items-start">
-            <span className="text-black font-bold">{item.label}</span>
-            <span className="text-black font-bold">:</span>
+            <span className="text-black">{item.label}</span>
+            <span className="text-black">:</span>
             {isEditing ? (
               item.multiline ? (
                 <textarea 
-                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 resize-none font-sans text-sm"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-1 resize-none font-sans"
                   rows={2}
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
               ) : (
                 <input 
-                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-0.5 font-sans text-sm"
+                  className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/20 px-2 py-1.5 font-sans"
                   value={item.value}
                   onChange={e => setReceiptData({...receiptData, [item.key]: e.target.value})}
                 />
               )
             ) : (
-              <span className="text-black font-sans leading-tight">{item.value}</span>
+              <span className="text-black font-sans leading-relaxed pt-0.5">{item.value}</span>
             )}
           </div>
         ))}
       </div>
 
-      <h4 className="border-b border-black pb-0.5 mb-1.5 text-xs font-bold tracking-wider uppercase">Berkas Lampiran :</h4>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 mb-3 text-[11px] min-h-[30px]">
+      <h4 className="border-b border-black pb-1 mb-2 tracking-wider capitalize" style={{ fontSize: '1.05em' }}>Berkas Lampiran :</h4>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 mb-5 min-h-[30px]" style={{ fontSize: '0.9em' }}>
 
 
         {receiptData.documents.map((doc, idx) => {
@@ -516,7 +516,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                 <div className="flex flex-col flex-1 gap-1">
                   <div className="flex items-center gap-1">
                     <select 
-                      className="border-b border-indigo-200 focus:border-indigo-500 outline-none flex-1 bg-indigo-50/30 font-sans py-0 text-[11px]"
+                      className="border-b border-indigo-200 focus:border-indigo-500 outline-none flex-1 bg-indigo-50/30 font-sans py-0"
                       value={isPredefined ? doc : (doc === "" ? "" : "Lainnya")}
                       onChange={e => {
                         const val = e.target.value;
@@ -548,7 +548,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         {isEditing && receiptData.documents.length < 12 && (
           <button 
             onClick={() => setReceiptData({...receiptData, documents: [...receiptData.documents, '']})}
-            className="col-span-2 mt-1 flex items-center justify-center gap-1.5 py-1 border-2 border-dashed border-indigo-100 text-indigo-400 hover:border-indigo-300 hover:text-indigo-600 rounded text-[9px] font-bold uppercase transition-all"
+            className="col-span-2 mt-2 flex items-center justify-center gap-1.5 py-1.5 border-2 border-dashed border-indigo-100 text-indigo-400 hover:border-indigo-300 hover:text-indigo-600 rounded font-bold uppercase transition-all" style={{ fontSize: '0.8em' }}
           >
             + Tambah Berkas Lampiran
           </button>
@@ -556,49 +556,51 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
       </div>
 
       {/* Signatures */}
-      <div className="flex justify-between items-start pt-1">
-        <div className="text-center w-44">
+      <div className="flex justify-between items-start pt-4">
+        <div className="text-center w-52">
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-8 text-[10px] uppercase font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-10 capitalize" style={{ fontSize: '0.9em' }}
               value={receiptData.receiverLabel}
               onChange={e => setReceiptData({...receiptData, receiverLabel: e.target.value})}
             />
           ) : (
-            <p className="mb-8 text-xs font-bold underline">{receiptData.receiverLabel},</p>
+            <p className="mb-10 underline capitalize">{receiptData.receiverLabel},</p>
           )}
           
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center" style={{ fontSize: '1.05em' }}
               value={receiptData.receiverName}
               onChange={e => setReceiptData({...receiptData, receiverName: e.target.value})}
             />
           ) : (
-            <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-xs font-bold">{receiptData.receiverName}</p>
+            <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.receiverName}</p>
           )}
         </div>
-        <div className="text-center w-48">
-          <p className="text-xs mb-8 text-black font-bold">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <div className="text-center w-56">
+          <p className="mb-10 text-black">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <div className="mb-0.5">
             {isEditing ? (
               <input 
-                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-xs font-bold"
+                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center"
+                style={{ fontSize: '1.05em' }}
                 value={receiptData.giverName}
                 onChange={e => setReceiptData({...receiptData, giverName: e.target.value})}
               />
             ) : (
-              <p className="border-b border-black pb-0.5 uppercase tracking-tighter text-xs font-bold">{receiptData.giverName || '(....................................)'}</p>
+              <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.giverName || '(....................................)'}</p>
             )}
           </div>
           {isEditing ? (
             <input 
-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center text-[10px] font-bold"
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center capitalize"
+              style={{ fontSize: '0.9em' }}
               value={receiptData.giverLabel}
               onChange={e => setReceiptData({...receiptData, giverLabel: e.target.value})}
             />
           ) : (
-            <p className="text-[10px] text-black font-bold uppercase">{receiptData.giverLabel}</p>
+            <p className="text-black capitalize" style={{ fontSize: '0.9em' }}>{receiptData.giverLabel}</p>
           )}
         </div>
       </div>
@@ -612,143 +614,292 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     </div>
   );
 
-  const renderApplicationForm = () => (
-    <div 
-      className="w-full px-8 py-8 font-sans leading-tight text-black flex flex-col relative bg-white print:break-before-page"
-      style={{ fontSize: `${templateConfig.fontSize}pt` }}
-    >
-      {/* Header */}
-      <table className="w-full border-collapse mb-4 border border-black">
-        <tbody>
-          <tr>
-            <td className="w-[120px] p-2 border-r border-black align-middle text-center">
-              {templateConfig.logo ? (
-                <img src={templateConfig.logo} alt="Logo" className="max-w-full max-h-full object-contain mx-auto" style={{ height: `${templateConfig.logoSize}px` }} />
-              ) : logo ? (
-                <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain mx-auto" style={{ height: `${templateConfig.logoSize}px` }} />
-              ) : null}
-            </td>
-            <td className="p-4 align-middle">
-              <h1 className="font-bold uppercase tracking-tight text-[12pt] mb-0 leading-none">LAYANAN MUSTAHIK</h1>
-              <h2 className="uppercase tracking-tight text-[10pt] font-normal leading-none mt-1 text-slate-700">{templateConfig.institution || "BAZNAS PROVINSI RIAU"}</h2>
-            </td>
-            <td className="w-[160px] p-2 border-l border-black align-middle text-center bg-white">
-              <div className="flex flex-col items-center justify-center">
-                 <div className="flex w-full h-8 items-end justify-between px-2 mb-1 gap-[1px]">
-                    {Array.from({length: 42}).map((_, i) => (
-                      <div key={i} className="bg-black shrink-0" style={{ width: [1, 2, 3][Math.floor(Math.random() * 3)] + 'px', height: '100%' }}></div>
-                    ))}
-                 </div>
-                 <span className="text-[10px] font-mono tracking-widest">{recipient.registrationId.split('-')[1]}</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+  const terbilang = (n: number): string => {
+    if (n === 0) return 'Nol Rupiah';
+    
+    const helper = (num: number): string => {
+      const units = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+      if (num === 0) return '';
+      if (num < 12) return units[num];
+      if (num < 20) return units[num - 10] + ' Belas';
+      if (num < 100) return (num < 20 ? units[num-10] + ' Belas' : (Math.floor(num / 10) === 1 ? 'Sepuluh' : units[Math.floor(num / 10)]) + ' Puluh ' + helper(num % 10));
+      if (num < 200) return 'Seratus ' + helper(num - 100);
+      if (num < 1000) return (Math.floor(num / 100) === 1 ? 'Seratus' : units[Math.floor(num / 100)]) + ' Ratus ' + helper(num % 100);
+      if (num < 2000) return 'Seribu ' + helper(num - 1000);
+      if (num < 1000000) return helper(Math.floor(num / 1000)) + ' Ribu ' + helper(num % 1000);
+      if (num < 1000000000) return helper(Math.floor(num / 1000000)) + ' Juta ' + helper(num % 1000000);
+      return '';
+    };
+    
+    const fixIndonesian = (str: string) => {
+      return str
+        .replace(/Satu Puluh/g, 'Sepuluh')
+        .replace(/Satu Ratus/g, 'Seratus')
+        .replace(/Satu Ribu/g, 'Seribu')
+        .replace(/\s+/g, ' ').trim();
+    };
+    
+    return fixIndonesian(helper(n));
+  };
 
-      {/* Main Table */}
-      <table className="w-full border-collapse mb-4 border border-black text-[10px]">
-        <thead>
-          <tr>
-            <th colSpan={2} className="border-b border-black p-1.5 text-center font-bold text-xs underline uppercase relative tracking-wide">
-              FORMULIR PERMOHONAN
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold w-[180px]">Registrasi</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.submissionDate}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Penerima</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.name}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Indentitas</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.nik}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Tempat Lahir</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.pob}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Tanggal Lahir</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.dob ? new Date(recipient.dob).toLocaleDateString('id-ID') : '-'}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Kontak Person</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.contact}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Alamat</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.address}, RT{recipient.rt}/RW{recipient.rw}, {recipient.kampung}, {recipient.district}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Status Berkas</td>
-            <td className="border-b border-black p-1.5 uppercase">LENGKAP</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Indeks</td>
-            <td className="border-b border-black p-1.5 uppercase">{recipient.companion || '-'}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Program</td>
-            <td className="border-b border-black p-1.5 uppercase">{receiptData.subject}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Nominal</td>
-            <td className="border-b border-black p-1.5 uppercase">Rp. {recipient.amountProposed?.toLocaleString('id-ID') || 0}</td>
-          </tr>
-          <tr>
-            <td className="border-b border-r border-black p-1.5 font-bold">Rekening</td>
-            <td className="border-b border-black p-1.5 uppercase leading-tight">
-              {recipient.schoolName ? `${recipient.schoolName}\n` : ''}
-              {recipient.bankAccountHolder ? `${recipient.bankAccountHolder}/` : ''}
-              {recipient.bankName ? `${recipient.bankName}-` : ''}
-              {recipient.bankAccountNo || '-'}
-            </td>
-          </tr>
-          <tr>
-            <td className="border-r border-black p-1.5 font-bold">Keterangan</td>
-            <td className="border-black p-1.5 uppercase">{recipient.purpose}</td>
-          </tr>
-        </tbody>
-      </table>
+  const formatCurrencyMemo = (val: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(val);
+  };
 
-      {/* Signature Table */}
-      <table className="w-full border-collapse border border-black text-xs text-center mb-8 bg-white" style={{ pageBreakInside: 'avoid' }}>
-        <thead>
-          <tr>
-            <th className="border-b border-r border-black p-1 font-normal w-1/2">Petugas</th>
-            <th className="border-b border-black p-1 font-normal w-1/2">Mustahik</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="border-b border-r border-black p-2 align-middle overflow-hidden" style={{ height: '140px'}}>
-              {/* Petugas Signature Placeholder */}
-              <div className="flex items-center justify-center h-full max-w-full px-2">
-                <a href="#" className="text-blue-600 underline text-[10px] break-all text-center max-w-[200px]">
-                  {recipient.registrationId.split('-')[1]}.TTD_PETUGAS.{String(Math.floor(Math.random() * 100000)).padStart(5, '0')}
-                </a>
+  const renderApplicationForm = () => {
+    const d = new Date();
+    const monthRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    
+    const memoData = {
+      no: `0001/FPB/BAZNAS-KS/${monthRoman[d.getMonth()]}/${d.getFullYear()}`,
+      date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+      toPosition: 'Ketua BAZNAS Kabupaten Siak',
+      toName: 'H. Samparis Bin Tatan, S.Pd.i',
+      amount: recipient.amountProposed || 0,
+      reference: `REG-${recipient.nik ? recipient.nik.slice(-4) : '0000'}`,
+      description: recipient.purpose || 'Pengajuan Bantuan',
+      creatorName: 'Andreas Supriadi, S.Ikom',
+      creatorPosition: 'Kabid. PDP',
+      approverName: 'H. Sukijo',
+      approverPosition: 'Wakil Ketua II PDP',
+    };
+
+    return (
+      <div 
+        className="w-full bg-white border border-slate-200 print:border-none min-h-[1131px] p-12 print:p-0 relative font-sans text-black print:w-full print:break-before-page"
+        style={{ fontSize: `${Math.max(6, templateConfig.fontSize - 1)}pt` }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+          <div className="w-[150px]">
+             {(templateConfig.logo || logo) && <img src={templateConfig.logo || logo} alt="Logo" className="w-[120px] object-contain" />}
+          </div>
+          <div className="flex-1 text-center">
+            <h1 className="text-xl font-bold uppercase tracking-wider">Formulir Permohonan Bantuan</h1>
+            <div className="font-normal mt-1 w-full justify-center flex">
+              <span>No. {memoData.no}</span>
+            </div>
+          </div>
+          <div className="w-[150px] flex justify-end">
+             <QRCode value={`${window.location.origin}${window.location.pathname}?verify=${recipient.id}`} size={80} />
+          </div>
+        </div>
+
+        <div className="border border-slate-200 p-8 pt-6">
+          <div className="mb-4 text-black space-y-0.5">
+            <div><span className="inline-block w-20">Perihal</span>: Mohon Dana Zakat</div>
+            <div><span className="inline-block w-20"></span>&nbsp; {recipient.programName || ".............................................."}</div>
+          </div>
+
+          <div className="flex justify-between items-start mb-6 text-black">
+            <div className="space-y-0.5">
+              <div className="font-bold">Kepada Yth.</div>
+              <div>{memoData.toPosition}</div>
+              <div>{memoData.toName}</div>
+              <div className="font-bold">di Tempat</div>
+            </div>
+          </div>
+
+          <div className="mb-4 italic text-black">
+            Assalamualaikum warohmatullahi wabarokatuh
+          </div>
+
+          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+             Dengan hormat saya sampaikan kepada bapak bahwa saya yang bertanda tangan di bawah ini:
+          </div>
+
+          <table className="w-full mb-4 text-black leading-loose pl-8 block">
+            <tbody className="table w-full">
+              <tr>
+                <td className="w-48">Nama</td>
+                <td className="w-4">:</td>
+                <td className="font-bold uppercase">{recipient.name || "………………………………………………"}</td>
+              </tr>
+              <tr>
+                <td>NIK</td>
+                <td>:</td>
+                <td>{recipient.nik || "……….………………………………………"}</td>
+              </tr>
+              <tr>
+                <td>Pekerjaan</td>
+                <td>:</td>
+                <td>{recipient.job || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Pekerjaan..." />}</td>
+              </tr>
+              <tr>
+                <td>Kondisi Fisik</td>
+                <td>:</td>
+                <td>
+                   <div className="flex gap-6 mt-1.5 font-normal">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="fisik" defaultChecked={recipient.physicalCondition === 'Sehat'} className="w-3.5 h-3.5 cursor-pointer accent-black" /> Sehat</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="fisik" defaultChecked={recipient.physicalCondition === 'Sakit'} className="w-3.5 h-3.5 cursor-pointer accent-black" /> Sakit</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="fisik" defaultChecked={recipient.physicalCondition === 'Cacat'} className="w-3.5 h-3.5 cursor-pointer accent-black" /> Cacat</label>
+                   </div>
+                </td>
+              </tr>
+              <tr>
+                <td>Tempat/ tgl lahir</td>
+                <td>:</td>
+                <td>{recipient.pob || "…………….."} / {recipient.dob ? new Date(recipient.dob).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "……………………………….."}</td>
+              </tr>
+              {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
+                <>
+                  <tr>
+                    <td>Mulai dirawat</td>
+                    <td>:</td>
+                    <td>{recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Mulai dirawat..." />}</td>
+                  </tr>
+                  <tr>
+                    <td>Diagnosa Penyakit</td>
+                    <td>:</td>
+                    <td>{recipient.diagnosis || <input type="text" className="border-b border-black outline-none bg-transparent w-full max-w-md print:border-none print:w-auto" placeholder="Diagnosa penyakit..." />}</td>
+                  </tr>
+                </>
+              )}
+              <tr>
+                <td className="align-top">Alamat Sekarang</td>
+                <td className="align-top">:</td>
+                <td className="align-top leading-relaxed">{recipient.address ? `${recipient.address}, RT${recipient.rt}/RW${recipient.rw}, ${recipient.kampung}, Kec. ${recipient.district}` : "………………………………………………."}</td>
+              </tr>
+              {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
+                <tr>
+                  <td>Nama Pendamping</td>
+                  <td>:</td>
+                  <td>{recipient.patientCompanionName || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Nama pendamping..." />}</td>
+                </tr>
+              )}
+              <tr>
+                <td>Nomor Kontak</td>
+                <td>:</td>
+                <td>{recipient.contact || "………………………………………………."}</td>
+              </tr>
+              <tr>
+                <td>Penerima Formulir</td>
+                <td>:</td>
+                <td><strong>Dina Alvinda, S.Pd.</strong> <span className="italic" style={{ fontSize: '0.85em' }}>*) diisi oleh petugas BAZNAS. Kab siak</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "}</strong> untuk biaya <strong>{recipient.programName || ".............................................."}</strong>{' '}
+            {recipient.programName?.toLowerCase().includes('pendamping pasien') && (
+              <span>selama <strong>{recipient.daysCount || "....."}</strong> hari </span>
+            )}
+            {recipient.programName?.toLowerCase().includes('alat kesehatan') ? (
+              <span>pembelian Alat Kesehatan berupa <strong>{recipient.healthToolName || "..........................."}</strong></span>
+            ) : (
+              !(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
+                <span>di RS <strong>{recipient.hospitalName || <input type="text" className="border-b border-black font-bold outline-none bg-transparent print:border-none w-48" placeholder="..." />}</strong></span>
+              )
+            )}
+            <br/>
+            Sebagai bahan pertimbangan bapak, bersama ini saya lampirkan:
+          </div>
+
+          <table className="w-full mb-4 text-black leading-loose pl-12 block">
+            <tbody className="table w-full">
+              <tr>
+                <td className="w-8">a.</td>
+                <td>Foto copy Kartu Keluarga (KK)/ Kartu Tanda Penduduk (KTP)</td>
+                <td className="w-32">
+                   <div className="flex gap-4">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_a" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('ktp') || d.name.toLowerCase().includes('kk'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_a" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('ktp') || d.name.toLowerCase().includes('kk'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                   </div>
+                </td>
+              </tr>
+              <tr>
+                <td>b.</td>
+                <td>Surat Keterangan Miskin (Asli) / Jamkesmas / Jamkesda</td>
+                <td>
+                   <div className="flex gap-4">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_b" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('miskin') || d.name.toLowerCase().includes('sktm'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_b" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('miskin') || d.name.toLowerCase().includes('sktm'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                   </div>
+                </td>
+              </tr>
+              {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
+                <>
+                  <tr>
+                    <td>c.</td>
+                    <td>Surat Keterangan Inap dari RSUD/ Surat Kontrol Rutin</td>
+                    <td>
+                       <div className="flex gap-4">
+                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_c" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('inap') || d.name.toLowerCase().includes('kontrol'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_c" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('inap') || d.name.toLowerCase().includes('kontrol'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                       </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>d.</td>
+                    <td>Surat Rujukan dari Puskesmas</td>
+                    <td>
+                       <div className="flex gap-4">
+                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_d" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('rujukan') || d.name.toLowerCase().includes('puskesmas'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_d" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('rujukan') || d.name.toLowerCase().includes('puskesmas'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                       </div>
+                    </td>
+                  </tr>
+                </>
+              )}
+              <tr>
+                <td>e.</td>
+                <td>Photo Pasien yang akan diajukan</td>
+                <td>
+                   <div className="flex gap-4">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_e" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('foto') || d.name.toLowerCase().includes('photo'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_e" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('foto') || d.name.toLowerCase().includes('photo'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                   </div>
+                </td>
+              </tr>
+              <tr>
+                <td>f.</td>
+                <td>Rincian Biaya</td>
+                <td>
+                   <div className="flex gap-4">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_f" className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_f" className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
+                   </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+            Perlu kiranya saya tambahkan bahwa jika saya mendapat bantuan biaya pendamping pasien dari Badan Amil Zakat Nasional Kabupaten Siak, saya bersedia mematuhi segala ketentuan yang ditetapkan oleh Badan Amil Zakat Nasional Kabupaten Siak.
+          </div>
+
+          <div className="text-justify leading-relaxed mb-6 text-black pl-8">
+            Demikianlah permohonan ini saya ajukan, dengan pengharapan kiranya dapat dipertimbangkan dan terkabullah hendaknya.
+          </div>
+
+          <div className="mb-6 italic text-black">
+            Wassalamualaikum warahmatullahi wabarakatuh
+          </div>
+
+          <div className="flex justify-end text-black mt-8">
+            <div className="text-center">
+              <div className="mb-1">
+                <span>Siak Sri Indrapura, </span>
+                <span>{memoData.date}</span>
               </div>
-            </td>
-            <td className="border-b border-black p-3 align-middle bg-white">
-               <div className="flex justify-center bg-white p-1">
-                 <QRCode value={recipient.registrationId} size={100} level="M" />
-               </div>
-            </td>
-          </tr>
-          <tr>
-            <td className="border-r border-black p-2 font-bold uppercase tracking-tight">{recipient.companion || '-'}</td>
-            <td className="border-black p-2 uppercase tracking-tight">{recipient.name}</td>
-          </tr>
-        </tbody>
-      </table>
-      
-    </div>
-  );
+              <div className="mb-16">Hormat saya yang bermohon,</div>
+              <div className="font-bold uppercase underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
+            </div>
+          </div>
+
+          <div className="mt-12 w-full text-center text-black pt-8">
+            <p className="mb-16">
+              Permohonan ini telah dikonsultasikan<br/>
+              dan <strong>dapat/ tidak</strong>, dilanjutkan untuk dibantu sesuai dengan ketentuan/ survey lokasi
+            </p>
+            <div className="font-bold underline decoration-1 underline-offset-4 mb-1">Sutarno Nurdianto,SE.</div>
+            <div>Kepala Pelaksana</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">

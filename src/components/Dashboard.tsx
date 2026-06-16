@@ -600,7 +600,7 @@ export default function Dashboard({ recipients }: DashboardProps) {
                       </div>
                     </td>
                     <td className="py-4">
-                      <p className="text-xs text-slate-600 font-medium">
+                      <p className="text-xs text-slate-600 font-bold">
                         {item.programName}
                       </p>
                       <p className="text-[10px] text-slate-400">

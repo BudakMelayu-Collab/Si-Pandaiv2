@@ -28,6 +28,7 @@ import AssessmentComponent from "./components/Assessment";
 import GeminiAssistant from "./components/GeminiAssistant";
 import EditRecipientModal from "./components/EditRecipientModal";
 import UserManagement from "./components/UserManagement";
+import VerificationLandingPage from "./components/VerificationLandingPage";
 import {
   Recipient,
   AidStatus,
@@ -431,6 +432,11 @@ export default function App() {
 
   const isPublicRoute =
     new URLSearchParams(window.location.search).get("publicInput") === "true";
+  const verifyId = new URLSearchParams(window.location.search).get("verify");
+
+  if (verifyId) {
+    return <VerificationLandingPage recipientId={verifyId} />;
+  }
 
   if (isPublicRoute) {
     return (
@@ -449,6 +455,10 @@ export default function App() {
           </div>
           <RecipientForm
             isPublic={true}
+            onReceipt={(rec) => {
+              setSelectedRecipient(rec);
+              setIsShowingReceipt(true);
+            }}
             onSubmit={(recipient) => {
               handleCreateRecipient(recipient)
                 .then(() => {
@@ -694,6 +704,10 @@ export default function App() {
               initialGroupRecipients={
                 editingGroupData || prefilledGroupData || undefined
               }
+              onReceipt={(rec) => {
+                setSelectedRecipient(rec);
+                setIsShowingReceipt(true);
+              }}
             />
           </div>
         );

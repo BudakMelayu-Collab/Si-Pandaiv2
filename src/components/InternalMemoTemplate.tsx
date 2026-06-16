@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'react-qr-code';
 import { Recipient } from '../types';
-import { Printer, X, Save, FileText, QrCode, Eye, Layout, Upload, Trash2 } from 'lucide-react';
+import { Printer, X, Save, FileText, Eye, Layout, Upload, Trash2 } from 'lucide-react';
 import * as storage from '../lib/storage';
 import { cn, isBase64SizeValid } from '../lib/utils';
 import { updateInternalMemoPdf } from '../firebase';
@@ -334,7 +335,7 @@ export default function InternalMemoTemplate({ recipient, onClose }: InternalMem
                 </div>
               </div>
               <div className="w-[150px] flex justify-end">
-                <QrCode className="w-20 h-20" />
+                <QRCode value={`${window.location.origin}${window.location.pathname}?verify=${recipient.id}`} size={80} />
               </div>
             </div>
 

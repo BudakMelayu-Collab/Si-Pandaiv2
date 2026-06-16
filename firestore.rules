@@ -65,7 +65,7 @@ service cloud.firestore {
     match /recipients/{recipientId} {
       // Pillar 8: Secure List Queries. Evaluate resource.data.
       allow list: if isVerified(); 
-      allow get: if isVerified() && isValidId(recipientId);
+      allow get: if true;
       
       allow create: if isValidId(recipientId) && isValidRecipient(incoming());
       
@@ -153,7 +153,7 @@ service cloud.firestore {
     // SETTINGS
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
     // USER CONFIGS

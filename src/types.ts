@@ -10,6 +10,16 @@ export interface Recipient {
   headOfFamilyName: string;
   headOfFamilyDob: string;
   
+  // Siak Sehat Details
+  job?: string;
+  physicalCondition?: 'Sehat' | 'Sakit' | 'Cacat';
+  treatmentStart?: string;
+  diagnosis?: string;
+  hospitalName?: string;
+  patientCompanionName?: string;
+  daysCount?: number;
+  healthToolName?: string;
+  
   // Domicile
   address: string;
   rt: string;

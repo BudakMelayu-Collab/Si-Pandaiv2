@@ -22,6 +22,7 @@ import {
   QrCode,
   Smartphone,
   Wand2,
+  Printer,
 } from "lucide-react";
 import {
   SIAK_REGIONAL_DATA,
@@ -48,6 +49,7 @@ interface RecipientFormProps {
   existingRecipients?: Recipient[];
   initialGroupRecipients?: Recipient[];
   isPublic?: boolean;
+  onReceipt?: (recipient: Recipient) => void;
 }
 
 interface DocumentSlot {
@@ -108,6 +110,12 @@ const DEFAULT_RECIPIENT_INPUT = {
   notes: "",
   documentStatus: "Lengkap",
   documentStatusNotes: "",
+  job: "",
+  physicalCondition: "Sehat" as "Sehat" | "Sakit" | "Cacat",
+  treatmentStart: "",
+  diagnosis: "",
+  hospitalName: "",
+  patientCompanionName: "",
 };
 
 const PERSON_IN_CHARGE_OPTIONS = [
@@ -127,6 +135,7 @@ export default function RecipientForm({
   existingRecipients,
   initialGroupRecipients,
   isPublic = false,
+  onReceipt,
 }: RecipientFormProps) {
   const generateRegId = () =>
     `REG-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -2337,6 +2346,113 @@ export default function RecipientForm({
                 </div>
               </div>
 
+              {/* MEDICAL & SPECIAL DETAILS BLOK */}
+              {(registrationData.sector === 'Siak Sehat' || registrationData.sector === 'Siak Peduli') && (
+                <>
+                  <hr className="border-slate-100" />
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5">
+                      🏥 Detail Medis & Khusus ({registrationData.sector})
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">Pekerjaan</label>
+                        <input
+                          type="text"
+                          className="form-input-custom"
+                          value={recipientInput.job || ''}
+                          onChange={(e) => setRecipientInput({ ...recipientInput, job: e.target.value })}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">Kondisi Fisik</label>
+                        <select
+                          className="form-input-custom"
+                          value={recipientInput.physicalCondition}
+                          onChange={(e) => setRecipientInput({ ...recipientInput, physicalCondition: e.target.value as any })}
+                        >
+                          <option value="Sehat">Sehat</option>
+                          <option value="Sakit">Sakit</option>
+                          <option value="Cacat">Cacat</option>
+                        </select>
+                      </div>
+
+                      {!(registrationData.sector === 'Siak Peduli' && registrationData.programName?.toLowerCase().includes('biaya hidup')) && (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Mulai Dirawat</label>
+                            <input
+                              type="text"
+                              className="form-input-custom"
+                              placeholder="e.g. 12 Januari 2024"
+                              value={recipientInput.treatmentStart || ''}
+                              onChange={(e) => setRecipientInput({ ...recipientInput, treatmentStart: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Diagnosa Penyakit</label>
+                            <input
+                              type="text"
+                              className="form-input-custom"
+                              value={recipientInput.diagnosis || ''}
+                              onChange={(e) => setRecipientInput({ ...recipientInput, diagnosis: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Nama Rumah Sakit</label>
+                            <input
+                              type="text"
+                              className="form-input-custom"
+                              value={recipientInput.hospitalName || ''}
+                              onChange={(e) => setRecipientInput({ ...recipientInput, hospitalName: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Nama Pendamping/Yg Dirawat</label>
+                            <input
+                              type="text"
+                              className="form-input-custom"
+                              value={recipientInput.patientCompanionName || ''}
+                              onChange={(e) => setRecipientInput({ ...recipientInput, patientCompanionName: e.target.value })}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {registrationData.programName?.toLowerCase().includes('pendamping pasien') && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-slate-700">Jumlah Hari (Pendampingan)</label>
+                          <input
+                            type="number"
+                            className="form-input-custom"
+                            placeholder="e.g. 3"
+                            value={recipientInput.daysCount || ''}
+                            onChange={(e) => setRecipientInput({ ...recipientInput, daysCount: parseInt(e.target.value) || 0 })}
+                          />
+                        </div>
+                      )}
+
+                      {registrationData.programName?.toLowerCase().includes('alat kesehatan') && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-slate-700">Nama Alat Kesehatan</label>
+                          <input
+                            type="text"
+                            className="form-input-custom"
+                            placeholder="e.g. Kursi Roda"
+                            value={recipientInput.healthToolName || ''}
+                            onChange={(e) => setRecipientInput({ ...recipientInput, healthToolName: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* DOMISILI BLOK */}
               <hr className="border-slate-100" />
               <div className="space-y-4">
@@ -3239,6 +3355,38 @@ export default function RecipientForm({
           </div>
 
           <div className="flex items-center gap-3">
+            {onReceipt && currentStep === 3 && subRecipients.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const sub = subRecipients[0];
+                  const {
+                    documents: groupDocs,
+                    status: groupStatus,
+                    ...groupSettings
+                  } = registrationData;
+                  
+                  const mockId = Array.isArray(initialGroupRecipients) 
+                    ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
+                    : 'TBD-'+Math.floor(Math.random() * 9999);
+
+                  const fullRecipientData = {
+                    ...sub,
+                    ...groupSettings,
+                    id: sub.id || mockId,
+                    registrationId: sub.registrationId || mockId,
+                    amountProposed: sub.amountProposed ? Number(sub.amountProposed) : 0,
+                    amountDisbursed: sub.amountDisbursed ? Number(sub.amountDisbursed) : 0,
+                  };
+                  onReceipt(fullRecipientData as Recipient);
+                }}
+                className="hidden sm:flex px-6 py-2.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                Cetak Tanda Terima
+              </button>
+            )}
+
             {currentStep > 1 && (
               <button
                 type="button"
