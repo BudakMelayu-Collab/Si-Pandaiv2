@@ -1063,6 +1063,15 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               padding: 0 !important;
               box-shadow: none !important;
               transform: none !important;
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .print-scale-reset {
+              transform: none !important;
+            }
+            .page-break {
+              page-break-before: always !important;
+              break-before: page !important;
             }
             /* Reset any screen-only styling that might interfere */
             * {
@@ -1090,7 +1099,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                {viewMode === 'template' ? (
             <div className="flex flex-col items-center w-full">
               <div 
-                className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200"
+                className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset"
                 style={{ transform: `scale(${scale})` }}
               >
                 <div 
@@ -1102,7 +1111,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                 </div>
                 
                 <div 
-                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative"
+                  className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm print-container p-0 shrink-0 relative page-break"
                   style={{ minHeight: paperSize === 'A4' ? '1120px' : '1250px' }}
                 >
                   {renderApplicationForm()}
