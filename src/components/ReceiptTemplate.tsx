@@ -780,23 +780,22 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             </tbody>
           </table>
 
-          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
             Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "}</strong> untuk biaya <strong>{recipient.programName || ".............................................."}</strong>{' '}
             {recipient.programName?.toLowerCase().includes('pendamping pasien') && (
               <span>selama <strong>{recipient.daysCount || "....."}</strong> hari </span>
             )}
             {recipient.programName?.toLowerCase().includes('alat kesehatan') ? (
-              <span>pembelian Alat Kesehatan berupa <strong>{recipient.healthToolName || "..........................."}</strong></span>
+              <span>pembelian Alat Kesehatan berupa <strong>{recipient.healthToolName || "..........................."}</strong>. </span>
             ) : (
               !(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
-                <span>di RS <strong>{recipient.hospitalName || <input type="text" className="border-b border-black font-bold outline-none bg-transparent print:border-none w-48" placeholder="..." />}</strong></span>
+                <span>di RS <strong>{recipient.hospitalName || <input type="text" className="border-b border-black font-bold outline-none bg-transparent print:border-none w-48" placeholder="..." />}</strong>. </span>
               )
             )}
-            <br/>
             Sebagai bahan pertimbangan bapak, bersama ini saya lampirkan:
           </div>
 
-          <table className="w-full mb-4 text-black leading-loose pl-12 block">
+          <table className="w-full mb-3 text-black leading-tight pl-12 block">
             <tbody className="table w-full">
               <tr>
                 <td className="w-8">a.</td>
@@ -865,31 +864,31 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             </tbody>
           </table>
 
-          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
             Perlu kiranya saya tambahkan bahwa jika saya mendapat bantuan biaya pendamping pasien dari Badan Amil Zakat Nasional Kabupaten Siak, saya bersedia mematuhi segala ketentuan yang ditetapkan oleh Badan Amil Zakat Nasional Kabupaten Siak.
           </div>
 
-          <div className="text-justify leading-relaxed mb-6 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
             Demikianlah permohonan ini saya ajukan, dengan pengharapan kiranya dapat dipertimbangkan dan terkabullah hendaknya.
           </div>
 
-          <div className="mb-6 italic text-black">
+          <div className="mb-4 italic text-black">
             Wassalamualaikum warahmatullahi wabarakatuh
           </div>
 
-          <div className="flex justify-end text-black mt-8">
+          <div className="flex justify-end text-black mt-2">
             <div className="text-center">
               <div className="mb-1">
                 <span>Siak Sri Indrapura, </span>
                 <span>{memoData.date}</span>
               </div>
-              <div className="mb-16">Hormat saya yang bermohon,</div>
+              <div className="mb-10">Hormat saya yang bermohon,</div>
               <div className="font-bold uppercase underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
             </div>
           </div>
 
-          <div className="mt-12 w-full text-center text-black pt-8">
-            <p className="mb-16">
+          <div className="mt-4 w-full text-center text-black pt-4">
+            <p className="mb-10">
               Permohonan ini telah dikonsultasikan<br/>
               dan <strong>dapat/ tidak</strong>, dilanjutkan untuk dibantu sesuai dengan ketentuan/ survey lokasi
             </p>
