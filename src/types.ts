@@ -14,6 +14,7 @@ export interface Recipient {
   job?: string;
   physicalCondition?: 'Sehat' | 'Sakit' | 'Cacat';
   treatmentStart?: string;
+  departureDate?: string;
   diagnosis?: string;
   hospitalName?: string;
   patientCompanionName?: string;

@@ -66,6 +66,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   const [receiptData, setReceiptData] = useState({
     name: recipient.name,
     subject: `${recipient.aidType} - ${recipient.programName}`,
+    departureDate: recipient.departureDate || recipient.treatmentStart || '',
     docCount: '1 (Satu) Berkas',
     identity: `${recipient.nik} / ${recipient.kk}`,
     phone: recipient.contact,
@@ -472,6 +473,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         {[
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
+          ...(recipient.programName?.toLowerCase().includes('transportasi pasien') ? [{ label: 'Tanggal Berangkat', value: receiptData.departureDate, key: 'departureDate' }] : []),
           { label: 'Jumlah Berkas', value: receiptData.docCount, key: 'docCount' },
           { label: 'NIK/No.KK', value: receiptData.identity, key: 'identity' },
           { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
@@ -690,7 +692,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             <div><span className="inline-block w-32">Perihal</span>: Mohon Dana Zakat</div>
             <div><span className="inline-block w-32"></span>&nbsp; {recipient.programName || ".............................................."}</div>
             {recipient.programName?.toLowerCase().includes('transportasi pasien') && (
-              <div><span className="inline-block w-32">Tanggal Berangkat</span>: <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." /></div>
+              <div><span className="inline-block w-32">Tanggal Berangkat</span>: {recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</div>
             )}
           </div>
 
@@ -747,9 +749,9 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
                 <>
                   <tr>
-                    <td>Mulai dirawat</td>
+                    <td>Tanggal Berangkat</td>
                     <td>:</td>
-                    <td>{recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Mulai dirawat..." />}</td>
+                    <td>{recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</td>
                   </tr>
                   <tr>
                     <td>Diagnosa Penyakit</td>

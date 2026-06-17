@@ -2381,13 +2381,13 @@ export default function RecipientForm({
                       {!(registrationData.sector === 'Siak Peduli' && registrationData.programName?.toLowerCase().includes('biaya hidup')) && (
                         <>
                           <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Mulai Dirawat</label>
+                            <label className="text-sm font-semibold text-slate-700">Tanggal Berangkat</label>
                             <input
                               type="text"
                               className="form-input-custom"
                               placeholder="e.g. 12 Januari 2024"
-                              value={recipientInput.treatmentStart || ''}
-                              onChange={(e) => setRecipientInput({ ...recipientInput, treatmentStart: e.target.value })}
+                              value={recipientInput.departureDate || recipientInput.treatmentStart || ''}
+                              onChange={(e) => setRecipientInput({ ...recipientInput, departureDate: e.target.value })}
                             />
                           </div>
 
