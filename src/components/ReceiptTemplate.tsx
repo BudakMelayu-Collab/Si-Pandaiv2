@@ -693,10 +693,10 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
           <div className="flex justify-between items-start mb-6 text-black">
             <div className="space-y-0.5">
-              <div className="font-bold">Kepada Yth.</div>
+              <div>Kepada Yth.</div>
               <div>{memoData.toPosition}</div>
               <div>{memoData.toName}</div>
-              <div className="font-bold">di Tempat</div>
+              <div>di Tempat</div>
             </div>
           </div>
 
@@ -713,7 +713,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               <tr>
                 <td className="w-48">Nama</td>
                 <td className="w-4">:</td>
-                <td className="font-bold uppercase">{recipient.name || "………………………………………………"}</td>
+                <td className="uppercase">{recipient.name || "………………………………………………"}</td>
               </tr>
               <tr>
                 <td>NIK</td>
@@ -775,13 +775,13 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               <tr>
                 <td>Penerima Formulir</td>
                 <td>:</td>
-                <td><strong>Dina Alvinda, S.Pd.</strong> <span className="italic" style={{ fontSize: '0.85em' }}>*) diisi oleh petugas BAZNAS. Kab siak</span></td>
+                <td>Dina Alvinda, S.Pd. <span className="italic" style={{ fontSize: '0.85em' }}>*) diisi oleh petugas BAZNAS. Kab siak</span></td>
               </tr>
             </tbody>
           </table>
 
           <div className="text-justify leading-relaxed mb-3 text-black pl-8">
-            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "}</strong> untuk biaya <strong>{recipient.programName || ".............................................."}</strong>{' '}
+            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "}</strong> untuk biaya {recipient.programName || ".............................................."}{' '}
             {recipient.programName?.toLowerCase().includes('pendamping pasien') && (
               <span>selama <strong>{recipient.daysCount || "....."}</strong> hari </span>
             )}
