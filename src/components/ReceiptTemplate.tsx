@@ -781,7 +781,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           </table>
 
           <div className="text-justify leading-relaxed mb-3 text-black pl-8">
-            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "}</strong> untuk biaya {recipient.programName || ".............................................."}{' '}
+            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "} untuk biaya {recipient.programName || ".............................................."}{' '}
             {recipient.programName?.toLowerCase().includes('pendamping pasien') && (
               <span>selama <strong>{recipient.daysCount || "....."}</strong> hari </span>
             )}
