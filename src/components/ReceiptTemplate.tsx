@@ -687,8 +687,11 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
 
         <div className="border border-slate-200 p-8 pt-6">
           <div className="mb-4 text-black space-y-0.5">
-            <div><span className="inline-block w-20">Perihal</span>: Mohon Dana Zakat</div>
-            <div><span className="inline-block w-20"></span>&nbsp; {recipient.programName || ".............................................."}</div>
+            <div><span className="inline-block w-32">Perihal</span>: Mohon Dana Zakat</div>
+            <div><span className="inline-block w-32"></span>&nbsp; {recipient.programName || ".............................................."}</div>
+            {recipient.programName?.toLowerCase().includes('transportasi pasien') && (
+              <div><span className="inline-block w-32">Tanggal Berangkat</span>: <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." /></div>
+            )}
           </div>
 
           <div className="flex justify-between items-start mb-6 text-black">
@@ -868,7 +871,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             Perlu kiranya saya tambahkan bahwa jika saya mendapat bantuan biaya pendamping pasien dari Badan Amil Zakat Nasional Kabupaten Siak, saya bersedia mematuhi segala ketentuan yang ditetapkan oleh Badan Amil Zakat Nasional Kabupaten Siak.
           </div>
 
-          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-3 mt-4 text-black pl-8">
             Demikianlah permohonan ini saya ajukan, dengan pengharapan kiranya dapat dipertimbangkan dan terkabullah hendaknya.
           </div>
 
