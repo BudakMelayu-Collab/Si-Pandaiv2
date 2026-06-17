@@ -67,6 +67,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     name: recipient.name,
     subject: `${recipient.aidType} - ${recipient.programName}`,
     departureDate: recipient.departureDate || recipient.treatmentStart || '',
+    treatmentStart: recipient.treatmentStart || recipient.departureDate || '',
     docCount: '1 (Satu) Berkas',
     identity: `${recipient.nik} / ${recipient.kk}`,
     phone: recipient.contact,
@@ -473,7 +474,16 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         {[
           { label: 'Nama Pemohon', value: receiptData.name, key: 'name' },
           { label: 'Perihal', value: receiptData.subject, key: 'subject' },
-          ...(recipient.programName?.toLowerCase().includes('transportasi pasien') ? [{ label: 'Tanggal Berangkat', value: receiptData.departureDate, key: 'departureDate' }] : []),
+          ...(recipient.programName?.toLowerCase().includes('transportasi pasien') 
+            ? [{ label: 'Tanggal Berangkat', value: receiptData.departureDate, key: 'departureDate' }] 
+            : (recipient.programName?.toLowerCase().includes('pendamping pasien')
+              ? [{ label: 'Mulai Dirawat', value: receiptData.treatmentStart, key: 'treatmentStart' }]
+              : (!recipient.programName?.toLowerCase().includes('alat kesehatan') && !recipient.programName?.toLowerCase().includes('biaya hidup')
+                ? [{ label: 'Mulai Dirawat', value: receiptData.treatmentStart, key: 'treatmentStart' }]
+                : []
+              )
+            )
+          ),
           { label: 'Jumlah Berkas', value: receiptData.docCount, key: 'docCount' },
           { label: 'NIK/No.KK', value: receiptData.identity, key: 'identity' },
           { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
@@ -691,8 +701,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           <div className="mb-4 text-black space-y-0.5">
             <div><span className="inline-block w-32">Perihal</span>: Mohon Dana Zakat</div>
             <div><span className="inline-block w-32"></span>&nbsp; {recipient.programName || ".............................................."}</div>
-            {recipient.programName?.toLowerCase().includes('transportasi pasien') && (
-              <div><span className="inline-block w-32">Tanggal Berangkat</span>: {recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</div>
+            {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && !recipient.programName?.toLowerCase().includes('alat kesehatan') && (
+              recipient.programName?.toLowerCase().includes('transportasi pasien') ? (
+                <div><span className="inline-block w-32">Tanggal Berangkat</span>: {recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</div>
+              ) : (
+                <div><span className="inline-block w-32">Mulai Dirawat</span>: {recipient.treatmentStart || recipient.departureDate || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Mulai dirawat..." />}</div>
+              )
             )}
           </div>
 
@@ -748,11 +762,23 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               </tr>
               {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
                 <>
-                  <tr>
-                    <td>Tanggal Berangkat</td>
-                    <td>:</td>
-                    <td>{recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</td>
-                  </tr>
+                  {!recipient.programName?.toLowerCase().includes('alat kesehatan') && (
+                    <tr>
+                      {recipient.programName?.toLowerCase().includes('transportasi pasien') ? (
+                        <>
+                          <td>Tanggal Berangkat</td>
+                          <td>:</td>
+                          <td>{recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td>Mulai dirawat</td>
+                          <td>:</td>
+                          <td>{recipient.treatmentStart || recipient.departureDate || <input type="text" className="border-b border-black outline-none bg-transparent w-64 print:border-none print:w-auto" placeholder="Mulai dirawat..." />}</td>
+                        </>
+                      )}
+                    </tr>
+                  )}
                   <tr>
                     <td>Diagnosa Penyakit</td>
                     <td>:</td>

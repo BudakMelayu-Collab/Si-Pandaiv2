@@ -2380,16 +2380,33 @@ export default function RecipientForm({
 
                       {!(registrationData.sector === 'Siak Peduli' && registrationData.programName?.toLowerCase().includes('biaya hidup')) && (
                         <>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Tanggal Berangkat</label>
-                            <input
-                              type="text"
-                              className="form-input-custom"
-                              placeholder="e.g. 12 Januari 2024"
-                              value={recipientInput.departureDate || recipientInput.treatmentStart || ''}
-                              onChange={(e) => setRecipientInput({ ...recipientInput, departureDate: e.target.value })}
-                            />
-                          </div>
+                          {!registrationData.programName?.toLowerCase().includes('alat kesehatan') && (
+                            <div className="space-y-2">
+                              {registrationData.programName?.toLowerCase().includes('transportasi pasien') ? (
+                                <>
+                                  <label className="text-sm font-semibold text-slate-700">Tanggal Berangkat</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom"
+                                    placeholder="e.g. 12 Januari 2024"
+                                    value={recipientInput.departureDate || recipientInput.treatmentStart || ''}
+                                    onChange={(e) => setRecipientInput({ ...recipientInput, departureDate: e.target.value, treatmentStart: e.target.value })}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <label className="text-sm font-semibold text-slate-700">Mulai Dirawat</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom"
+                                    placeholder="e.g. 12 Januari 2024"
+                                    value={recipientInput.treatmentStart || recipientInput.departureDate || ''}
+                                    onChange={(e) => setRecipientInput({ ...recipientInput, treatmentStart: e.target.value, departureDate: e.target.value })}
+                                  />
+                                </>
+                              )}
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <label className="text-sm font-semibold text-slate-700">Diagnosa Penyakit</label>
