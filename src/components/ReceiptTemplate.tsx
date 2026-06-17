@@ -708,7 +708,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
              Dengan hormat saya sampaikan kepada bapak bahwa saya yang bertanda tangan di bawah ini:
           </div>
 
-          <table className="w-full mb-4 text-black leading-loose pl-8 block">
+          <table className="w-full mb-3 text-black leading-tight pl-8 block">
             <tbody className="table w-full">
               <tr>
                 <td className="w-48">Nama</td>
