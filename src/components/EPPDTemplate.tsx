@@ -295,9 +295,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     refNo: '-',
     requestDisbursement: '',
     transferDetails: '',
-    transactionType: 'Pembayaran',
+    transactionType: recipient.transactionType || 'Pembayaran',
     rows: [
-      { id: Date.now(), budgetCode: '', classification: '', total: 0 }
+      { id: Date.now(), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: 0 }
     ],
     signers: {
       staff: { name: '', role: 'Staf' },
@@ -494,6 +494,14 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         parsed.amount = calculatedTotalAmount;
         if (parsed.rows && parsed.rows.length === 1) {
           parsed.rows[0].total = calculatedTotalAmount;
+          if (recipient.budgetCode && recipient.budgetName) {
+            parsed.rows[0].budgetCode = recipient.budgetCode;
+            parsed.rows[0].classification = recipient.budgetName;
+          }
+        }
+        
+        if (recipient.transactionType) {
+           parsed.transactionType = recipient.transactionType;
         }
 
         const isMultiple = itemsToUse.length > 1;
@@ -578,9 +586,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           refNo: '-',
           requestDisbursement: transactionTypeDefault,
           transferDetails: transferDetailsDefault,
-          transactionType: transactionTypeDefault,
+          transactionType: recipient.transactionType || transactionTypeDefault,
           rows: [
-            { id: Date.now(), budgetCode: '', classification: '', total: calculatedTotalAmount }
+            { id: Date.now(), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: calculatedTotalAmount }
           ],
           signers: {
             staff: { name: '', role: 'Staf' },

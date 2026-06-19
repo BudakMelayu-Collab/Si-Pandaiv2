@@ -175,7 +175,9 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
             return s;
           });
         }
-        if (parsed.signersBottom) {
+        if ((recipient as any).signersBottom) {
+          parsed.signersBottom = (recipient as any).signersBottom;
+        } else if (parsed.signersBottom) {
           parsed.signersBottom = parsed.signersBottom.map((s: any) => {
             if (s.role === 'Wakil ketua 1') s.role = 'Wakil Ketua I';
             if (s.role === 'Wakil ketua 2') s.role = 'Wakil Ketua II';
@@ -196,7 +198,15 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
         }
         if (parsed.ashnaf === 'Miskin' || !parsed.ashnaf) parsed.ashnaf = recipient.ashnaf || '';
         if (parsed.source === 'Zakat / Infaq / Shadaqah' || !parsed.source) parsed.source = recipient.fundingSource || '';
-        if (parsed.budgetPost === recipient.aidType || !parsed.budgetPost) parsed.budgetPost = recipient.programName || '';
+        if (recipient.budgetCode && recipient.budgetName) {
+          parsed.budgetPost = `${recipient.budgetCode} ${recipient.budgetName}`;
+        } else if (parsed.budgetPost === recipient.aidType || !parsed.budgetPost) {
+          parsed.budgetPost = recipient.programName || '';
+        }
+        
+        if (recipient.transactionType) {
+          parsed.transactionType = ['Uang Muka', 'Reimbursment', 'Pembayaran', 'Piutang Penyaluran', 'Bank Program', 'Lain-lain'].includes(recipient.transactionType) ? 'TRANSFER' : 'CASH';
+        }
 
         
         // Fix old `nomor` format dynamically if it contains the old pattern or uses BDG.
@@ -534,52 +544,65 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
     // E.g. "001/MPZIS/SS/VI/2026"
     defaultNomor = `${seqStr}/MPZIS/${bidCode}/${rmMonth}/${dateObj.getFullYear()}`;
 
-    return {
-      nomor: defaultNomor,
-    programValue: recipient.sector || '',
-    headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    classification: recipient.sector || 'Siak Sehat',
-    purpose: recipient.purpose || '',
-    ashnaf: recipient.ashnaf || '',
-    source: recipient.fundingSource || '',
-    budgetPost: recipient.programName || '',
-    transactionType: 'TRANSFER' as 'CASH' | 'TRANSFER',
-    columns: [
-      { key: 'description', label: 'Uraian' },
-      { key: 'name', label: 'Nama' },
-      { key: 'nik', label: 'Identitas' },
-      { key: 'amount', label: 'Jumlah bantuan' }
-    ],
-    rows: lampiranItems && lampiranItems.length > 0 
-      ? lampiranItems.map(r => ({
-          id: Date.now() + Math.random(),
-          description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || '',
-          name: r.name || '',
-          nik: r.nik || '',
-          amount: Number(r.amountProposed) || 0
-        }))
-      : [
-      { 
-        id: Date.now(), 
-        description: recipient.tujuanPengajuan || recipient.purpose || '', 
-        name: recipient.name, 
-        nik: recipient.nik,
-        amount: Number(recipient.amountProposed) 
-      }
-    ],
-    signersTop: [
-      { label: 'Disiapkan', name: getPICName(recipient.sector || ''), role: 'PIC Program' },
-      { label: 'Diperiksa', name: 'Andreas Supriadi, S.I.Kom', role: 'Kabid. Pendistribusian dan Pendayagunaan' },
-      { label: 'Disetujui', name: 'Sutarno Nurdianto, SE', role: 'Kepala Pelaksana' }
-    ],
-    signersBottom: [
+    const initialTotal = lampiranItems && lampiranItems.length > 0 
+      ? lampiranItems.reduce((sum, r) => sum + (Number(r.amountProposed) || 0), 0)
+      : Number(recipient.amountProposed) || 0;
+
+    let initialSignersBottom = (recipient as any).signersBottom || [
       { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" },
       { name: "Syukron Wahib, M.Pd.I", role: "Wakil Ketua I" },
       { name: "H. Sukijo", role: "Wakil Ketua II" },
       { name: "KH. Moch Sowwam Amin, SH", role: "Wakil Ketua III" },
       { name: "H. Rojikin, S.Ag, MH", role: "Wakil Ketua IV" }
-    ]
-  };
+    ];
+
+    if (!(recipient as any).signersBottom && initialTotal < 5000000) {
+      initialSignersBottom = [
+        { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" },
+        { name: "H. Sukijo", role: "Wakil Ketua II" }
+      ];
+    }
+
+    return {
+      nomor: defaultNomor,
+      programValue: recipient.sector || '',
+      headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      classification: recipient.sector || 'Siak Sehat',
+      purpose: recipient.purpose || '',
+      ashnaf: recipient.ashnaf || '',
+      source: recipient.fundingSource || '',
+      budgetPost: (recipient.budgetCode && recipient.budgetName) ? `${recipient.budgetCode} ${recipient.budgetName}` : (recipient.programName || ''),
+      transactionType: (!recipient.transactionType || ['Uang Muka', 'Reimbursment', 'Pembayaran', 'Piutang Penyaluran', 'Bank Program', 'Lain-lain'].includes(recipient.transactionType)) ? 'TRANSFER' : 'CASH',
+      columns: [
+        { key: 'description', label: 'Uraian' },
+        { key: 'name', label: 'Nama' },
+        { key: 'nik', label: 'Identitas' },
+        { key: 'amount', label: 'Jumlah bantuan' }
+      ],
+      rows: lampiranItems && lampiranItems.length > 0 
+        ? lampiranItems.map(r => ({
+            id: Date.now() + Math.random(),
+            description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || '',
+            name: r.name || '',
+            nik: r.nik || '',
+            amount: Number(r.amountProposed) || 0
+          }))
+        : [
+        { 
+          id: Date.now(), 
+          description: recipient.tujuanPengajuan || recipient.purpose || '', 
+          name: recipient.name, 
+          nik: recipient.nik,
+          amount: Number(recipient.amountProposed) 
+        }
+      ],
+      signersTop: [
+        { label: 'Disiapkan', name: getPICName(recipient.sector || ''), role: 'PIC Program' },
+        { label: 'Diperiksa', name: 'Andreas Supriadi, S.I.Kom', role: 'Kabid. Pendistribusian dan Pendayagunaan' },
+        { label: 'Disetujui', name: 'Sutarno Nurdianto, SE', role: 'Kepala Pelaksana' }
+      ],
+      signersBottom: initialSignersBottom
+    };
   });
   
   // Auto-save memo data
@@ -700,6 +723,36 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
   };
 
   const totalAmount = memoData.rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+
+  // Dynamically sync signersBottom based on the calculated total amount.
+  // This overwrites any stale state from localStorage automatically if the total crosses the threshold.
+  React.useEffect(() => {
+    if (!memoData || !memoData.signersBottom) return;
+
+    if (totalAmount < 5000000 && memoData.signersBottom.length !== 2) {
+      const ketua = memoData.signersBottom.find(s => s.role.includes("Ketua") && !s.role.includes("Wakil")) || { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" };
+      const waket2 = memoData.signersBottom.find(s => s.role.includes("Wakil Ketua II") || s.role.includes("Wakil ketua 2")) || { name: "H. Sukijo", role: "Wakil Ketua II" };
+      
+      setMemoData(prev => ({
+        ...prev,
+        signersBottom: [ketua, waket2]
+      }));
+    } else if (totalAmount >= 5000000 && memoData.signersBottom.length !== 5) {
+      const ketua = memoData.signersBottom.find(s => s.role.includes("Ketua") && !s.role.includes("Wakil")) || { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" };
+      const waket2 = memoData.signersBottom.find(s => s.role.includes("Wakil Ketua II") || s.role.includes("Wakil ketua 2")) || { name: "H. Sukijo", role: "Wakil Ketua II" };
+      
+      setMemoData(prev => ({
+        ...prev,
+        signersBottom: [
+          ketua,
+          { name: prev.signersBottom.find(s => s.role.includes("Wakil Ketua I") && !s.role.includes("II") && !s.role.includes("III") && !s.role.includes("IV"))?.name || "Syukron Wahib, M.Pd.I", role: "Wakil Ketua I" },
+          waket2,
+          { name: prev.signersBottom.find(s => s.role.includes("Wakil Ketua III"))?.name || "KH. Moch Sowwam Amin, SH", role: "Wakil Ketua III" },
+          { name: prev.signersBottom.find(s => s.role.includes("Wakil Ketua IV"))?.name || "H. Rojikin, S.Ag, MH", role: "Wakil Ketua IV" }
+        ]
+      }));
+    }
+  }, [totalAmount, memoData.signersBottom?.length]);
 
   // Helper to convert number to Indonesian words
   const terbilang = (n: number): string => {
@@ -1332,7 +1385,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
           <div className="border border-black text-[10px] font-sans text-black">
             <div>
               <p className="text-center font-bold border-b border-black py-2 bg-slate-100 italic text-[10px]">Diputuskan</p>
-              <div className="grid grid-cols-[1fr_1fr_1fr_1.15fr_1fr] h-40">
+              <div className={cn("grid h-40", memoData.signersBottom.length === 2 ? "grid-cols-2" : "grid-cols-[1fr_1fr_1fr_1.15fr_1fr]")}>
                 {(() => {
                   return memoData.signersBottom.map((signer, idx) => (
                     <div key={idx} className="border-r last:border-r-0 border-black p-1 flex flex-col justify-end text-center overflow-hidden">

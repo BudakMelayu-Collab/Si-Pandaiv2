@@ -47,6 +47,10 @@ export interface Recipient {
   contact: string;
   companion?: string; // Pendamping
   
+  budgetCode?: string;
+  budgetName?: string;
+  transactionType?: string;
+  
   // Timeline
   submissionDate: string; // Tanggal Masuk Berkas
   surveyDate?: string;

@@ -128,6 +128,37 @@ const DEFAULT_RECIPIENT_INPUT = {
   isEPPDGenerated: true,
 };
 
+const BUDGET_OPTIONS = [
+  { code: "5.1.02.03.02.01", name: "Penyaluran zakat maal asnaf miskin Program Siak Sehat Bantuan Biaya Transportasi Pasien" },
+  { code: "5.1.02.03.02.02", name: "Penyaluran zakat maal asnaf miskin Program Siak Sehat Bantuan Biaya Pendamping Pasien" },
+  { code: "5.1.02.03.03.01", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Zchicken" },
+  { code: "5.1.02.03.03.02", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Zauto" },
+  { code: "5.1.02.03.03.03", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Zmart" },
+  { code: "5.1.02.03.03.04", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Lumbung Pangan" },
+  { code: "5.1.02.03.03.05", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Ternak/Balai Ternak" },
+  { code: "5.1.02.03.03.06", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Santripreneur" },
+  { code: "5.1.02.03.03.07", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Terunapreneur" },
+  { code: "5.1.02.03.03.08", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Zkuliner" },
+  { code: "5.1.02.03.03.09", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif MIKO" },
+  { code: "5.1.02.03.03.10", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Micropreneur Mandiri" },
+  { code: "5.1.02.03.03.11", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Kemitraan" },
+  { code: "5.1.02.03.03.12", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif BAZNAS Microfinance" },
+  { code: "5.1.02.07.03.01", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Zchicken" },
+  { code: "5.1.02.07.03.02", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Zauto" },
+  { code: "5.1.02.07.03.03", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Zmart" },
+  { code: "5.1.02.07.03.04", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Lumbung Pangan" },
+  { code: "5.1.02.07.03.05", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Ternak/Balai Ternak" },
+  { code: "5.1.02.07.03.06", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Santripreneur" },
+  { code: "5.1.02.07.03.07", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Terunapreneur" },
+  { code: "5.1.02.07.03.08", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Zkuliner" },
+  { code: "5.1.02.07.03.09", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif MIKO" },
+  { code: "5.1.02.07.03.10", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Micropreneur Mandiri" },
+  { code: "5.1.02.07.03.11", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Kemitraan" },
+  { code: "5.1.02.07.03.12", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif BAZNAS Microfinance" },
+  { code: "5.1.02.07.03.13", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Program Penguatan Ekonomi Pondok Pesantren" },
+  { code: "5.1.02.07.03.99", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Dana Assesment, Asistensi dan Monev" },
+];
+
 const PERSON_IN_CHARGE_OPTIONS = [
   "Andreas Supriadi",
   "Satriyanda",
@@ -3592,6 +3623,92 @@ export default function RecipientForm({
                                   }}
                                 />
                               </div>
+
+                              <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Kode Anggaran</label>
+                                  <select
+                                    className="form-input-custom font-medium truncate"
+                                    value={sub.budgetCode || ""}
+                                    onChange={(e) => {
+                                      const selectedCode = e.target.value;
+                                      const foundBudget = BUDGET_OPTIONS.find(b => b.code === selectedCode);
+                                      const newName = foundBudget ? foundBudget.name : "";
+                                      
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { 
+                                          ...sub, 
+                                          budgetCode: selectedCode,
+                                          budgetName: newName
+                                        };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { 
+                                          ...sub, 
+                                          budgetCode: selectedCode,
+                                          budgetName: newName
+                                        };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">Pilih Kode Anggaran</option>
+                                    {BUDGET_OPTIONS.map((b) => (
+                                      <option key={b.code} value={b.code} className="truncate">
+                                        {b.code} - {b.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Nama Anggaran</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom font-medium"
+                                    value={sub.budgetName || ""}
+                                    placeholder="Otomatis terisi..."
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, budgetName: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, budgetName: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi</label>
+                                <select
+                                  className="form-input-custom font-medium"
+                                  value={sub.transactionType || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, transactionType: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, transactionType: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                >
+                                  <option value="">Pilih Transaksi</option>
+                                  <option value="Uang Muka">Uang Muka</option>
+                                  <option value="Reimbursment">Reimbursment</option>
+                                  <option value="Pembayaran">Pembayaran</option>
+                                  <option value="Piutang Penyaluran">Piutang Penyaluran</option>
+                                  <option value="Bank Program">Bank Program</option>
+                                  <option value="Lain-lain">Lain-lain</option>
+                                </select>
+                              </div>
                             </div>
 
                             {/* PENDIDIKAN & PERBANKAN BLOK */}
@@ -3888,11 +4005,25 @@ export default function RecipientForm({
                             if (validChildren.length === 0) return null;
 
                             const subForBase = validChildren[0];
+                            const totalGrpAmount = validChildren.reduce((sum: number, c: any) => sum + (Number(c.amountProposed) || 0), 0);
+                            
+                            const dynamicSigners = totalGrpAmount < 5000000 ? [
+                              { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" },
+                              { name: "H. Sukijo", role: "Wakil Ketua II" }
+                            ] : [
+                              { name: "H. Samparis Bin Tatan, S.Pd.I", role: "Ketua" },
+                              { name: "Syukron Wahib, M.Pd.I", role: "Wakil Ketua I" },
+                              { name: "H. Sukijo", role: "Wakil Ketua II" },
+                              { name: "KH. Moch Sowwam Amin, SH", role: "Wakil Ketua III" },
+                              { name: "H. Rojikin, S.Ag, MH", role: "Wakil Ketua IV" }
+                            ];
+
                             return {
                                 ...group.registrationData,
                                 ...subForBase,
                                 id: subForBase.id || `${mockIdPrefix}-${i}`,
                                 registrationId: group.registrationData.registrationId,
+                                signersBottom: dynamicSigners,
                                 lampiranItems: validChildren.map((child: any) => ({
                                     ...group.registrationData,
                                     ...child
