@@ -4,7 +4,7 @@ import {
   Printer, X, FileText, CheckSquare, Square, 
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, Download, Loader2, ChevronRight,
-  Settings, Save, Eye, RotateCcw, AlertTriangle, CheckCircle
+  Settings, Save, Eye, RotateCcw, AlertTriangle, CheckCircle, Minus
 } from 'lucide-react';
 import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
@@ -15,18 +15,20 @@ interface MPZISTemplateProps {
   recipient: Recipient;
   lampiranItems?: Recipient[];
   onClose: () => void;
+  isEmbedded?: boolean;
 }
 
 function chunkArray<T>(array: T[], size: number): T[][] {
   return Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size));
 }
 
-export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZISTemplateProps) {
+export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmbedded }: MPZISTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config' | 'lampiran'>('template');
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('F4');
+  const [scale, setScale] = useState(0.85);
 
   const [templateConfig, setTemplateConfig] = useState({
     logo: '',
@@ -584,6 +586,10 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
   React.useEffect(() => {
     if (!isLoaded || loadedRecipientId !== recipient.id) return;
     const saveMemo = async () => {
+      if (recipient.id.startsWith('TBD-')) {
+        setSaveStatus('saved');
+        return;
+      }
       setSaveStatus('saving');
       try {
         const match = memoData.nomor?.match(/^(\d+)\/MPZIS\//);
@@ -717,7 +723,10 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
   };
 
   return (
-    <div className="mpzis-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:p-0 print:bg-white print:block overflow-hidden">
+    <div className={cn(
+      "mpzis-template-overlay flex flex-col print:p-0 print:bg-white print:block overflow-hidden",
+      isEmbedded ? "relative w-full h-auto overflow-visible" : "fixed inset-0 bg-black/60 backdrop-blur-md z-50 overflow-hidden"
+    )}>
       
       {showExitEditWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 print:hidden">
@@ -745,8 +754,9 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
       )}
 
       {/* Toolbar */}
-      <div className="bg-[#0f2a24] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
-        <div className="flex items-center gap-4">
+      {!isEmbedded && (
+        <div className="bg-[#0f2a24] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
+          <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -862,6 +872,11 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           </button>
           <button 
             onClick={async () => {
+              if (recipient.id.startsWith('TBD-')) {
+                setSaveStatus('saved');
+                setToastMessage({ title: "Berhasil", message: "Disimpan secara lokal untuk cetak massal.", type: 'success' });
+                return;
+              }
               setSaveStatus('saving');
               try {
                 const { saveRecipientTemplateData } = await import('../firebase');
@@ -881,23 +896,48 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
             Simpan
           </button>
+          
+          <div className="flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 ml-2">
+            <button 
+              onClick={() => setScale(Math.max(0.5, scale - 0.1))}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="text-[10px] font-bold text-slate-300 w-8 text-center">{Math.round(scale * 100)}%</span>
+            <button 
+              onClick={() => setScale(Math.min(1.5, scale + 0.1))}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
+      )}
 
       {/* Document View & Sidebar Container */}
-      <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px] print:block bg-slate-950">
+      <div className={cn(
+        "flex-1 print:block",
+        isEmbedded ? "bg-transparent p-0 overflow-visible lg:grid-cols-1" : "overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px] bg-slate-950"
+      )}>
         
         {/* Main Document View */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-950/20 flex flex-col items-center print:p-0 print:bg-white overflow-x-hidden scroll-smooth relative">
+        <div className={cn(
+          "flex-1 flex flex-col items-center print:p-0 print:bg-white scroll-smooth relative",
+          isEmbedded ? "p-0 overflow-visible bg-transparent bg-none" : "p-4 md:p-8 overflow-y-auto bg-slate-950/20 overflow-x-hidden"
+        )}>
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
               margin: 10mm;
             }
+            ${!isEmbedded ? `
             #root > div > *:not(.mpzis-template-overlay) {
               display: none !important;
             }
+            ` : ""}
             #root > div {
               display: block !important;
               height: auto !important;
@@ -926,10 +966,14 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
           }
         `}} />
         {activeTab === 'template' ? (
-          <div className={cn(
-            "bg-white w-full max-w-[950px] shadow-2xl p-7 text-black font-sans relative transition-all print:shadow-none print:p-0 print-container",
-            isEditing && "ring-4 ring-amber-500/30"
-          )}>
+          <div 
+            className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
+            style={{ transform: isEmbedded ? 'none' : `scale(${scale})` }}
+          >
+            <div className={cn(
+              "bg-white w-full max-w-[950px] shadow-2xl p-7 text-black font-sans relative transition-all print:shadow-none print:max-w-none print:p-0 print-container shrink-0",
+              isEditing && "ring-4 ring-amber-500/30"
+            )}>
           
           {/* Header Area - Simplified to match EPPD style */}
           <div className="grid grid-cols-[150px_1fr_170px] gap-2 mb-6">
@@ -1333,8 +1377,13 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             <h1 className="text-9xl font-black whitespace-nowrap">BAZNAS SIAK</h1>
           </div>
           </div>
+          </div>
         ) : activeTab === 'lampiran' ? (
-          /* Lampiran Landscape Render */
+           /* Lampiran Landscape Render */
+          <div 
+            className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
+            style={{ transform: isEmbedded ? 'none' : `scale(${scale})` }}
+          >
           <div className="w-full flex flex-col gap-8 pb-20 items-center">
             {chunkArray<any>(memoData.rows, 18).map((pageRows, pageIndex, allPages) => (
               <div key={pageIndex} className={cn(
@@ -1431,6 +1480,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
                 
               </div>
             ))}
+          </div>
           </div>
         ) : activeTab === 'scan' ? (
           /* Scan Results Tab */
@@ -1655,6 +1705,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
         </div>
 
         {/* Sidebar Controls */}
+        {!isEmbedded && (
         <div className="w-[320px] bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
           <div className="space-y-4">
 
@@ -1707,6 +1758,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose }: MPZ
             </button>
           </div>
         </div>
+        )}
 
       </div>
     </div>

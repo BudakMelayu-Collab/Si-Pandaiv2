@@ -19,131 +19,257 @@ interface BNBARecapTableProps {
 type SortField = keyof Recipient;
 type SortOrder = 'asc' | 'desc';
 
+// Safe date parser to Unix timestamp (for correct sorting)
+const parseDateToTime = (v: any): number => {
+  if (v === undefined || v === null || v === '') return 0;
+  
+  const valStr = String(v).trim();
+  if (!valStr || valStr === '-') return 0;
+
+  // 1. Check for formats like "DD/MM/YYYY" or "DD-MM-YYYY"
+  const ddMMyyyyRegex = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/;
+  const match = valStr.match(ddMMyyyyRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1800 && year <= 2100) {
+      const parsedDate = new Date(year, month - 1, day);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.getTime();
+      }
+    }
+  }
+
+  // 2. Parse monthly text like "12 Januari 2024" or "12 Jan 2024"
+  const idMonthsList = [
+    ['januari', 'jan'],
+    ['februari', 'feb', 'pebruari', 'peb'],
+    ['maret', 'mar'],
+    ['april', 'apr'],
+    ['mei', 'may'],
+    ['juni', 'jun'],
+    ['juli', 'jul'],
+    ['agustus', 'agu', 'agt'],
+    ['september', 'sep'],
+    ['oktober', 'okt'],
+    ['november', 'nov'],
+    ['desember', 'des']
+  ];
+  const textDateRegex = /^(\d{1,2})[\s-\/]+([a-zA-Z]+)[\s-\/]+(\d{4})$/;
+  const textMatch = valStr.match(textDateRegex);
+  if (textMatch) {
+    const day = parseInt(textMatch[1], 10);
+    const monthStr = textMatch[2].toLowerCase();
+    const year = parseInt(textMatch[3], 10);
+    
+    const monthIndex = idMonthsList.findIndex(m => m.includes(monthStr));
+    if (monthIndex !== -1 && day >= 1 && day <= 31 && year >= 1800 && year <= 2100) {
+      const parsedDate = new Date(year, monthIndex, day);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.getTime();
+      }
+    }
+  }
+
+  // 3. Fallback to native parsing
+  const d = new Date(valStr);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
+// Safe date formatter
+const formatDateSafely = (v: any, includeTime: boolean = false): string => {
+  if (v === undefined || v === null || v === '') return '-';
+
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return '-';
+    return includeTime ? v.toLocaleString('id-ID') : v.toLocaleDateString('id-ID');
+  }
+
+  const valStr = String(v).trim();
+  if (!valStr || valStr === '-') return '-';
+
+  // 1. Try to parse with custom DD/MM/YYYY regex first to prevent JS MM/DD/YYYY inversion
+  const ddMMyyyyRegex = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/;
+  const match = valStr.match(ddMMyyyyRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1800 && year <= 2100) {
+      const parsedDate = new Date(year, month - 1, day);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleDateString('id-ID');
+      }
+    }
+  }
+
+  // 2. Try monthly text
+  const idMonthsList = [
+    ['januari', 'jan'],
+    ['februari', 'feb', 'pebruari', 'peb'],
+    ['maret', 'mar'],
+    ['april', 'apr'],
+    ['mei', 'may'],
+    ['juni', 'jun'],
+    ['juli', 'jul'],
+    ['agustus', 'agu', 'agt'],
+    ['september', 'sep'],
+    ['oktober', 'okt'],
+    ['november', 'nov'],
+    ['desember', 'des']
+  ];
+  const textDateRegex = /^(\d{1,2})[\s-\/]+([a-zA-Z]+)[\s-\/]+(\d{4})$/;
+  const textMatch = valStr.match(textDateRegex);
+  if (textMatch) {
+    const day = parseInt(textMatch[1], 10);
+    const monthStr = textMatch[2].toLowerCase();
+    const year = parseInt(textMatch[3], 10);
+    
+    const monthIndex = idMonthsList.findIndex(m => m.includes(monthStr));
+    if (monthIndex !== -1 && day >= 1 && day <= 31 && year >= 1800 && year <= 2100) {
+      const parsedDate = new Date(year, monthIndex, day);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+      }
+    }
+  }
+
+  // 3. Fallback to standard JS Date parser
+  const d = new Date(valStr);
+  if (!isNaN(d.getTime())) {
+    return includeTime ? d.toLocaleString('id-ID') : d.toLocaleDateString('id-ID');
+  }
+
+  // 4. If all parsing fails, return the original raw string as entered by user instead of 'Invalid Date'
+  return valStr;
+};
+
 export default function BNBARecapTable({ 
   data 
-}: BNBARecapTableProps) {
-  // Filters & State
-  const [search, setSearch] = useState('');
-  const [filterSector, setFilterSector] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [filterType, setFilterType] = useState('All');
-  const [sortField, setSortField] = useState<SortField>('submissionDate');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  }: BNBARecapTableProps) {
+    // Filters & State
+    const [search, setSearch] = useState('');
+    const [filterSector, setFilterSector] = useState('All');
+    const [filterStatus, setFilterStatus] = useState('All');
+    const [filterType, setFilterType] = useState('All');
+    const [sortField, setSortField] = useState<SortField>('submissionDate');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
   
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
-
-  // Available unique sectors in the data
-  const uniqueSectors = Array.from(new Set(data.map(item => item.sector).filter(Boolean)));
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-    setCurrentPage(1);
-  };
-
-  // Filter and Sort Data
-  const filteredData = data
-    .filter(item => {
-      const matchesSearch = 
-        (item.name || '').toLowerCase().includes(search.toLowerCase()) || 
-        (item.nik || '').includes(search) ||
-        (item.registrationId && item.registrationId.toLowerCase().includes(search.toLowerCase())) ||
-        (item.kampung && item.kampung.toLowerCase().includes(search.toLowerCase())) ||
-        (item.district && item.district.toLowerCase().includes(search.toLowerCase()));
-        
-      const matchesSector = filterSector === 'All' || item.sector === filterSector;
-      const matchesStatus = filterStatus === 'All' || item.status === filterStatus;
-      const matchesType = filterType === 'All' || item.aidType === filterType;
-      
-      return matchesSearch && matchesSector && matchesStatus && matchesType;
-    })
-    .sort((a, b) => {
-      let aVal: any = a[sortField] ?? '';
-      let bVal: any = b[sortField] ?? '';
-      
-      if (sortField === 'amountProposed' || sortField === 'amountDisbursed') {
-        aVal = Number(a[sortField]) || 0;
-        bVal = Number(b[sortField]) || 0;
-      }
-      
-      if (sortField === 'submissionDate' || sortField === 'createdAt' || sortField === 'updatedAt' || sortField === 'dob' || sortField === 'headOfFamilyDob' || sortField === 'surveyDate' || sortField === 'disbursementDate') {
-        aVal = a[sortField] ? new Date(a[sortField] as string).getTime() : 0;
-        bVal = b[sortField] ? new Date(b[sortField] as string).getTime() : 0;
-      }
-
-      if (typeof aVal === 'string') {
-        return sortOrder === 'asc' 
-          ? aVal.localeCompare(bVal) 
-          : bVal.localeCompare(aVal);
+    // Available unique sectors in the data
+    const uniqueSectors = Array.from(new Set(data.map(item => item.sector).filter(Boolean)));
+  
+    const handleSort = (field: SortField) => {
+      if (sortField === field) {
+        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
       } else {
-        return sortOrder === 'asc' 
-          ? (aVal > bVal ? 1 : -1) 
-          : (bVal > aVal ? 1 : -1);
+        setSortField(field);
+        setSortOrder('desc');
       }
-    });
-
-  // Pagination calculations
-  const totalRecords = filteredData.length;
-  const totalPages = Math.ceil(totalRecords / rowsPerPage) || 1;
-  const indexOfLastRow = currentPage * rowsPerPage;
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
-
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  // Full fields schema for header and columns mapping
-  const columns: { key: keyof Recipient; label: string; alignment?: 'left' | 'center' | 'right'; format?: (val: any) => string }[] = [
-    { key: 'registrationId', label: 'ID Registrasi' },
-    { key: 'source', label: 'Sumber Berkas' },
-    { key: 'submissionDate', label: 'Tgl Berkas Masuk', alignment: 'center', format: (v) => v ? new Date(v).toLocaleDateString('id-ID') : '-' },
-    { key: 'name', label: 'Nama Mustahik' },
-    { key: 'nik', label: 'NIK' },
-    { key: 'kk', label: 'No. KK' },
-    { key: 'pob', label: 'Tempat Lahir' },
-    { key: 'dob', label: 'Tanggal Lahir', alignment: 'center', format: (v) => v ? new Date(v).toLocaleDateString('id-ID') : '-' },
-    { key: 'gender', label: 'Jenis Kelamin', alignment: 'center' },
-    { key: 'familyStatus', label: 'Status Hubungan Keluarga' },
-    { key: 'headOfFamilyName', label: 'Nama Kepala Keluarga' },
-    { key: 'headOfFamilyDob', label: 'Tgl Lahir Kepala Keluarga', alignment: 'center', format: (v) => v ? new Date(v).toLocaleDateString('id-ID') : '-' },
-    { key: 'contact', label: 'No. HP/Kontak' },
-    { key: 'address', label: 'Alamat Lengkap' },
-    { key: 'rt', label: 'RT', alignment: 'center' },
-    { key: 'rw', label: 'RW', alignment: 'center' },
-    { key: 'kampung', label: 'Kampung/Kelurahan' },
-    { key: 'district', label: 'Kecamatan' },
-    { key: 'sector', label: 'Bidang' },
-    { key: 'subSector', label: 'Sub Bidang' },
-    { key: 'aidType', label: 'Jenis Bantuan' },
-    { key: 'programName', label: 'Nama Program' },
-    { key: 'companion', label: 'Pendamping Program' },
-    { key: 'amountProposed', label: 'Nominal Diajukan (IDR)', alignment: 'right', format: (v) => v ? `Rp ${Number(v).toLocaleString('id-ID')}` : 'Rp 0' },
-    { key: 'purpose', label: 'Mengajukan Bantuan Untuk' },
-    { key: 'surveyDate', label: 'Tgl Survey', alignment: 'center', format: (v) => v ? new Date(v).toLocaleDateString('id-ID') : '-' },
-    { key: 'skmp', label: 'SKMP Ke-', alignment: 'center' },
-    { key: 'disbursementDate', label: 'Tgl Penyaluran', alignment: 'center', format: (v) => v ? new Date(v).toLocaleDateString('id-ID') : '-' },
-    { key: 'amountDisbursed', label: 'Nominal Disalurkan (IDR)', alignment: 'right', format: (v) => v ? `Rp ${Number(v).toLocaleString('id-ID')}` : 'Rp 0' },
-    { key: 'schoolName', label: 'Nama Sekolah' },
-    { key: 'schoolLevel', label: 'Tingkat Sekolah', alignment: 'center' },
-    { key: 'schoolClass', label: 'Kelas', alignment: 'center' },
-    { key: 'schoolAddress', label: 'Alamat Sekolah' },
-    { key: 'schoolPhone', label: 'Telp Sekolah' },
-    { key: 'bankAccountNo', label: 'No. Rekening' },
-    { key: 'bankName', label: 'Nama Bank' },
-    { key: 'bankAccountHolder', label: 'Nama Pemilik Rekening' },
-    { key: 'notes', label: 'Catatan Tambahan' },
-    { key: 'createdAt', label: 'Dibuat Pada', alignment: 'center', format: (v) => v ? new Date(v).toLocaleString('id-ID') : '-' },
-    { key: 'updatedAt', label: 'Diperbarui Pada', alignment: 'center', format: (v) => v ? new Date(v).toLocaleString('id-ID') : '-' }
-  ];
+      setCurrentPage(1);
+    };
+  
+    // Filter and Sort Data
+    const filteredData = data
+      .filter(item => {
+        const matchesSearch = 
+          (item.name || '').toLowerCase().includes(search.toLowerCase()) || 
+          (item.nik || '').includes(search) ||
+          (item.registrationId && item.registrationId.toLowerCase().includes(search.toLowerCase())) ||
+          (item.kampung && item.kampung.toLowerCase().includes(search.toLowerCase())) ||
+          (item.district && item.district.toLowerCase().includes(search.toLowerCase()));
+          
+        const matchesSector = filterSector === 'All' || item.sector === filterSector;
+        const matchesStatus = filterStatus === 'All' || item.status === filterStatus;
+        const matchesType = filterType === 'All' || item.aidType === filterType;
+        
+        return matchesSearch && matchesSector && matchesStatus && matchesType;
+      })
+      .sort((a, b) => {
+        let aVal: any = a[sortField] ?? '';
+        let bVal: any = b[sortField] ?? '';
+        
+        if (sortField === 'amountProposed' || sortField === 'amountDisbursed') {
+          aVal = Number(a[sortField]) || 0;
+          bVal = Number(b[sortField]) || 0;
+        }
+        
+        if (sortField === 'submissionDate' || sortField === 'createdAt' || sortField === 'updatedAt' || sortField === 'dob' || sortField === 'headOfFamilyDob' || sortField === 'surveyDate' || sortField === 'disbursementDate') {
+          aVal = parseDateToTime(a[sortField]);
+          bVal = parseDateToTime(b[sortField]);
+        }
+  
+        if (typeof aVal === 'string') {
+          return sortOrder === 'asc' 
+            ? aVal.localeCompare(bVal) 
+            : bVal.localeCompare(aVal);
+        } else {
+          return sortOrder === 'asc' 
+            ? (aVal > bVal ? 1 : -1) 
+            : (bVal > aVal ? 1 : -1);
+        }
+      });
+  
+    // Pagination calculations
+    const totalRecords = filteredData.length;
+    const totalPages = Math.ceil(totalRecords / rowsPerPage) || 1;
+    const indexOfLastRow = currentPage * rowsPerPage;
+    const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+    const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
+  
+    const handlePageChange = (page: number) => {
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+      }
+    };
+  
+    // Full fields schema for header and columns mapping
+    const columns: { key: keyof Recipient; label: string; alignment?: 'left' | 'center' | 'right'; format?: (val: any) => string }[] = [
+      { key: 'registrationId', label: 'ID Registrasi' },
+      { key: 'source', label: 'Sumber Berkas' },
+      { key: 'submissionDate', label: 'Tgl Berkas Masuk', alignment: 'center', format: (v) => formatDateSafely(v) },
+      { key: 'name', label: 'Nama Mustahik' },
+      { key: 'nik', label: 'NIK' },
+      { key: 'kk', label: 'No. KK' },
+      { key: 'pob', label: 'Tempat Lahir' },
+      { key: 'dob', label: 'Tanggal Lahir', alignment: 'center', format: (v) => formatDateSafely(v) },
+      { key: 'gender', label: 'Jenis Kelamin', alignment: 'center' },
+      { key: 'familyStatus', label: 'Status Hubungan Keluarga' },
+      { key: 'headOfFamilyName', label: 'Nama Kepala Keluarga' },
+      { key: 'headOfFamilyDob', label: 'Tgl Lahir Kepala Keluarga', alignment: 'center', format: (v) => formatDateSafely(v) },
+      { key: 'contact', label: 'No. HP/Kontak' },
+      { key: 'address', label: 'Alamat Lengkap' },
+      { key: 'rt', label: 'RT', alignment: 'center' },
+      { key: 'rw', label: 'RW', alignment: 'center' },
+      { key: 'kampung', label: 'Kampung/Kelurahan' },
+      { key: 'district', label: 'Kecamatan' },
+      { key: 'sector', label: 'Bidang' },
+      { key: 'subSector', label: 'Sub Bidang' },
+      { key: 'aidType', label: 'Jenis Bantuan' },
+      { key: 'programName', label: 'Nama Program' },
+      { key: 'companion', label: 'Pendamping Program' },
+      { key: 'amountProposed', label: 'Nominal Diajukan (IDR)', alignment: 'right', format: (v) => v ? `Rp ${Number(v).toLocaleString('id-ID')}` : 'Rp 0' },
+      { key: 'purpose', label: 'Mengajukan Bantuan Untuk' },
+      { key: 'surveyDate', label: 'Tgl Survey', alignment: 'center', format: (v) => formatDateSafely(v) },
+      { key: 'skmp', label: 'SKMP Ke-', alignment: 'center' },
+      { key: 'disbursementDate', label: 'Tgl Penyaluran', alignment: 'center', format: (v) => formatDateSafely(v) },
+      { key: 'amountDisbursed', label: 'Nominal Disalurkan (IDR)', alignment: 'right', format: (v) => v ? `Rp ${Number(v).toLocaleString('id-ID')}` : 'Rp 0' },
+      { key: 'schoolName', label: 'Nama Sekolah' },
+      { key: 'schoolLevel', label: 'Tingkat Sekolah', alignment: 'center' },
+      { key: 'schoolClass', label: 'Kelas', alignment: 'center' },
+      { key: 'schoolAddress', label: 'Alamat Sekolah' },
+      { key: 'schoolPhone', label: 'Telp Sekolah' },
+      { key: 'bankAccountNo', label: 'No. Rekening' },
+      { key: 'bankName', label: 'Nama Bank' },
+      { key: 'bankAccountHolder', label: 'Nama Pemilik Rekening' },
+      { key: 'notes', label: 'Catatan Tambahan' },
+      { key: 'createdAt', label: 'Dibuat Pada', alignment: 'center', format: (v) => formatDateSafely(v, true) },
+      { key: 'updatedAt', label: 'Diperbarui Pada', alignment: 'center', format: (v) => formatDateSafely(v, true) }
+    ];
 
   // Export current filtered table to CSV (UTF-8, custom separation, Excel-friendly)
   const handleExportCSV = () => {

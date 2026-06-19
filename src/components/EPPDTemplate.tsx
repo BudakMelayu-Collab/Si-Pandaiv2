@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Upload, Edit3, Plus, Trash2,
   FileCheck, ExternalLink, AlertCircle, ChevronRight, Download, Eye,
   ClipboardList, Loader2, Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, Type,
-  Layout, Save, FilePlus, Settings, AlertTriangle, CheckCircle
+  Layout, Save, FilePlus, Settings, AlertTriangle, CheckCircle, Minus
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -22,6 +22,7 @@ interface EPPDTemplateProps {
   onSaveRecord: (record: Omit<PPDRecord, 'id' | 'createdAt'>) => void;
   onDeleteRecord: (id: string) => void;
   onClose: () => void;
+  isEmbedded?: boolean;
 }
 
 function chunkArray<T>(array: T[], size: number): T[][] {
@@ -35,13 +36,14 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunked;
 }
 
-export default function EPPDTemplate({ recipient, lampiranItems, records, onSaveRecord, onDeleteRecord, onClose }: EPPDTemplateProps) {
+export default function EPPDTemplate({ recipient, lampiranItems, records, onSaveRecord, onDeleteRecord, onClose, isEmbedded }: EPPDTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<'template' | 'scan'>('template');
   const [activeTab, setActiveTab] = useState<'eppd' | 'lampiran'>('eppd');
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
+  const [scale, setScale] = useState(0.85);
   
   const [templateConfig, setTemplateConfig] = useState({
     logo: '',
@@ -651,6 +653,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     if (!isLoaded || loadedRecipientId !== recipient.id) return;
     
     const saveData = async () => {
+      if (recipient.id.startsWith('TBD-')) {
+        setSaveStatus('saved');
+        return;
+      }
       setSaveStatus('saving');
       try {
         const match = ppdData.noPpd?.match(/\.(\d+)$/);
@@ -841,7 +847,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
   };
 
   return (
-    <div className="eppd-template-overlay fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col print:relative print:overflow-visible print:h-auto print:p-0 print:bg-white print:block overflow-hidden">
+    <div className={cn(
+      "eppd-template-overlay flex flex-col print:relative print:overflow-visible print:h-auto print:p-0 print:bg-white print:block overflow-hidden",
+      isEmbedded ? "relative w-full h-auto overflow-visible" : "fixed inset-0 bg-black/60 backdrop-blur-md z-50 overflow-hidden"
+    )}>
       {showExitEditWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 print:hidden">
           <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
@@ -867,8 +876,9 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
       )}
 
       {/* Toolbar */}
-      <div className="bg-[#1a1c2c] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
-        <div className="flex items-center gap-4">
+      {!isEmbedded && (
+        <div className="bg-[#1a1c2c] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
+          <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -997,16 +1007,17 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             onClick={async () => {
               let asnafValue = recipient.ashnaf || '-';
               try {
-                setSaveStatus('saving');
-                const { saveRecipientTemplateData, getRecipientTemplateData } = await import('../firebase');
-                await saveRecipientTemplateData(recipient.id, 'eppd', ppdData);
-                await storage.setItem(`ppd_data_${recipient.id}`, ppdData);
-                
-                const mpzisData = await getRecipientTemplateData(recipient.id, 'mpzis');
-                if (mpzisData && mpzisData.ashnaf && asnafValue === '-') {
-                  asnafValue = mpzisData.ashnaf;
+                if (!recipient.id.startsWith('TBD-')) {
+                  setSaveStatus('saving');
+                  const { saveRecipientTemplateData, getRecipientTemplateData } = await import('../firebase');
+                  await saveRecipientTemplateData(recipient.id, 'eppd', ppdData);
+                  await storage.setItem(`ppd_data_${recipient.id}`, ppdData);
+                  
+                  const mpzisData = await getRecipientTemplateData(recipient.id, 'mpzis');
+                  if (mpzisData && mpzisData.ashnaf && asnafValue === '-') {
+                    asnafValue = mpzisData.ashnaf;
+                  }
                 }
-
                 setSaveStatus('saved');
               } catch (e) {
                 console.error("Save failed", e);
@@ -1037,11 +1048,31 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             <Plus className="w-4 h-4" />
             Simpan
           </button>
+          
+          <div className="flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 ml-2 print:hidden">
+            <button 
+              onClick={() => setScale(Math.max(0.5, scale - 0.1))}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="text-[10px] font-bold text-slate-300 w-8 text-center">{Math.round(scale * 100)}%</span>
+            <button 
+              onClick={() => setScale(Math.min(1.5, scale + 0.1))}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
+      )}
 
       {/* Document View */}
-      <div className="flex-1 flex overflow-hidden bg-slate-900/50 print:bg-white print:block print:overflow-visible">
+      <div className={cn(
+        "flex-1 flex print:block",
+        isEmbedded ? "bg-transparent overflow-visible p-0" : "overflow-hidden bg-slate-900/50 print:bg-white print:overflow-visible"
+      )}>
         {viewMode === 'template' ? (
           <>
         {/* Form Panel (Left Side) */}
@@ -1352,7 +1383,10 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
         )}
 
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-900 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible pb-32">
+        <div className={cn(
+          "flex-1 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible pb-32",
+          isEmbedded ? "p-0 overflow-visible bg-transparent lg:pb-0" : "p-4 md:p-8 overflow-y-auto bg-slate-900"
+        )}>
           <style dangerouslySetInnerHTML={{ __html: `
             .eppd-print-page, .lampiran-print-page {
               background-color: white;
@@ -1373,9 +1407,11 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                 margin: 0;
               }
               
+              ${!isEmbedded ? `
               #root > div > *:not(.eppd-template-overlay) {
                 display: none !important;
               }
+              ` : ""}
               #root > div {
                 display: block !important;
                 height: 100% !important;
@@ -1778,8 +1814,12 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             </div>
 
             {activeTab === 'eppd' && (
+            <div 
+              className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
+              style={{ transform: isEmbedded ? 'none' : `scale(${scale})` }}
+            >
             <div className={cn(
-              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
+              "eppd-print-page bg-white w-full max-w-[950px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-none print:w-full mb-16 shrink-0 overflow-hidden flex flex-col",
               isEditing && "ring-4 ring-amber-500/30"
             )}
             style={{ 
@@ -2438,10 +2478,16 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
 
         </div>
+        </div>
         )}
 
         {/* Lampiran Section */}
-        {activeTab === 'lampiran' && chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
+        {activeTab === 'lampiran' && (
+          <div 
+            className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
+            style={{ transform: isEmbedded ? 'none' : `scale(${scale})` }}
+          >
+          {chunkArray<any>(ppdData.lampiranRows || [], 18).map((pageRows, pageIndex, allPages) => (
         <div key={`lampiran-page-${pageIndex}`} className={cn(
           "lampiran-print-page bg-white w-full max-w-[1300px] shadow-2xl p-6 text-black font-sans relative transition-all border border-slate-300 print:shadow-none print:p-0 print:max-w-full mb-16 shrink-0 overflow-hidden flex flex-col",
           pageIndex > 0 && "print:break-before-page",
@@ -2608,6 +2654,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           </div>
         </div>
         ))}
+        </div>
+        )}
 
         {/* Instructions */}
         {!isEditing && (

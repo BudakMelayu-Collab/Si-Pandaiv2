@@ -23,6 +23,8 @@ import {
   Smartphone,
   Wand2,
   Printer,
+  Copy,
+  Stethoscope,
 } from "lucide-react";
 import {
   SIAK_REGIONAL_DATA,
@@ -50,6 +52,10 @@ interface RecipientFormProps {
   initialGroupRecipients?: Recipient[];
   isPublic?: boolean;
   onReceipt?: (recipient: Recipient) => void;
+  onMassReceipt?: (recipients: Recipient[]) => void;
+  onMassSurvey?: (recipients: Recipient[]) => void;
+  onMassMPZIS?: (recipients: Recipient[]) => void;
+  onMassEPPD?: (recipients: Recipient[]) => void;
 }
 
 interface DocumentSlot {
@@ -116,6 +122,10 @@ const DEFAULT_RECIPIENT_INPUT = {
   diagnosis: "",
   hospitalName: "",
   patientCompanionName: "",
+  isReceiptGenerated: true,
+  isSurveyGenerated: true,
+  isMPZISGenerated: true,
+  isEPPDGenerated: true,
 };
 
 const PERSON_IN_CHARGE_OPTIONS = [
@@ -129,6 +139,33 @@ const PERSON_IN_CHARGE_OPTIONS = [
   "Syarifah Suci Merza",
 ];
 
+const JOB_OPTIONS = [
+  "Buruh Harian Lepas",
+  "Bekerja",
+  "Petani",
+  "Beternak",
+  "Berdagang",
+  "Pedagang_Kaki_Lima",
+  "Karyawan PT",
+  "Karyawan Kontrak",
+  "Karyawan Kebun",
+  "Sopir",
+  "Cerai Hidup",
+  "Cerai Mati",
+  "Pemanen",
+  "Lansia",
+  "Tidak Bekerja",
+  "Belum Bekerja",
+  "Menganggur",
+  "Tidak Bekerja (Sakit)",
+  "Meninggal",
+  "Tidak Sanggup Bekerja",
+  "Karyawan Honorer",
+  "PNS",
+  "Guru",
+  "Pensiunan"
+];
+
 export default function RecipientForm({
   onSubmit,
   onCancel,
@@ -136,12 +173,15 @@ export default function RecipientForm({
   initialGroupRecipients,
   isPublic = false,
   onReceipt,
+  onMassReceipt,
+  onMassSurvey,
+  onMassMPZIS,
+  onMassEPPD,
 }: RecipientFormProps) {
   const generateRegId = () =>
     `REG-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  // Main Registration Data State (Tabel Utama)
-  const [registrationData, setRegistrationData] = useState({
+  const DEFAULT_REGISTRATION_DATA = {
     registrationId: generateRegId(),
     adminCategory: "",
     serviceType: "",
@@ -159,15 +199,21 @@ export default function RecipientForm({
     fundingSource: "",
     notes: "",
     isTermsAccepted: true,
-    status: "Masuk Berkas", // Standard initial status
+    status: "Masuk Berkas",
     documents: [],
-  });
+  };
+
+  // Main Registration Data State (Tabel Utama)
+  const [registrationData, setRegistrationData] = useState(DEFAULT_REGISTRATION_DATA);
 
   // Current Recipient Input State
   const [recipientInput, setRecipientInput] = useState(DEFAULT_RECIPIENT_INPUT);
 
   // List of added Recipients in sub-table
   const [subRecipients, setSubRecipients] = useState<any[]>([]);
+
+  // List of completed registration groups for Mass Entry
+  const [savedGroups, setSavedGroups] = useState<{registrationData: any, subRecipients: any[], printGroup: boolean}[]>([]);
 
   // Editing state for sub-table recipient
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -177,6 +223,50 @@ export default function RecipientForm({
 
   // Step for Wizard UI
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Hospital options
+  const [hospitalOptions, setHospitalOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("hospitalOptions");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return ["RSUD Tengku Rafi'an Siak"];
+  });
+
+  const handleAddHospital = (val: string) => {
+    const trimmed = val.trim();
+    if (trimmed && !hospitalOptions.includes(trimmed)) {
+      setHospitalOptions(prev => {
+        const newOptions = [...prev, trimmed];
+        localStorage.setItem("hospitalOptions", JSON.stringify(newOptions));
+        return newOptions;
+      });
+    }
+  };
+
+  // Disease options
+  const [diseaseOptions, setDiseaseOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("diseaseOptions");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return ["Demam Berdarah", "Tipes", "Infeksi Saluran Pernapasan"];
+  });
+
+  const handleAddDisease = (val: string) => {
+    const trimmed = val.trim();
+    if (trimmed && !diseaseOptions.includes(trimmed)) {
+      setDiseaseOptions(prev => {
+        const newOptions = [...prev, trimmed];
+        localStorage.setItem("diseaseOptions", JSON.stringify(newOptions));
+        return newOptions;
+      });
+    }
+  };
 
   // Google Drive Integration States
   const [saveToGDrive, setSaveToGDrive] = useState<boolean>(() => {
@@ -892,26 +982,26 @@ export default function RecipientForm({
   };
 
   // Handle addition of a recipient into the sub-table
-  const handleAddRecipientToSubTable = async () => {
+  const handleAddRecipientToSubTable = async (): Promise<boolean> => {
     if (!recipientInput.name.trim()) {
       alert("Nama penerima wajib diisi.");
-      return;
+      return false;
     }
     if (!recipientInput.nik || recipientInput.nik.length !== 16) {
       alert("NIK penerima wajib diisi dan harus tepat 16 digit.");
-      return;
+      return false;
     }
     if (!recipientInput.kk || recipientInput.kk.length !== 16) {
       alert("Nomor KK penerima wajib diisi dan harus tepat 16 digit.");
-      return;
+      return false;
     }
     if (!recipientInput.address.trim()) {
       alert("Alamat domisili lengkap wajib diisi.");
-      return;
+      return false;
     }
     if (!recipientInput.district) {
       alert("Kecamatan domisili wajib dipilih.");
-      return;
+      return false;
     }
 
     // Check for duplicate NIK or Name
@@ -923,11 +1013,11 @@ export default function RecipientForm({
     if (dupCheck.isDuplicate) {
       if (dupCheck.strict) {
         alert(dupCheck.message);
-        return;
+        return false;
       } else {
         const confirmResult = window.confirm(dupCheck.message);
         if (!confirmResult) {
-          return;
+          return false;
         }
       }
     }
@@ -965,6 +1055,7 @@ export default function RecipientForm({
 
     setDocumentSlots(INITIAL_DOCUMENT_SLOTS.map((s) => ({ ...s })));
     setIsAddingToSub(false);
+    return true;
   };
 
   // Turn off editing state and reset
@@ -1033,10 +1124,13 @@ export default function RecipientForm({
     }
 
     setDocumentSlots(slotsCopy);
-    // Scroll smoothly to form section
-    document
-      .getElementById("form-input-penerima")
-      ?.scrollIntoView({ behavior: "smooth" });
+    setCurrentStep(2);
+    // Wait for the form to mount, then scroll smoothly
+    setTimeout(() => {
+      document
+        .getElementById("form-input-penerima")
+        ?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   // Remove recipient from the sub-table list
@@ -1055,6 +1149,98 @@ export default function RecipientForm({
         setEditingIndex(editingIndex - 1);
       }
     }
+  };
+
+  const handleAddAdditionalParameter = () => {
+    if (!subRecipients.length) {
+      alert("Tabel penerima kosong. Harap isi penerima pada Step 2.");
+      return;
+    }
+    
+    // Save current parameter
+    setSavedGroups(prev => [...prev, {
+      registrationData: JSON.parse(JSON.stringify(registrationData)),
+      subRecipients: JSON.parse(JSON.stringify(subRecipients)),
+      printGroup: true
+    }]);
+
+    // Reset editor
+    setRegistrationData({
+      ...DEFAULT_REGISTRATION_DATA,
+      registrationId: generateRegId()
+    });
+    setSubRecipients([]);
+    setCurrentStep(1); // Back to Step 1
+    
+    // Clear storage to prevent reload clash
+    localStorage.removeItem("recipient_form_draft");
+  };
+
+  const handleEditSavedGroup = (index: number) => {
+    const groupToEdit = savedGroups[index];
+    const newSavedGroups = [...savedGroups];
+    newSavedGroups.splice(index, 1);
+
+    // If current group has data, pack it back into savedGroups
+    if (subRecipients.length > 0) {
+      newSavedGroups.push({
+        registrationData: JSON.parse(JSON.stringify(registrationData)),
+        subRecipients: JSON.parse(JSON.stringify(subRecipients)),
+        printGroup: true
+      });
+    }
+
+    setSavedGroups(newSavedGroups);
+    setRegistrationData(groupToEdit.registrationData);
+    setSubRecipients(groupToEdit.subRecipients);
+    setCurrentStep(1); // Back to Step 1
+
+    // Auto-load the first recipient into edit form so the user doesn't see an empty form
+    if (groupToEdit.subRecipients && groupToEdit.subRecipients.length > 0) {
+      setEditingIndex(0);
+      const recipient = groupToEdit.subRecipients[0];
+      setRecipientInput({ ...recipient });
+
+      const slotsCopy: DocumentSlot[] = INITIAL_DOCUMENT_SLOTS.map((s) => ({ ...s }));
+      if (recipient.documents && Array.isArray(recipient.documents)) {
+        const docsToMap = [...recipient.documents];
+        // Standard slots
+        slotsCopy.forEach((slot) => {
+          if (!slot.isCustomLabel) {
+            const docIdx = docsToMap.findIndex((d) => d.name === slot.label);
+            if (docIdx !== -1) {
+              const matchedDoc = docsToMap[docIdx];
+              slot.file = {
+                name: matchedDoc.name + (matchedDoc.type === "pdf" ? ".pdf" : matchedDoc.type === "excel" ? ".xlsx" : ".jpg"),
+                type: matchedDoc.type as any,
+                url: matchedDoc.url,
+              };
+              docsToMap.splice(docIdx, 1);
+            }
+          }
+        });
+        // Custom "Lainnya" slots
+        slotsCopy.forEach((slot) => {
+          if (slot.isCustomLabel && !slot.file && docsToMap.length > 0) {
+            const leftoverDoc = docsToMap.shift()!;
+            slot.label = leftoverDoc.name;
+            slot.file = {
+              name: leftoverDoc.name + (leftoverDoc.type === "pdf" ? ".pdf" : leftoverDoc.type === "excel" ? ".xlsx" : ".jpg"),
+              type: leftoverDoc.type as any,
+              url: leftoverDoc.url,
+            };
+          }
+        });
+      }
+      setDocumentSlots(slotsCopy);
+    } else {
+      // Reset sub-form editor to avoid carry-over
+      setRecipientInput(DEFAULT_RECIPIENT_INPUT);
+      setEditingIndex(null);
+      setDocumentSlots(INITIAL_DOCUMENT_SLOTS.map((s) => ({ ...s })));
+    }
+
+    localStorage.removeItem("recipient_form_draft");
   };
 
   // Submit the entire compound form (Tabel Utama + Sub Tabel)
@@ -1136,18 +1322,29 @@ export default function RecipientForm({
       return;
     }
 
-    // Map each subRecipient element, applying the group (Tabel Utama) fields
-    const {
-      documents: groupDocs,
-      status: groupStatus,
-      ...groupSettings
-    } = registrationData;
-    const submissionData = finalRecipients.map((r) => ({
-      ...r,
-      ...groupSettings,
-      amountProposed: r.amountProposed ? Number(r.amountProposed) : 0,
-      amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
-    }));
+    // Combine finalRecipients with registrationData
+    const mappedCurrentGroup = finalRecipients.map((r) => {
+      const { documents: groupDocs, status: groupStatus, ...groupSettings } = registrationData;
+      return {
+        ...r,
+        ...groupSettings,
+        amountProposed: r.amountProposed ? Number(r.amountProposed) : 0,
+        amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
+      };
+    });
+
+    // Process past saved groups
+    const mappedSavedGroups = savedGroups.flatMap(group => {
+      const { documents: groupDocs, status: groupStatus, ...groupSettings } = group.registrationData;
+      return group.subRecipients.map(r => ({
+        ...r,
+        ...groupSettings,
+        amountProposed: r.amountProposed ? Number(r.amountProposed) : 0,
+        amountDisbursed: r.amountDisbursed ? Number(r.amountDisbursed) : 0,
+      }));
+    });
+
+    const submissionData = [...mappedSavedGroups, ...mappedCurrentGroup];
 
     setIsSavingAll(true);
     try {
@@ -1161,22 +1358,27 @@ export default function RecipientForm({
   };
 
   return (
-    <div className="space-y-8 pb-36">
+    <div className="space-y-4 pb-12">
       {/* Stepper Progress */}
-      <div className="bg-white p-4 sm:px-8 sm:py-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between relative">
+      <div className="bg-white p-3 sm:px-6 sm:py-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between relative">
         <div className="absolute top-1/2 left-8 right-8 h-1 bg-slate-100 -translate-y-1/2 rounded-full hidden sm:block z-0"></div>
         <div
           className="absolute top-1/2 left-8 h-1 bg-indigo-600 -translate-y-1/2 rounded-full hidden sm:block z-0 transition-all duration-500"
           style={{
             width:
-              currentStep === 1 ? "0%" : currentStep === 2 ? "50%" : "100%",
+              currentStep === 1 ? "0%" :
+              currentStep === 2 ? "25%" :
+              currentStep === 3 ? "50%" :
+              currentStep === 4 ? "75%" : "100%",
           }}
         ></div>
 
         {[
           { step: 1, label: "Parameter Registrasi" },
           { step: 2, label: "Input Data Penerima" },
-          { step: 3, label: "Konfirmasi Data" },
+          { step: 3, label: "Form Tanda Terima & Permohonan Bantuan" },
+          { step: 4, label: "Form MPZIS & E-PPD" },
+          { step: 5, label: "Konfirmasi Data" },
         ].map((item) => (
           <button
             key={item.step}
@@ -1190,27 +1392,31 @@ export default function RecipientForm({
                   return;
                 }
               }
+              if (item.step > 2 && subRecipients.length === 0) {
+                alert("Silakan isi data penerima minimal 1 orang terlebih dahulu.");
+                return;
+              }
               setCurrentStep(item.step);
             }}
-            className="relative z-10 flex flex-col items-center gap-2 group outline-none"
+            className="relative z-10 flex flex-col items-center gap-1.5 group outline-none"
           >
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ring-4 ${
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ring-4 ${
                 currentStep === item.step
-                  ? "bg-indigo-600 text-white ring-indigo-50 scale-110 shadow-md"
+                  ? "bg-indigo-600 text-white ring-indigo-50 scale-105 shadow-md"
                   : currentStep > item.step
                     ? "bg-indigo-600 text-white ring-transparent"
                     : "bg-white text-slate-400 border-2 border-slate-200 ring-transparent group-hover:border-indigo-300"
               }`}
             >
               {currentStep > item.step ? (
-                <Check className="w-5 h-5" />
+                <Check className="w-4 h-4" />
               ) : (
                 item.step
               )}
             </div>
             <span
-              className={`text-xs font-semibold hidden sm:block ${
+              className={`text-[11px] font-semibold hidden sm:block ${
                 currentStep === item.step
                   ? "text-indigo-700"
                   : currentStep > item.step
@@ -1227,27 +1433,27 @@ export default function RecipientForm({
       <form
         id="recipient-form"
         onSubmit={(e) => e.preventDefault()}
-        className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500"
+        className="space-y-4 animate-in fade-in duration-300"
       >
         {/* SECTION 1: TABEL UTAMA - PARAMETER REGISTRASI & PENGAJUAN */}
         {currentStep === 1 && (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+            <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-100/80">
               <div className="p-2 bg-indigo-50 rounded-lg">
                 <Layers className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 text-lg">
+                <h3 className="font-bold text-slate-800 text-base">
                   Parameter Registrasi & Pengajuan
                 </h3>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-[11px] text-slate-500 font-medium">
                   Informasi utama permohonan yang berlaku untuk seluruh
                   rombongan/sub-penerima.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">
                   ID Registrasi
@@ -1974,23 +2180,33 @@ export default function RecipientForm({
               </div>
             </div>
 
-            <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => {
-                  const formElement = document.getElementById(
-                    "recipient-form",
-                  ) as HTMLFormElement;
-                  if (formElement && !formElement.reportValidity()) {
-                    return;
-                  }
-                  setCurrentStep(2);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                Berikutnya <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-slate-100 gap-4">
+              <div />
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+                >
+                  Batalkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const formElement = document.getElementById(
+                      "recipient-form",
+                    ) as HTMLFormElement;
+                    if (formElement && !formElement.reportValidity()) {
+                      return;
+                    }
+                    setCurrentStep(2);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  Berikutnya <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1999,28 +2215,61 @@ export default function RecipientForm({
         {currentStep === 2 && (
           <div
             id="form-input-penerima"
-            className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600 animate-in fade-in slide-in-from-right-4 duration-500"
+            className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600 animate-in fade-in duration-300"
           >
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-2 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-lg">
+                  <h3 className="font-bold text-slate-800 text-base">
                     {editingIndex !== null
                       ? `Edit Data Penerima (Urutan #${editingIndex + 1})`
                       : "Form Input Data Penerima"}
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-[11px] text-slate-500 font-medium">
                     Lengkapi biodata individu penerima manfaat di bawah ini.
                   </p>
                 </div>
               </div>
               {editingIndex !== null && (
-                <span className="text-xs bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full animate-pulse">
+                <span className="text-xs bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full animate-pulse self-start lg:self-auto">
                   Sedang Mengubah Data
                 </span>
+              )}
+              {subRecipients.length > 0 && editingIndex === null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prev = subRecipients[subRecipients.length - 1];
+                    if (prev) {
+                      setRecipientInput({
+                        ...recipientInput,
+                        kk: prev.kk || "",
+                        contact: prev.contact || "",
+                        address: prev.address || "",
+                        rt: prev.rt || "",
+                        rw: prev.rw || "",
+                        kampung: prev.kampung || "",
+                        district: prev.district || "",
+                        headOfFamilyName: prev.headOfFamilyName || "",
+                        headOfFamilyDob: prev.headOfFamilyDob || "",
+                        treatmentStart: prev.treatmentStart || "",
+                        departureDate: prev.departureDate || "",
+                        diagnosis: prev.diagnosis || "",
+                        hospitalName: prev.hospitalName || "",
+                        destinationPlace: prev.destinationPlace || "",
+                        accompanimentLocation: prev.accompanimentLocation || "",
+                      });
+                      alert("Berhasil menyalin data alamat & keluarga dari penerima sebelumnya.");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 text-xs font-bold rounded-xl transition-all border border-indigo-200/50 shadow-sm active:scale-95 cursor-pointer self-start lg:self-auto"
+                >
+                  <Copy className="w-4 h-4 text-indigo-600" />
+                  Salin Data Alamat & Keluarga
+                </button>
               )}
             </div>
 
@@ -2226,249 +2475,7 @@ export default function RecipientForm({
                   />
                 </div>
 
-                <div className="space-y-2 lg:col-span-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Jumlah Bantuan (Rp)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium whitespace-nowrap">
-                      Rp
-                    </span>
-                    <input
-                      type="text"
-                      className="form-input-custom font-bold pl-12"
-                      placeholder="0"
-                      value={
-                        recipientInput.amountProposed
-                          ? Number(
-                              recipientInput.amountProposed,
-                            ).toLocaleString("id-ID")
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setRecipientInput({
-                          ...recipientInput,
-                          amountProposed: val,
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 lg:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-700">
-                      Tujuan Penyaluran
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const rtRw = [recipientInput.rt, recipientInput.rw]
-                          .filter(Boolean)
-                          .join("/");
-                        const alamatLengkap = [recipientInput.address, rtRw]
-                          .filter(Boolean)
-                          .join(" ");
-                        const generated =
-                          `Permohonan Bantuan ${registrationData.programName || registrationData.aidType || ""} a.n ${recipientInput.name || ""} Alamat ${alamatLengkap} kampung ${recipientInput.kampung || ""} kecamatan ${recipientInput.district || ""}`
-                            .trim()
-                            .replace(/\s+/g, " ");
-                        setRecipientInput({
-                          ...recipientInput,
-                          purpose: generated,
-                        });
-                      }}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
-                    >
-                      <Wand2 className="w-3 h-3" /> Buat Otomatis
-                    </button>
-                  </div>
-                  <textarea
-                    className="form-input-custom font-medium min-h-[60px]"
-                    value={recipientInput.purpose}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        purpose: e.target.value,
-                      })
-                    }
-                    placeholder="Keterangan singkat penyaluran..."
-                  />
-                </div>
-
-                <div className="space-y-2 lg:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-slate-700">
-                      Tujuan Pengajuan
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const bulan = new Date().toLocaleString("id-ID", {
-                          month: "long",
-                        });
-                        const rtRw = [
-                          recipientInput.rt || "-",
-                          recipientInput.rw || "-",
-                        ].join("/");
-                        const computedCount = Math.max(
-                          1,
-                          editingIndex !== null
-                            ? subRecipients.length
-                            : subRecipients.length + 1,
-                        );
-                        const generated =
-                          `Permohonan Pencairan Dana ${registrationData.fundingSource || ""} ${registrationData.programName || ""} a.n ${recipientInput.name || ""} Sebanyak ${computedCount} Orang Bulan ${bulan} ${recipientInput.address || ""} ${rtRw} kampung ${recipientInput.kampung || ""} kecamatan ${recipientInput.district || ""}`
-                            .trim()
-                            .replace(/\s+/g, " ");
-                        setRecipientInput({
-                          ...recipientInput,
-                          tujuanPengajuan: generated,
-                        });
-                      }}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
-                    >
-                      <Wand2 className="w-3 h-3" /> Buat Otomatis
-                    </button>
-                  </div>
-                  <textarea
-                    className="form-input-custom font-medium min-h-[60px]"
-                    value={recipientInput.tujuanPengajuan}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        tujuanPengajuan: e.target.value,
-                      })
-                    }
-                    placeholder="Di dalam field ini, terdapat Fitur Rangkum Otomatis. Anda cukup menekan tombol '✨ Buat Otomatis' di sebelah judul field ini."
-                  />
-                </div>
               </div>
-
-              {/* MEDICAL & SPECIAL DETAILS BLOK */}
-              {(registrationData.sector === 'Siak Sehat' || registrationData.sector === 'Siak Peduli') && (
-                <>
-                  <hr className="border-slate-100" />
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5">
-                      🏥 Detail Medis & Khusus ({registrationData.sector})
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Pekerjaan</label>
-                        <input
-                          type="text"
-                          className="form-input-custom"
-                          value={recipientInput.job || ''}
-                          onChange={(e) => setRecipientInput({ ...recipientInput, job: e.target.value })}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Kondisi Fisik</label>
-                        <select
-                          className="form-input-custom"
-                          value={recipientInput.physicalCondition}
-                          onChange={(e) => setRecipientInput({ ...recipientInput, physicalCondition: e.target.value as any })}
-                        >
-                          <option value="Sehat">Sehat</option>
-                          <option value="Sakit">Sakit</option>
-                          <option value="Cacat">Cacat</option>
-                        </select>
-                      </div>
-
-                      {!(registrationData.sector === 'Siak Peduli' && registrationData.programName?.toLowerCase().includes('biaya hidup')) && (
-                        <>
-                          {!registrationData.programName?.toLowerCase().includes('alat kesehatan') && (
-                            <div className="space-y-2">
-                              {registrationData.programName?.toLowerCase().includes('transportasi pasien') ? (
-                                <>
-                                  <label className="text-sm font-semibold text-slate-700">Tanggal Berangkat</label>
-                                  <input
-                                    type="text"
-                                    className="form-input-custom"
-                                    placeholder="e.g. 12 Januari 2024"
-                                    value={recipientInput.departureDate || recipientInput.treatmentStart || ''}
-                                    onChange={(e) => setRecipientInput({ ...recipientInput, departureDate: e.target.value, treatmentStart: e.target.value })}
-                                  />
-                                </>
-                              ) : (
-                                <>
-                                  <label className="text-sm font-semibold text-slate-700">Mulai Dirawat</label>
-                                  <input
-                                    type="text"
-                                    className="form-input-custom"
-                                    placeholder="e.g. 12 Januari 2024"
-                                    value={recipientInput.treatmentStart || recipientInput.departureDate || ''}
-                                    onChange={(e) => setRecipientInput({ ...recipientInput, treatmentStart: e.target.value, departureDate: e.target.value })}
-                                  />
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Diagnosa Penyakit</label>
-                            <input
-                              type="text"
-                              className="form-input-custom"
-                              value={recipientInput.diagnosis || ''}
-                              onChange={(e) => setRecipientInput({ ...recipientInput, diagnosis: e.target.value })}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Nama Rumah Sakit</label>
-                            <input
-                              type="text"
-                              className="form-input-custom"
-                              value={recipientInput.hospitalName || ''}
-                              onChange={(e) => setRecipientInput({ ...recipientInput, hospitalName: e.target.value })}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Nama Pendamping/Yg Dirawat</label>
-                            <input
-                              type="text"
-                              className="form-input-custom"
-                              value={recipientInput.patientCompanionName || ''}
-                              onChange={(e) => setRecipientInput({ ...recipientInput, patientCompanionName: e.target.value })}
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {registrationData.programName?.toLowerCase().includes('pendamping pasien') && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700">Jumlah Hari (Pendampingan)</label>
-                          <input
-                            type="number"
-                            className="form-input-custom"
-                            placeholder="e.g. 3"
-                            value={recipientInput.daysCount || ''}
-                            onChange={(e) => setRecipientInput({ ...recipientInput, daysCount: parseInt(e.target.value) || 0 })}
-                          />
-                        </div>
-                      )}
-
-                      {registrationData.programName?.toLowerCase().includes('alat kesehatan') && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700">Nama Alat Kesehatan</label>
-                          <input
-                            type="text"
-                            className="form-input-custom"
-                            placeholder="e.g. Kursi Roda"
-                            value={recipientInput.healthToolName || ''}
-                            onChange={(e) => setRecipientInput({ ...recipientInput, healthToolName: e.target.value })}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
 
               {/* DOMISILI BLOK */}
               <hr className="border-slate-100" />
@@ -2605,173 +2612,10 @@ export default function RecipientForm({
                 </div>
               </div>
 
-              {/* PENDIDIKAN & PERBANKAN BLOK */}
+              {/* STATUS BERKAS BLOK */}
               <hr className="border-slate-100" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+              <div className="pt-2">
                 <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
-                    Detail Pendidikan (Opsional)
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Nama Sekolah / Instansi
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-custom font-medium"
-                        value={recipientInput.schoolName}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            schoolName: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Tingkatan
-                        </label>
-                        <input
-                          type="text"
-                          className="form-input-custom font-medium"
-                          placeholder="SD / SMP / Universitas"
-                          value={recipientInput.schoolLevel}
-                          onChange={(e) =>
-                            setRecipientInput({
-                              ...recipientInput,
-                              schoolLevel: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Kelas / Semester
-                        </label>
-                        <input
-                          type="text"
-                          className="form-input-custom font-medium"
-                          value={recipientInput.schoolClass}
-                          onChange={(e) =>
-                            setRecipientInput({
-                              ...recipientInput,
-                              schoolClass: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Alamat Sekolah
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-custom font-medium"
-                        value={recipientInput.schoolAddress}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            schoolAddress: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        No Hp Instansi
-                      </label>
-                      <input
-                        type="tel"
-                        maxLength={13}
-                        className="form-input-custom font-mono"
-                        value={recipientInput.schoolPhone}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            schoolPhone: e.target.value.replace(/\D/g, ""),
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
-                    Detail Perbankan (Opsional)
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Nomor Rekening
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={16}
-                        className="form-input-custom font-mono"
-                        value={recipientInput.bankAccountNo}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            bankAccountNo: e.target.value.replace(/\D/g, ""),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Nama Bank
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-custom font-medium"
-                        placeholder="Bank Riau Kepri / Syariah"
-                        value={recipientInput.bankName}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            bankName: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Nama Pemilik Rekening
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-custom font-medium"
-                        value={recipientInput.bankAccountHolder}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            bankAccountHolder: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        Catatan Tambahan Mustahik
-                      </label>
-                      <textarea
-                        className="form-input-custom min-h-[50px] font-medium"
-                        value={recipientInput.notes}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            notes: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">
@@ -2997,71 +2841,92 @@ export default function RecipientForm({
               />
 
               {/* ACTIONS ADD/CANCEL FOR SUB RECIPIENT */}
-              <div className="pt-6 mt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(1);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
-                >
-                  Kembali
-                </button>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                  {editingIndex !== null && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditRecipient}
-                      className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer w-full sm:w-auto"
-                    >
-                      Batalkan Edit
-                    </button>
-                  )}
+              <div className="flex justify-end gap-3 mt-4">
+                {editingIndex !== null && (
                   <button
                     type="button"
-                    onClick={handleAddRecipientToSubTable}
-                    disabled={isAddingToSub}
-                    className={cn(
-                      "px-6 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all shadow-sm select-none w-full sm:w-auto",
-                      editingIndex !== null
-                        ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100 cursor-pointer"
-                        : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer",
-                      isAddingToSub ? "opacity-75 cursor-not-allowed" : "",
-                    )}
+                    onClick={handleCancelEditRecipient}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer w-full sm:w-auto"
                   >
-                    {editingIndex !== null ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        <span>Simpan Perubahan</span>
-                      </>
-                    ) : (
-                      <>
-                        {isAddingToSub ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Plus className="w-4 h-4" />
-                        )}
-                        <span>
-                          {isAddingToSub
-                            ? "Memproses..."
-                            : "Tambahkan Penerima"}
-                        </span>
-                      </>
-                    )}
+                    Batalkan Edit
                   </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleAddRecipientToSubTable}
+                  disabled={isAddingToSub}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all shadow-sm select-none w-full sm:w-auto",
+                    editingIndex !== null
+                      ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100 cursor-pointer"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer",
+                    isAddingToSub ? "opacity-75 cursor-not-allowed" : "",
+                  )}
+                >
+                  {editingIndex !== null ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Simpan Perubahan</span>
+                    </>
+                  ) : (
+                    <>
+                      {isAddingToSub ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                      <span>
+                        {isAddingToSub
+                          ? "Memproses..."
+                          : "Tambahkan Penerima"}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
 
+              {/* SECTION WIZARD SUBMIT */}
+              <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-8 border-t border-slate-100 gap-4">
+                <div />
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Batalkan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(1);
+                    }}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
+                  >
+                    Kembali
+                  </button>
                   {subRecipients.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setCurrentStep(3);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      onClick={async () => {
+                        // If user is currently filling out the form, auto-save first
+                        if (
+                          recipientInput.name.trim() !== "" ||
+                          recipientInput.nik.trim() !== "" ||
+                          recipientInput.kk.trim() !== "" ||
+                          recipientInput.address.trim() !== ""
+                        ) {
+                          const success = await handleAddRecipientToSubTable();
+                          if (success) {
+                            setCurrentStep(3);
+                          }
+                        } else {
+                          setCurrentStep(3);
+                        }
                       }}
-                      className="bg-emerald-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-emerald-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto sm:ml-2"
+                      className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                     >
-                      Berikutnya <ChevronRight className="w-4 h-4" />
+                      Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
                     </button>
                   )}
                 </div>
@@ -3070,19 +2935,1073 @@ export default function RecipientForm({
           </div>
         )}
 
-        {/* SECTION 3: SUB TABEL PENERIMA TERDAFTAR (LIST IN ACTIVE FORM) */}
+        {/* SECTION 3: FORM TANDA TERIMA DAN FORMULIR PERMOHONAN BANTUAN */}
         {currentStep === 3 && (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+            <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-100/80">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">
+                  Penerbitan Tanda Terima & Formulir Permohonan Bantuan
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Tentukan apakah Form Tanda Terima dan Formulir Permohonan Bantuan akan diterbitkan secara otomatis untuk perorangan penerima manfaat.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              
+              <h4 className="text-sm font-bold text-indigo-700">
+                Parameter Registrasi Aktif: {registrationData.registrationId}
+              </h4>
+
+              {/* MEDICAL & SPECIAL DETAILS BLOK - DYNAMIC STEP 3 */}
+              {[
+                { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+                ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+              ].map((cfg, cIdx) => {
+                if (!(cfg.rData.sector === 'Siak Sehat' || cfg.rData.sector === 'Siak Peduli')) return null;
+                if (!cfg.subs || cfg.subs.length === 0) return null;
+
+                return (
+                  <div key={cIdx} className="space-y-6 mb-8">
+                    {cfg.isSavedGroup && (
+                      <h4 className="text-sm font-bold text-indigo-700 border-b border-indigo-100 pb-2">
+                        Parameter Registrasi Tersimpan: {cfg.rData.registrationId}
+                      </h4>
+                    )}
+                    <div className="space-y-6">
+                      {cfg.subs.map((sub: any, idx: number) => (
+                        <div key={idx} className="bg-slate-50/50 p-4 border border-slate-200 rounded-xl">
+                          <div className="flex flex-col mb-4">
+                            <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2 mb-1">
+                              <Stethoscope className="w-4 h-4" /> Detail Medis & Khusus ({cfg.rData.sector})
+                            </h4>
+                            <p className="text-sm font-semibold text-black">
+                              No Reg: {sub.registrationId || cfg.rData.registrationId} • Penerima: <span className="capitalize">{sub.name.toLowerCase()}</span>
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-slate-700">Pekerjaan *</label>
+                              <select
+                                required
+                                className="form-input-custom"
+                                value={sub.job || ''}
+                                onChange={(e) => {
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, job: e.target.value };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    const updated = [...subRecipients];
+                                    updated[idx] = { ...sub, job: e.target.value };
+                                    setSubRecipients(updated);
+                                  }
+                                }}
+                              >
+                                <option value="">Pilih Pekerjaan</option>
+                                {JOB_OPTIONS.map((jobOpt) => (
+                                  <option key={jobOpt} value={jobOpt}>{jobOpt.replace(/_/g, ' ')}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-slate-700">Kondisi Fisik *</label>
+                              <select
+                                required
+                                className="form-input-custom"
+                                value={sub.physicalCondition || ''}
+                                onChange={(e) => {
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, physicalCondition: e.target.value as any };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    const updated = [...subRecipients];
+                                    updated[idx] = { ...sub, physicalCondition: e.target.value as any };
+                                    setSubRecipients(updated);
+                                  }
+                                }}
+                              >
+                                <option value="">Pilih</option>
+                                <option value="Sehat">Sehat</option>
+                                <option value="Sakit">Sakit</option>
+                                <option value="Cacat">Cacat</option>
+                              </select>
+                            </div>
+
+                            {!(cfg.rData.sector === 'Siak Peduli' && cfg.rData.programName?.toLowerCase().includes('biaya hidup')) && (
+                              <>
+                                {!cfg.rData.programName?.toLowerCase().includes('alat kesehatan') && (
+                                  <div className="space-y-2">
+                                    {cfg.rData.programName?.toLowerCase().includes('transportasi pasien') ? (
+                                      <>
+                                        <label className="text-sm font-semibold text-slate-700">Tanggal Berangkat *</label>
+                                        <input
+                                          required
+                                          type="date"
+                                          className="form-input-custom"
+                                          value={sub.departureDate || sub.treatmentStart || ''}
+                                          onChange={(e) => {
+                                            if (cfg.isSavedGroup) {
+                                              const updatedGroups = [...savedGroups];
+                                              updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, departureDate: e.target.value, treatmentStart: e.target.value };
+                                              setSavedGroups(updatedGroups);
+                                            } else {
+                                              const updated = [...subRecipients];
+                                              updated[idx] = { ...sub, departureDate: e.target.value, treatmentStart: e.target.value };
+                                              setSubRecipients(updated);
+                                            }
+                                          }}
+                                        />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <label className="text-sm font-semibold text-slate-700">Mulai Dirawat *</label>
+                                        <input
+                                          required
+                                          type="date"
+                                          className="form-input-custom"
+                                          value={sub.treatmentStart || sub.departureDate || ''}
+                                          onChange={(e) => {
+                                            if (cfg.isSavedGroup) {
+                                              const updatedGroups = [...savedGroups];
+                                              updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, treatmentStart: e.target.value, departureDate: e.target.value };
+                                              setSavedGroups(updatedGroups);
+                                            } else {
+                                              const updated = [...subRecipients];
+                                              updated[idx] = { ...sub, treatmentStart: e.target.value, departureDate: e.target.value };
+                                              setSubRecipients(updated);
+                                            }
+                                          }}
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-semibold text-slate-700">Diagnosa Penyakit *</label>
+                                  <input
+                                    required
+                                    type="text"
+                                    className="form-input-custom"
+                                    value={sub.diagnosis || ''}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, diagnosis: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, diagnosis: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                    onBlur={(e) => handleAddDisease(e.target.value)}
+                                    list={`disease-list-${cIdx}-${idx}`}
+                                  />
+                                  <datalist id={`disease-list-${cIdx}-${idx}`}>
+                                    {diseaseOptions.map((opt) => (
+                                      <option key={opt} value={opt} />
+                                    ))}
+                                  </datalist>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-semibold text-slate-700">Nama Rumah Sakit *</label>
+                                  <input
+                                    required
+                                    type="text"
+                                    className="form-input-custom"
+                                    value={sub.hospitalName || ''}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, hospitalName: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, hospitalName: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                    onBlur={(e) => handleAddHospital(e.target.value)}
+                                    list={`hospital-list-${cIdx}-${idx}`}
+                                  />
+                                  <datalist id={`hospital-list-${cIdx}-${idx}`}>
+                                    {hospitalOptions.map((opt) => (
+                                      <option key={opt} value={opt} />
+                                    ))}
+                                  </datalist>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-semibold text-slate-700">Nama Pendamping/Yg Dirawat *</label>
+                                  <input
+                                    required
+                                    type="text"
+                                    className="form-input-custom"
+                                    value={sub.patientCompanionName || ''}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, patientCompanionName: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, patientCompanionName: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            {cfg.rData.programName?.toLowerCase().includes('pendamping pasien') && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-slate-700">Jumlah Hari (Pendampingan) *</label>
+                                <input
+                                  required
+                                  type="number"
+                                  className="form-input-custom"
+                                  placeholder="e.g. 3"
+                                  value={sub.daysCount || ''}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, daysCount: parseInt(e.target.value) || 0 };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, daysCount: parseInt(e.target.value) || 0 };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {cfg.rData.programName?.toLowerCase().includes('alat kesehatan') && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-slate-700">Nama Alat Kesehatan *</label>
+                                <input
+                                  required
+                                  type="text"
+                                  className="form-input-custom"
+                                  placeholder="e.g. Kursi Roda"
+                                  value={sub.healthToolName || ''}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, healthToolName: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, healthToolName: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {subRecipients.length === 0 ? (
+                <div className="p-10 text-center space-y-2 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-slate-400 font-bold text-sm">
+                    Belum Ada Penerima dalam Sub-Tabel
+                  </p>
+                  <p className="text-slate-400 text-xs max-w-md mx-auto">
+                    Silakan kembalilah ke langkah sebelumnya untuk menginput penerima manfaat minimal 1 orang terlebih dahulu.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto bg-slate-50/50 rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm text-slate-600">
+                    <thead className="bg-slate-100/80 text-slate-700 text-xs font-semibold">
+                      <tr>
+                        <th className="px-3.5 py-3 text-center border-r border-slate-200 w-12 font-bold">
+                          No
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">
+                          Cetak Tanda Terima
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          No Reg
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Nama Penerima
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Bantuan Untuk
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          NIK
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Nomor KK
+                        </th>
+                        <th className="px-3 py-3 font-bold whitespace-nowrap">
+                          Alamat
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {subRecipients.map((sub, idx) => (
+                        <tr
+                          key={idx}
+                          className="hover:bg-slate-50/60 transition-colors text-black font-normal"
+                        >
+                          <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-4 text-center border-r border-slate-200/40">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600 cursor-pointer"
+                              checked={sub.isReceiptGenerated !== false}
+                              onChange={(e) => {
+                                const updated = [...subRecipients];
+                                updated[idx] = {
+                                  ...sub,
+                                  isReceiptGenerated: e.target.checked,
+                                };
+                                setSubRecipients(updated);
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                            {sub.registrationId || registrationData.registrationId || "-"}
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
+                            {sub.name.toLowerCase()}
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                            {sub.programName || registrationData.programName || "-"}
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                            {sub.nik}
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                            {sub.kk}
+                          </td>
+                          <td className="px-3 py-4 text-black truncate max-w-[200px]" title={`${sub.address}, ${sub.kampung}, ${sub.district}`}>
+                            {sub.address}, {sub.kampung}, {sub.district}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {savedGroups.length > 0 && (
+              <div className="space-y-4 pt-6 mt-6 border-t border-slate-100">
+                <h4 className="text-sm font-bold text-slate-700">Daftar Parameter Registrasi Tersimpan</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {savedGroups.map((group, idx) => (
+                    <div key={idx} className="relative group/card">
+                      <label className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:border-slate-300 transition-colors h-full">
+                        <input
+                          type="checkbox"
+                          checked={group.printGroup !== false}
+                          onChange={(e) => {
+                            const updated = [...savedGroups];
+                            updated[idx] = { ...group, printGroup: e.target.checked };
+                            setSavedGroups(updated);
+                          }}
+                          className="mt-1 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-600 cursor-pointer flex-shrink-0"
+                        />
+                        <div className="flex-1 pr-6">
+                          <h5 className="font-bold text-slate-800 text-sm leading-tight mb-1">
+                            {group.registrationData.registrationId}
+                          </h5>
+                          <p className="text-xs text-slate-500 line-clamp-2">
+                            {group.registrationData.programName}
+                          </p>
+                          <p className="text-xs font-bold text-indigo-600 mt-2">
+                            {group.subRecipients.length} Penerima
+                          </p>
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleEditSavedGroup(idx);
+                        }}
+                        className="absolute right-3 top-3 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-lg opacity-0 group-hover/card:opacity-100"
+                        title="Sunting Parameter & Data Penerima"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {onMassReceipt && (subRecipients.length > 0 || savedGroups.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mockIdPrefix = Array.isArray(initialGroupRecipients) 
+                        ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
+                        : 'TBD-'+Math.floor(Math.random() * 9999);
+                        
+                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+                      
+                      const recipientsToPrint = [...savedGroups.filter(g => g.printGroup !== false), ...activeGroupPayload]
+                        .filter(group => group.subRecipients && group.subRecipients.length > 0)
+                        .flatMap((group, i) => {
+                            return group.subRecipients
+                                .filter((sub: any) => sub.isReceiptGenerated !== false)
+                                .map((sub: any, j: number) => ({
+                                  ...group.registrationData,
+                                  ...sub,
+                                  id: sub.id || `${mockIdPrefix}-${i}-${j}`,
+                                  registrationId: group.registrationData.registrationId || `${mockIdPrefix}-${i}`,
+                                }));
+                        });
+                      onMassReceipt(recipientsToPrint as Recipient[]);
+                    }}
+                    className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold text-sm px-6 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Cetak Tanda Terima
+                  </button>
+                )}
+                
+                <button
+                   type="button"
+                   onClick={handleAddAdditionalParameter}
+                   className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-sm px-6 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                   <Plus className="w-4 h-4" />
+                   Tambah Parameter Registrasi
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+                >
+                  Batalkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(2);
+                  }}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  Kembali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(4);
+                  }}
+                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 4: FORM MPZIS DAN E-PPD */}
+        {currentStep === 4 && (
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+            <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-100/80">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">
+                  Penerbitan Dokumen MPZIS & E-PPD
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Tentukan apakah dokumen MPZIS dan E-PPD akan diterbitkan secara otomatis untuk perorangan penerima manfaat.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+                ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+              ].map((cfg, cIdx) => {
+                if (!cfg.subs || cfg.subs.length === 0) return null;
+
+                return (
+                  <div key={cIdx} className="space-y-6 mb-8">
+                    {cfg.isSavedGroup && (
+                      <h4 className="text-sm font-bold text-indigo-700 border-b border-indigo-100 pb-2">
+                        Parameter Registrasi Tersimpan: {cfg.rData.registrationId}
+                      </h4>
+                    )}
+                    <div className="space-y-6">
+                      {cfg.subs.map((sub: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col gap-6 hover:border-slate-300 transition-colors"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-sm select-none">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-black text-sm capitalize">
+                                  {sub.name.toLowerCase()}
+                                </h4>
+                                <p className="text-black text-xs font-medium">
+                                  NIK: {sub.nik} • KK: {sub.kk}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <hr className="border-slate-200/60" />
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* PENYALURAN BLOK */}
+                            <div className="space-y-4">
+                              <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Penyaluran</h4>
+                              
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Jumlah Bantuan (Rp)</label>
+                                <input
+                                  type="text"
+                                  className="form-input-custom font-mono"
+                                  placeholder="0"
+                                  value={sub.amountProposed ? Number(sub.amountProposed).toLocaleString("id-ID") : ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, amountProposed: val };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, amountProposed: val };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Penyaluran</label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const rtRw = [sub.rt, sub.rw].filter(Boolean).join("/");
+                                      const alamatLengkap = [sub.address, rtRw].filter(Boolean).join(" ");
+                                      const generated = `Permohonan Bantuan ${cfg.rData.programName || cfg.rData.aidType || ""} a.n ${sub.name || ""} Alamat ${alamatLengkap} kampung ${sub.kampung || ""} kecamatan ${sub.district || ""}`.trim().replace(/\s+/g, " ");
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, purpose: generated };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, purpose: generated };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                                  >
+                                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                                  </button>
+                                </div>
+                                <textarea
+                                  className="form-input-custom min-h-[60px] font-medium"
+                                  value={sub.purpose || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, purpose: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, purpose: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Pengajuan</label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const bulan = new Date().toLocaleString("id-ID", { month: "long" });
+                                      const rtRw = [sub.rt || "-", sub.rw || "-"].join("/");
+                                      const generated = `Permohonan Pencairan Dana ${cfg.rData.fundingSource || ""} ${cfg.rData.programName || ""} a.n ${sub.name || ""} Sebanyak ${cfg.subs.length} Orang Bulan ${bulan} ${sub.address || ""} ${rtRw} kampung ${sub.kampung || ""} kecamatan ${sub.district || ""}`.trim().replace(/\s+/g, " ");
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: generated };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, tujuanPengajuan: generated };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                                  >
+                                    <Wand2 className="w-3 h-3" /> Buat Otomatis
+                                  </button>
+                                </div>
+                                <textarea
+                                  className="form-input-custom min-h-[60px] font-medium"
+                                  value={sub.tujuanPengajuan || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, tujuanPengajuan: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* PENDIDIKAN & PERBANKAN BLOK */}
+                            <div className="space-y-4">
+                              <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Detail Pendidikan & Perbankan</h4>
+                              
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Nama Sekolah / Instansi (Opsional)</label>
+                                <input
+                                  type="text"
+                                  className="form-input-custom font-medium"
+                                  value={sub.schoolName || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolName: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, schoolName: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Tingkatan</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom font-medium"
+                                    value={sub.schoolLevel || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolLevel: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, schoolLevel: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Kelas/SMTR</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom font-medium"
+                                    value={sub.schoolClass || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolClass: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, schoolClass: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Nama Bank</label>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom font-medium"
+                                    value={sub.bankName || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankName: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, bankName: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Nomor Rekening</label>
+                                  <input
+                                    type="text"
+                                    maxLength={16}
+                                    className="form-input-custom font-mono"
+                                    value={sub.bankAccountNo || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankAccountNo: e.target.value.replace(/\D/g, "") };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, bankAccountNo: e.target.value.replace(/\D/g, "") };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Nama Pemilik Rekening</label>
+                                <input
+                                  type="text"
+                                  className="form-input-custom font-medium"
+                                  value={sub.bankAccountHolder || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankAccountHolder: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, bankAccountHolder: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* TABLE */}
+              {subRecipients.length === 0 && savedGroups.length === 0 ? (
+                <div className="p-10 text-center space-y-2 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-slate-400 font-bold text-sm">
+                    Belum Ada Penerima dalam Sub-Tabel
+                  </p>
+                  <p className="text-slate-400 text-xs max-w-md mx-auto">
+                    Silakan kembalilah ke langkah sebelumnya untuk menginput penerima manfaat minimal 1 orang terlebih dahulu.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200/60 rounded-xl">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-100/50 text-slate-500 uppercase tracking-wider text-[10px]">
+                        <th className="px-3.5 py-3 text-center border-r border-slate-200 w-12 font-bold">
+                          No
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">
+                          Terbit Form MPZIS
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">
+                          Terbit Form E-PPD
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          No Reg
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Nama Penerima
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Bantuan Untuk
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          NIK
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Nomor KK
+                        </th>
+                        <th className="px-3 py-3 font-bold whitespace-nowrap">
+                          Alamat
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {[
+                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+                      ].map((cfg, cIdx) => (
+                        <React.Fragment key={cIdx}>
+                          {cfg.subs.map((sub: any, idx: number) => {
+                            // Calculate continuous index across groups
+                            const currentIdx = cIdx === 0 
+                              ? idx 
+                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+
+                            return (
+                              <tr
+                                key={`${cIdx}-${idx}`}
+                                className="hover:bg-slate-50/60 transition-colors text-black font-normal"
+                              >
+                                <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
+                                  {currentIdx + 1}
+                                </td>
+                                <td className="px-3 py-4 text-center border-r border-slate-200/40">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-600 cursor-pointer"
+                                    checked={sub.isMPZISGenerated !== false}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+                                          ...sub,
+                                          isMPZISGenerated: e.target.checked,
+                                        };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = {
+                                          ...sub,
+                                          isMPZISGenerated: e.target.checked,
+                                        };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </td>
+                                <td className="px-3 py-4 text-center border-r border-slate-200/40">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600 cursor-pointer"
+                                    checked={sub.isEPPDGenerated !== false}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+                                          ...sub,
+                                          isEPPDGenerated: e.target.checked,
+                                        };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = {
+                                          ...sub,
+                                          isEPPDGenerated: e.target.checked,
+                                        };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.registrationId || cfg.rData.registrationId || "-"}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
+                                  {sub.name.toLowerCase()}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.programName || cfg.rData.programName || "-"}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.nik}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.kk}
+                                </td>
+                                <td className="px-3 py-4 text-black truncate max-w-[200px]" title={`${sub.address}, ${sub.kampung}, ${sub.district}`}>
+                                  {sub.address}, {sub.kampung}, {sub.district}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {onMassMPZIS && (subRecipients.length > 0 || savedGroups.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mockIdPrefix = Array.isArray(initialGroupRecipients) 
+                        ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
+                        : 'TBD-'+Math.floor(Math.random() * 9999);
+                        
+                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+                      
+                      const recipientsToPrint = [...savedGroups, ...activeGroupPayload]
+                        .map((group, i) => {
+                            const validChildren = group.subRecipients.filter((sub: any) => sub.isMPZISGenerated !== false);
+                            if (validChildren.length === 0) return null;
+
+                            const subForBase = validChildren[0];
+                            return {
+                                ...group.registrationData,
+                                ...subForBase,
+                                id: subForBase.id || `${mockIdPrefix}-${i}`,
+                                registrationId: group.registrationData.registrationId,
+                                lampiranItems: validChildren.map((child: any) => ({
+                                    ...group.registrationData,
+                                    ...child
+                                }))
+                            };
+                        })
+                        .filter(Boolean);
+                        
+                      if (recipientsToPrint.length === 0) {
+                        alert("Tidak ada penerima yang dipilih untuk mencetak MPZIS.");
+                        return;
+                      }
+
+                      onMassMPZIS(recipientsToPrint as any[]);
+                    }}
+                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-sm px-6 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Cetak MPZIS
+                  </button>
+                )}
+                {onMassEPPD && (subRecipients.length > 0 || savedGroups.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mockIdPrefix = Array.isArray(initialGroupRecipients) 
+                        ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
+                        : 'TBD-'+Math.floor(Math.random() * 9999);
+                        
+                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+                      
+                      const recipientsToPrint = [...savedGroups, ...activeGroupPayload]
+                        .map((group, i) => {
+                            const validChildren = group.subRecipients.filter((sub: any) => sub.isEPPDGenerated !== false);
+                            if (validChildren.length === 0) return null;
+
+                            const subForBase = validChildren[0];
+                            return {
+                                ...group.registrationData,
+                                ...subForBase,
+                                id: subForBase.id || `${mockIdPrefix}-${i}`,
+                                registrationId: group.registrationData.registrationId,
+                                lampiranItems: validChildren.map((child: any) => ({
+                                    ...group.registrationData,
+                                    ...child
+                                }))
+                            };
+                        })
+                        .filter(Boolean);
+
+                      if (recipientsToPrint.length === 0) {
+                        alert("Tidak ada penerima yang dipilih untuk mencetak E-PPD.");
+                        return;
+                      }
+
+                      onMassEPPD(recipientsToPrint as any[]);
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-sm px-6 py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Cetak E-PPD
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+                >
+                  Batalkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(3);
+                  }}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  Kembali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(5);
+                  }}
+                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 5: SUB TABEL PENERIMA TERDAFTAR (LIST IN ACTIVE FORM - KONFIRMASI) */}
+        {currentStep === 5 && (
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-lg">
+                  <h3 className="font-bold text-slate-800 text-base">
                     Sub Tabel Penerima ({subRecipients.length} Orang)
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-[11px] text-slate-500 font-medium">
                     Daftar individu yang akan diajukan bantuan dalam kelompok/ID
                     pendaftaran ini.
                   </p>
@@ -3120,6 +4039,9 @@ export default function RecipientForm({
                           Nama Penerima
                         </th>
                         <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
+                          Mengajukan Bantuan Untuk
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
                           NIK
                         </th>
                         <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
@@ -3142,6 +4064,9 @@ export default function RecipientForm({
                         </th>
                         <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap text-center">
                           Status Berkas
+                        </th>
+                        <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap border-b-slate-250 text-center">
+                          Opsi Form
                         </th>
                         <th className="px-3 py-3 border-r border-slate-200 font-bold whitespace-nowrap">
                           No Rekening
@@ -3175,8 +4100,11 @@ export default function RecipientForm({
                           <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
                             {idx + 1}
                           </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-slate-800 capitalize whitespace-nowrap">
+                          <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
                             {sub.name.toLowerCase()}
+                          </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                            {sub.programName || registrationData.programName || "-"}
                           </td>
                           <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
                             {sub.nik}
@@ -3290,6 +4218,54 @@ export default function RecipientForm({
                                 )}
                             </div>
                           </td>
+                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap text-center">
+                            <div className="flex flex-wrap items-center justify-center gap-1 max-w-[200px] mx-auto">
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-extrabold",
+                                  sub.isReceiptGenerated !== false
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                                    : "bg-slate-100 text-slate-500",
+                                )}
+                                title="Tanda Terima"
+                              >
+                                Tanda Terima
+                              </span>
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-extrabold",
+                                  sub.isSurveyGenerated !== false
+                                    ? "bg-sky-50 text-sky-700 border border-sky-200/60"
+                                    : "bg-slate-100 text-slate-500",
+                                )}
+                                title="Form Permohonan"
+                              >
+                                Permohonan
+                              </span>
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-extrabold",
+                                  sub.isMPZISGenerated !== false
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                                    : "bg-slate-100 text-slate-500",
+                                )}
+                                title="MPZIS"
+                              >
+                                MPZIS
+                              </span>
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[8px] font-extrabold",
+                                  sub.isEPPDGenerated !== false
+                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200/60"
+                                    : "bg-slate-100 text-slate-500",
+                                )}
+                                title="E-PPD"
+                              >
+                                E-PPD
+                              </span>
+                            </div>
+                          </td>
                           <td className="px-3 py-4 border-r border-slate-200/40 font-mono text-xs text-black whitespace-nowrap">
                             {sub.bankAccountNo || "-"}
                           </td>
@@ -3344,124 +4320,86 @@ export default function RecipientForm({
               )}
             </div>
 
-            <div className="flex justify-start pt-6 mt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(2);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="bg-slate-100 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl hover:bg-slate-200 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                Kembali
-              </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-4">
+              <div className="flex items-center gap-3">
+                {onReceipt && subRecipients.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sub = subRecipients[0];
+                      const {
+                        documents: groupDocs,
+                        status: groupStatus,
+                        ...groupSettings
+                      } = registrationData;
+                      
+                      const mockId = Array.isArray(initialGroupRecipients) 
+                        ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
+                        : 'TBD-'+Math.floor(Math.random() * 9999);
+
+                      const fullRecipientData = {
+                        ...sub,
+                        ...groupSettings,
+                        id: sub.id || mockId,
+                        registrationId: sub.registrationId || mockId,
+                        amountProposed: sub.amountProposed ? Number(sub.amountProposed) : 0,
+                        amountDisbursed: sub.amountDisbursed ? Number(sub.amountDisbursed) : 0,
+                      };
+                      onReceipt(fullRecipientData as Recipient);
+                    }}
+                    className="hidden sm:flex px-6 py-2.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Cetak Tanda Terima
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
+                >
+                  Batalkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentStep(4);
+                  }}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  Kembali
+                </button>
+                <button
+                  onClick={handleSaveAllData}
+                  type="button"
+                  disabled={isSavingAll}
+                  className={cn(
+                    "px-6 sm:px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
+                    isSavingAll
+                      ? "opacity-75 cursor-not-allowed"
+                      : "hover:bg-emerald-750 active:scale-95 cursor-pointer",
+                  )}
+                >
+                  {isSavingAll ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="truncate max-w-[150px] sm:max-w-none">
+                    {isSavingAll
+                      ? "Menyimpan..."
+                      : subRecipients.length > 0
+                        ? `Simpan Registrasi`
+                        : "Simpan"}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         )}
-
-        {/* COMPACT FLOATING FOOTER ACTION ACCORDING TO SYSTEM DESIGN PHILOSOPHY */}
-        <div className="fixed bottom-0 left-0 sm:left-64 right-0 bg-white/85 backdrop-blur-md border-t border-slate-200 p-4 px-4 sm:px-8 flex items-center justify-between z-20 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-            >
-              Batalkan
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {onReceipt && currentStep === 3 && subRecipients.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const sub = subRecipients[0];
-                  const {
-                    documents: groupDocs,
-                    status: groupStatus,
-                    ...groupSettings
-                  } = registrationData;
-                  
-                  const mockId = Array.isArray(initialGroupRecipients) 
-                    ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
-                    : 'TBD-'+Math.floor(Math.random() * 9999);
-
-                  const fullRecipientData = {
-                    ...sub,
-                    ...groupSettings,
-                    id: sub.id || mockId,
-                    registrationId: sub.registrationId || mockId,
-                    amountProposed: sub.amountProposed ? Number(sub.amountProposed) : 0,
-                    amountDisbursed: sub.amountDisbursed ? Number(sub.amountDisbursed) : 0,
-                  };
-                  onReceipt(fullRecipientData as Recipient);
-                }}
-                className="hidden sm:flex px-6 py-2.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                Cetak Tanda Terima
-              </button>
-            )}
-
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(currentStep - 1);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="hidden sm:flex px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
-              >
-                Kembali
-              </button>
-            )}
-
-            {currentStep < 3 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  const formElement = document.getElementById(
-                    "recipient-form",
-                  ) as HTMLFormElement;
-                  if (formElement && !formElement.reportValidity()) {
-                    return;
-                  }
-                  setCurrentStep(currentStep + 1);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="px-6 sm:px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-2 hover:bg-indigo-750 transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSaveAllData}
-                type="button"
-                disabled={isSavingAll}
-                className={cn(
-                  "px-6 sm:px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
-                  isSavingAll
-                    ? "opacity-75 cursor-not-allowed"
-                    : "hover:bg-emerald-750 active:scale-95 cursor-pointer",
-                )}
-              >
-                {isSavingAll ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                <span className="truncate max-w-[150px] sm:max-w-none">
-                  {isSavingAll
-                    ? "Menyimpan..."
-                    : subRecipients.length > 0
-                      ? `Simpan Registrasi`
-                      : "Simpan"}
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
       </form>
 
       {/* PREVIEW DOCUMENT MODAL */}

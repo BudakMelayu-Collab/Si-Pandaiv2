@@ -9,6 +9,7 @@ import { mergeRecipientScans } from '../lib/pdfMerger';
 interface SurveyTemplateProps {
   recipient: Recipient;
   onClose: () => void;
+  isEmbedded?: boolean;
 }
 
 const Checkbox = ({ label, fontSize }: { label: string, fontSize?: number }) => (
@@ -18,7 +19,7 @@ const Checkbox = ({ label, fontSize }: { label: string, fontSize?: number }) => 
   </div>
 );
 
-export default function SurveyTemplate({ recipient, onClose }: SurveyTemplateProps) {
+export default function SurveyTemplate({ recipient, onClose, isEmbedded }: SurveyTemplateProps) {
   const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config' | 'isi-data'>('template');
   const [isSaving, setIsSaving] = useState(false);
   const [surveyData, setSurveyData] = useState({
@@ -102,6 +103,12 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
   }, [recipient.id]);
 
   const handleSaveSurvey = async (silent: boolean = false) => {
+    if (recipient.id.startsWith('TBD-')) {
+      if (!silent) alert('Disimpan secara lokal untuk cetak massal.');
+      if (activeTab === 'isi-data' && !silent) setActiveTab('template');
+      return;
+    }
+    
     try {
       setIsSaving(true);
       
@@ -380,7 +387,10 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
   };
 
   return (
-    <div className="survey-template-overlay fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col print:relative print:overflow-visible print:bg-white print:h-auto overflow-hidden">
+    <div className={cn(
+      "survey-template-overlay flex flex-col print:relative print:overflow-visible print:bg-white print:h-auto overflow-hidden",
+      isEmbedded ? "relative w-full h-auto overflow-visible" : "fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 overflow-hidden"
+    )}>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -395,9 +405,11 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             position: static !important;
           }
           
+          ${!isEmbedded ? `
           #root > div > *:not(.survey-template-overlay) {
             display: none !important;
           }
+          ` : ""}
           
           #root > div {
             display: block !important;
@@ -405,6 +417,7 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             min-height: auto !important;
             overflow: visible !important;
             background-color: white !important;
+            position: static !important;
           }
           
           body {
@@ -447,9 +460,9 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
             border: none !important;
             box-shadow: none !important;
             border-radius: 0 !important;
-            width: 210mm !important;
-            height: 330mm !important;
-            min-height: 330mm !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
             box-sizing: border-box !important;
             position: relative !important;
             overflow: hidden !important;
@@ -463,7 +476,8 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
         }
       `}} />
       {/* Toolbar */}
-      <div className="bg-[#0f172a] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
+      {!isEmbedded && (
+        <div className="bg-[#0f172a] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
@@ -551,8 +565,12 @@ export default function SurveyTemplate({ recipient, onClose }: SurveyTemplatePro
           </button>
         </div>
       </div>
+      )}
 
-      <div className="survey-scrollable-container flex-1 overflow-y-auto p-10 flex flex-col items-center bg-slate-900 print:bg-white print:p-0">
+      <div className={cn(
+        "flex-1 print:p-0",
+        isEmbedded ? "bg-transparent p-0" : "survey-scrollable-container overflow-y-auto p-10 flex flex-col items-center bg-slate-900 print:bg-white"
+      )}>
         {activeTab === 'config' && (
           <div className="w-full max-w-2xl space-y-6">
             <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 shadow-2xl">

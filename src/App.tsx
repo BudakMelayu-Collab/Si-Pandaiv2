@@ -14,6 +14,7 @@ import MonthlyPaymentTable from "./components/MonthlyPaymentTable";
 import RumahSinggahModule from "./components/RumahSinggahModule";
 import PrintTemplate from "./components/PrintTemplate";
 import ReceiptTemplate from "./components/ReceiptTemplate";
+import MassPrintWrapper from "./components/MassPrintWrapper";
 import MPZISTemplate from "./components/MPZISTemplate";
 import MPZISRiwayatTable from "./components/MPZISRiwayatTable";
 import EPPDRiwayatTable from "./components/EPPDRiwayatTable";
@@ -92,6 +93,10 @@ export default function App() {
   const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(
     null,
   );
+  const [selectedMassReceipts, setSelectedMassReceipts] = useState<Recipient[] | null>(null);
+  const [selectedMassSurveys, setSelectedMassSurveys] = useState<Recipient[] | null>(null);
+  const [selectedMassMPZIS, setSelectedMassMPZIS] = useState<Recipient[] | null>(null);
+  const [selectedMassEPPD, setSelectedMassEPPD] = useState<Recipient[] | null>(null);
   const [prefilledGroupData, setPrefilledGroupData] = useState<
     Recipient[] | null
   >(null);
@@ -442,14 +447,14 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900 pb-24 border-t-8 border-indigo-600">
         <div className="p-6 pb-12 mt-8 max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-200">
-              <CheckCircle2 className="w-10 h-10 text-white" />
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-2 shadow-lg shadow-indigo-200/50">
+              <CheckCircle2 className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">
               Formulir Pendaftaran Bantuan / Layanan
             </h1>
-            <p className="text-slate-500 mt-2 font-medium">
+            <p className="text-slate-500 mt-1 text-sm font-medium">
               Badan Amil Zakat Nasional Kabupaten Siak
             </p>
           </div>
@@ -459,6 +464,10 @@ export default function App() {
               setSelectedRecipient(rec);
               setIsShowingReceipt(true);
             }}
+            onMassReceipt={(subs) => setSelectedMassReceipts(subs)}
+            onMassSurvey={(subs) => setSelectedMassSurveys(subs)}
+            onMassMPZIS={(subs) => setSelectedMassMPZIS(subs)}
+            onMassEPPD={(subs) => setSelectedMassEPPD(subs)}
             onSubmit={(recipient) => {
               handleCreateRecipient(recipient)
                 .then(() => {
@@ -708,6 +717,10 @@ export default function App() {
                 setSelectedRecipient(rec);
                 setIsShowingReceipt(true);
               }}
+              onMassReceipt={(subs) => setSelectedMassReceipts(subs)}
+              onMassSurvey={(subs) => setSelectedMassSurveys(subs)}
+              onMassMPZIS={(subs) => setSelectedMassMPZIS(subs)}
+              onMassEPPD={(subs) => setSelectedMassEPPD(subs)}
             />
           </div>
         );
@@ -1235,6 +1248,46 @@ export default function App() {
           <SurveyTemplate
             recipient={selectedRecipient}
             onClose={() => setIsShowingSurvey(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMassReceipts && (
+          <MassPrintWrapper
+            type="receipt"
+            recipients={selectedMassReceipts}
+            onClose={() => setSelectedMassReceipts(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMassSurveys && (
+          <MassPrintWrapper
+            type="survey"
+            recipients={selectedMassSurveys}
+            onClose={() => setSelectedMassSurveys(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMassMPZIS && (
+          <MassPrintWrapper
+            type="mpzis"
+            recipients={selectedMassMPZIS}
+            onClose={() => setSelectedMassMPZIS(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMassEPPD && (
+          <MassPrintWrapper
+            type="eppd"
+            recipients={selectedMassEPPD}
+            onClose={() => setSelectedMassEPPD(null)}
           />
         )}
       </AnimatePresence>

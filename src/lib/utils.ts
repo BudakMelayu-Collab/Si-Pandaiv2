@@ -10,6 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 export function isRecipientFileTracked(recipient: Recipient, type: 'receipt' | 'eppd' | 'mpzis' | 'survey'): boolean {
   switch (type) {
     case 'receipt':
+      if (recipient.isReceiptGenerated) return true;
       if (recipient.hasSignedReceiptPdf !== undefined) return recipient.hasSignedReceiptPdf;
       return !!recipient.signedReceiptPdfUrl && recipient.signedReceiptPdfUrl.length > 100;
     case 'eppd':
@@ -23,6 +24,7 @@ export function isRecipientFileTracked(recipient: Recipient, type: 'receipt' | '
       if (recipient.hasSignedMPZISPdf !== undefined) return recipient.hasSignedMPZISPdf;
       return !!recipient.signedMPZISPdfUrl && recipient.signedMPZISPdfUrl.length > 100;
     case 'survey':
+      if (recipient.isSurveyGenerated) return true;
       if (recipient.hasSignedSurveyPdf !== undefined) return recipient.hasSignedSurveyPdf;
       return !!recipient.signedSurveyPdfUrl && recipient.signedSurveyPdfUrl.length > 100;
     default:

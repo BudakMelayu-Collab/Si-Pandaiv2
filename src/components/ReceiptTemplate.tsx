@@ -15,6 +15,7 @@ interface ReceiptTemplateProps {
   recipient: Recipient;
   onClose: () => void;
   onEdit: (recipient: Recipient) => void;
+  isEmbedded?: boolean;
 }
 
 const DOCUMENT_OPTIONS = [
@@ -36,7 +37,76 @@ const DOCUMENT_OPTIONS = [
   "Lainnya"
 ];
 
-export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptTemplateProps) {
+const formatDobIndonesian = (dobStr: any): string => {
+  if (!dobStr) return "………………………………..";
+  
+  const valStr = String(dobStr).trim();
+  if (!valStr || valStr === '-') return "………………………………..";
+
+  // 1. Try DD/MM/YYYY matching
+  const ddMMyyyyRegex = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/;
+  const match = valStr.match(ddMMyyyyRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    
+    const monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1800 && year <= 2100) {
+      const paddedDay = day < 10 ? `0${day}` : `${day}`;
+      return `${paddedDay} ${monthNames[month - 1]} ${year}`;
+    }
+  }
+
+  // 2. Try Monthly text matching for Indonesian names (checking if they are already in text format)
+  const idMonthsList = [
+    ['januari', 'jan'],
+    ['februari', 'feb', 'pebruari', 'peb'],
+    ['maret', 'mar'],
+    ['april', 'apr'],
+    ['mei', 'may'],
+    ['juni', 'jun'],
+    ['juli', 'jul'],
+    ['agustus', 'agu', 'agt'],
+    ['september', 'sep'],
+    ['oktober', 'okt'],
+    ['november', 'nov'],
+    ['desember', 'des']
+  ];
+  const textDateRegex = /^(\d{1,2})[\s-\/]+([a-zA-Z]+)[\s-\/]+(\d{4})$/;
+  const textMatch = valStr.match(textDateRegex);
+  if (textMatch) {
+    const day = parseInt(textMatch[1], 10);
+    const monthStr = textMatch[2].toLowerCase();
+    const year = parseInt(textMatch[3], 10);
+    
+    const monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    
+    const monthIndex = idMonthsList.findIndex(m => m.includes(monthStr));
+    if (monthIndex !== -1 && day >= 1 && day <= 31 && year >= 1800 && year <= 2100) {
+      const paddedDay = day < 10 ? `0${day}` : `${day}`;
+      return `${paddedDay} ${monthNames[monthIndex]} ${year}`;
+    }
+  }
+
+  // 3. Native date parser
+  const d = new Date(valStr);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  // 4. Return raw string
+  return valStr;
+};
+
+export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded }: ReceiptTemplateProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<'template' | 'scan' | 'config'>('template');
@@ -176,6 +246,10 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
     if (!isLoaded || loadedRecipientId !== recipient.id) return;
 
     const saveData = async () => {
+      if (recipient.id.startsWith('TBD-')) {
+        setSaveStatus('saved');
+        return;
+      }
       setSaveStatus('saving');
       try {
         await storage.setItem(`receipt_data_${recipient.id}`, receiptData);
@@ -758,7 +832,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               <tr>
                 <td>Tempat/ tgl lahir</td>
                 <td>:</td>
-                <td>{recipient.pob || "…………….."} / {recipient.dob ? new Date(recipient.dob).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : "……………………………….."}</td>
+                <td>{recipient.pob || "…………….."} / {formatDobIndonesian(recipient.dob)}</td>
               </tr>
               {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
                 <>
@@ -932,9 +1006,13 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
   };
 
   return (
-    <div className="receipt-template-overlay fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 flex flex-col print:p-0 print:static print:bg-white print:block overflow-hidden print:overflow-visible print:h-auto">
+    <div className={cn(
+      "receipt-template-overlay flex flex-col print:p-0 print:static print:bg-white print:block print:overflow-visible print:h-auto",
+      isEmbedded ? "relative w-full h-auto overflow-visible" : "fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-50 overflow-hidden"
+    )}>
       {/* Toolbar */}
-      <div className="bg-[#111827] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
+      {!isEmbedded && (
+        <div className="bg-[#111827] border-b border-white/10 p-3 flex items-center justify-between print:hidden shrink-0">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
@@ -1057,23 +1135,30 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
           </div>
         </div>
       </div>
+      )}
 
-      <div className="flex-1 overflow-hidden print:overflow-visible print:h-auto grid grid-cols-1 lg:grid-cols-[1fr_320px] print:block bg-slate-950">
+      <div className={cn(
+        "flex-1 print:overflow-visible print:h-auto print:block",
+        isEmbedded ? "overflow-visible bg-transparent lg:grid-cols-1" : "overflow-hidden grid grid-cols-1 lg:grid-cols-[1fr_320px] bg-slate-950"
+      )}>
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: ${paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm'};
               margin: 0;
             }
+            ${!isEmbedded ? `
             #root > div > *:not(.receipt-template-overlay) {
               display: none !important;
             }
+            ` : ""}
             #root > div {
               display: block !important;
               height: auto !important;
               min-height: auto !important;
               overflow: visible !important;
               background-color: white !important;
+              position: static !important;
             }
             body, html, #root {
               background-color: white !important;
@@ -1104,7 +1189,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               break-before: page !important;
             }
             .receipt-template-overlay {
-              position: relative !important;
+              position: static !important;
               width: 100% !important;
               height: auto !important;
               overflow: visible !important;
@@ -1117,9 +1202,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             .receipt-scrollable-container {
               overflow: visible !important;
               height: auto !important;
-              display: flex !important;
-              flex-direction: column !important;
-              align-items: center !important;
+              display: block !important;
               padding: 0 !important;
               background-color: white !important;
             }
@@ -1130,15 +1213,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               border: none !important;
               box-shadow: none !important;
               border-radius: 0 !important;
-              width: 210mm !important;
-              min-height: 330mm !important;
+              width: 100% !important;
+              height: auto !important;
+              min-height: auto !important;
               background-color: white !important;
               transform: none !important;
               padding: 0 !important;
-            }
-            .receipt-print-page:last-child {
-              page-break-after: auto !important;
-              break-after: auto !important;
             }
             .no-print {
               display: none !important;
@@ -1167,13 +1247,13 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
             </div>
           )}
                {viewMode === 'template' ? (
-            <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center w-full print:block">
               <div 
                 className="flex flex-col gap-8 w-full items-center origin-top transition-transform duration-200 print:block print-scale-reset print:items-start"
-                style={{ transform: `scale(${scale})` }}
+                style={{ transform: isEmbedded ? 'none' : `scale(${scale})` }}
               >
                 <div 
-                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0"
+                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 print:block"
                   style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
                 >
                   {renderReceiptContent('PEMOHON')}
@@ -1181,7 +1261,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
                 </div>
                 
                 <div 
-                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 p-0"
+                  className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 p-0 print:block"
                   style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
                 >
                   {renderApplicationForm()}
@@ -1411,8 +1491,9 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
         </div>
 
         {/* Sidebar Controls */}
-        <div className="w-[320px] bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
-          <div className="space-y-4">
+        {!isEmbedded && (
+          <div className="w-[320px] bg-slate-900 border-l border-white/10 p-6 hidden lg:flex flex-col gap-6 print:hidden">
+            <div className="space-y-4">
             <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Dokumen Cloud</h4>
             <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
               <div className="flex items-center gap-3 mb-4">
@@ -1472,7 +1553,8 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit }: ReceiptT
               Tutup Pratinjau
             </button>
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

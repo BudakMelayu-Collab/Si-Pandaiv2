@@ -82,6 +82,8 @@ export interface Recipient {
   hasSignedSurveyPdf?: boolean;
   isMPZISGenerated?: boolean;
   isEPPDGenerated?: boolean;
+  isReceiptGenerated?: boolean;
+  isSurveyGenerated?: boolean;
   isTermsAccepted: boolean;
   
   // Custom data for specific programs
