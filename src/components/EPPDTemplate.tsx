@@ -1411,7 +1411,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
             }
             @media print {
               @page {
-                size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? '297mm 210mm' : '330.2mm 215.9mm') : (paperSize === 'A4' ? '210mm 297mm' : '215.9mm 330.2mm')};
+                size: ${activeTab === 'lampiran' ? (paperSize === 'A4' ? 'A4 landscape' : '330.2mm 215.9mm') : (paperSize === 'A4' ? 'A4 portrait' : '215.9mm 330.2mm')};
                 margin: 0;
               }
               
