@@ -48,7 +48,7 @@ service cloud.firestore {
     function isValidRecipientUpdate(data) {
       return data.get('name', '') is string && data.get('name', '').size() <= 200
         && data.get('nik', '') is string
-        && data.updatedAt == request.time;
+        && (data.updatedAt == request.time || data.updatedAt is string);
     }
 
     function isValidSystemLog(data) {
@@ -70,7 +70,7 @@ service cloud.firestore {
       allow create: if isValidId(recipientId) && isValidRecipient(incoming());
       
       allow update: if isVerified() && isValidRecipientUpdate(incoming())
-        && incoming().get('createdAt', null) == existing().get('createdAt', null)
+        && (!('createdAt' in incoming().keys()) || incoming().createdAt == existing().createdAt)
         && (
           isAdmin() || 
           // Action: Update Basic Data
@@ -82,11 +82,13 @@ service cloud.firestore {
             'schoolName', 'schoolLevel', 'schoolClass', 'schoolAddress', 'schoolPhone', 
             'bankAccountNo', 'bankName', 'bankAccountHolder', 'status', 'notes', 'isTermsAccepted',
             'skmp', 'documentStatus', 'documentStatusNotes', 'documents',
-            'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf',
-            'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl',
-            'isMPZISGenerated', 'isEPPDGenerated',
+            'hasSignedPdf', 'hasSignedReceiptPdf', 'hasSignedMPZISPdf', 'hasSignedSurveyPdf', 'hasInternalMemoPdf',
+            'signedPdfUrl', 'signedReceiptPdfUrl', 'signedMPZISPdfUrl', 'signedSurveyPdfUrl', 'signedInternalMemoPdfUrl',
+            'isMPZISGenerated', 'isEPPDGenerated', 'isReceiptGenerated', 'isSurveyGenerated',
             'serviceType', 'monthlyPaymentStatus', 'monthlyPaymentNote',
             'rsBedId', 'rsCheckInDate', 'rsNoReg', 'rsEstimatedCheckOutDate', 'rsCheckOutDate', 'rsMedicalNotes', 'rsStatus', 'rsCompanionName', 'rsCompanionRelation', 'rsHospital', 'rsJenisRawatan',
+            'job', 'physicalCondition', 'treatmentStart', 'departureDate', 'diagnosis', 'hospitalName', 'patientCompanionName', 'daysCount', 'healthToolName',
+            'adminCategory', 'ashnaf', 'tujuanPenyaluranMPZIS', 'tujuanPengajuan', 'receiptAmount', 'fundingSource', 'penerimaDana', 'documentChecklist', 'budgetCode', 'budgetName', 'transactionType',
             'updatedAt'
           ])
         );
