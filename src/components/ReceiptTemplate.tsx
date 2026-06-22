@@ -730,7 +730,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
     return (
       <div 
         className="w-full bg-white print:border-none p-10 print:p-6 relative font-sans text-black print:w-full min-h-full"
-        style={{ fontSize: '11pt' }}
+        style={{ fontSize: '10pt' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
