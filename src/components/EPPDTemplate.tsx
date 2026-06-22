@@ -508,7 +508,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         
         if (!isMultiple) {
           parsed.transferDetails = currentRekeningStr;
-          parsed.paidFor = recipient.penerimaDana || recipient.name || '';
+          parsed.paidFor = itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '';
           if (parsed.transactionType === 'Transfer' && currentRekeningStr.length < 5) {
              parsed.transactionType = 'Tunai'; 
           }
@@ -516,6 +516,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           if (!parsed.transferDetails || parsed.transferDetails.trim() === '') {
              parsed.transferDetails = 'Terlampir';
           }
+          parsed.paidFor = 'Terlampir';
         }
 
         // Always update lampiran from selection if it was provided, or if none exists
@@ -541,7 +542,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
         const isMultiple = itemsToUse.length > 1;
         const proposeForStr = recipient.tujuanPengajuan || recipient.purpose || '';
-        const paidForStr = recipient.penerimaDana || (isMultiple ? "Terlampir" : (recipient.name || ''));
+        const paidForStr = isMultiple ? 'Terlampir' : (itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '');
         const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
         const transactionTypeDefault = hasRekening ? 'Transfer' : 'Tunai';
         let transferDetailsDefault = '';
