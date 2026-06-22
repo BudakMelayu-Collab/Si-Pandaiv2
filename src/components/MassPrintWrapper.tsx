@@ -32,6 +32,11 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
           @page {
             margin: 0;
           }
+          .mass-print-toolbar,
+          .print\\:hidden,
+          [class*="print:hidden"] {
+            display: none !important;
+          }
           #root > div > *:not(.mass-print-overlay) {
             display: none !important;
           }
@@ -97,7 +102,7 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
         }
       `}} />
       {/* Universal Toolbar for Mass Print */}
-      <div className="bg-[#0f172a] border-b border-white/10 p-4 flex items-center justify-between print:hidden shrink-0">
+      <div className="bg-[#0f172a] border-b border-white/10 p-4 flex items-center justify-between mass-print-toolbar print:hidden shrink-0">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
