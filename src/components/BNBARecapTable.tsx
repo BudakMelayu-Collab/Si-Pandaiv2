@@ -8,7 +8,7 @@ import { cn } from '../lib/utils';
 
 interface BNBARecapTableProps {
   data: Recipient[];
-  onReceipt?: (recipient: Recipient) => void;
+  onReceipt?: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onMPZIS?: (recipient: Recipient, lampiranItems?: Recipient[]) => void;
   onEPPD?: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onInternalMemo?: (recipient: Recipient) => void;

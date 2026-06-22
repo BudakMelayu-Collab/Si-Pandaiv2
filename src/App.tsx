@@ -93,6 +93,7 @@ export default function App() {
   const [editingGroupData, setEditingGroupData] = useState<Recipient[] | null>(
     null,
   );
+  const [initialInputStep, setInitialInputStep] = useState<number | undefined>(undefined);
   const [selectedMassReceipts, setSelectedMassReceipts] = useState<Recipient[] | null>(null);
   const [selectedMassSurveys, setSelectedMassSurveys] = useState<Recipient[] | null>(null);
   const [selectedMassMPZIS, setSelectedMassMPZIS] = useState<Recipient[] | null>(null);
@@ -100,6 +101,16 @@ export default function App() {
   const [prefilledGroupData, setPrefilledGroupData] = useState<
     Recipient[] | null
   >(null);
+
+  const handleEditWizard = (rec: Recipient, step: number, checked?: Recipient[]) => {
+    let group = checked && checked.length > 0 ? checked : recipients.filter((r) => r.registrationId === rec.registrationId);
+    if (group.length === 0) {
+      group = [rec];
+    }
+    setInitialInputStep(step);
+    setEditingGroupData(group);
+    setActiveTab("input");
+  };
 
   const handleUpdateGroupData = async (data: any) => {
     try {
@@ -135,6 +146,7 @@ export default function App() {
       }
 
       setEditingGroupData(null);
+      setInitialInputStep(undefined);
       setActiveTab("recipients");
       setToastConfig({
         title: "Berhasil Diperbarui!",
@@ -373,6 +385,7 @@ export default function App() {
       } else {
         await saveRecipient(data);
       }
+      setInitialInputStep(undefined);
       setActiveTab("recipients");
       setToastConfig({
         title: "Berhasil Disimpan!",
@@ -707,12 +720,14 @@ export default function App() {
               onCancel={() => {
                 setEditingGroupData(null);
                 setPrefilledGroupData(null);
+                setInitialInputStep(undefined);
                 setActiveTab("dashboard");
               }}
               existingRecipients={recipients}
               initialGroupRecipients={
                 editingGroupData || prefilledGroupData || undefined
               }
+              initialStep={initialInputStep}
               onReceipt={(rec) => {
                 setSelectedRecipient(rec);
                 setIsShowingReceipt(true);
@@ -823,20 +838,9 @@ export default function App() {
               {activeTab === "bnba-recap" ? (
                 <BNBARecapTable
                   data={filteredData}
-                  onReceipt={(rec) => {
-                    setSelectedRecipient(rec);
-                    setIsShowingReceipt(true);
-                  }}
-                  onMPZIS={(rec, lampiran) => {
-                    setSelectedRecipient(rec);
-                    setSelectedLampiran(lampiran || []);
-                    setIsShowingMPZIS(true);
-                  }}
-                  onEPPD={(rec, lampiran) => {
-                    setSelectedRecipient(rec);
-                    setSelectedLampiran(lampiran || []);
-                    setIsShowingEPPD(true);
-                  }}
+                  onReceipt={(rec, checked) => handleEditWizard(rec, 3, checked)}
+                  onMPZIS={(rec, checked) => handleEditWizard(rec, 4, checked)}
+                  onEPPD={(rec, checked) => handleEditWizard(rec, 4, checked)}
                   onInternalMemo={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingInternalMemo(true);
@@ -857,20 +861,9 @@ export default function App() {
                         )
                       : filteredData
                   }
-                  onReceipt={(rec) => {
-                    setSelectedRecipient(rec);
-                    setIsShowingReceipt(true);
-                  }}
-                  onMPZIS={(rec, lampiran) => {
-                    setSelectedRecipient(rec);
-                    setSelectedLampiran(lampiran || []);
-                    setIsShowingMPZIS(true);
-                  }}
-                  onEPPD={(rec, lampiran) => {
-                    setSelectedRecipient(rec);
-                    setSelectedLampiran(lampiran || []);
-                    setIsShowingEPPD(true);
-                  }}
+                  onReceipt={(rec, checked) => handleEditWizard(rec, 3, checked)}
+                  onMPZIS={(rec, checked) => handleEditWizard(rec, 4, checked)}
+                  onEPPD={(rec, checked) => handleEditWizard(rec, 4, checked)}
                   onInternalMemo={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingInternalMemo(true);
@@ -901,20 +894,9 @@ export default function App() {
                     data={filteredData.filter(
                       (r) => r.serviceType === "Program Bulanan",
                     )}
-                    onReceipt={(rec) => {
-                      setSelectedRecipient(rec);
-                      setIsShowingReceipt(true);
-                    }}
-                    onMPZIS={(rec, lampiran) => {
-                      setSelectedRecipient(rec);
-                      setSelectedLampiran(lampiran || []);
-                      setIsShowingMPZIS(true);
-                    }}
-                    onEPPD={(rec, lampiran) => {
-                      setSelectedRecipient(rec);
-                      setSelectedLampiran(lampiran || []);
-                      setIsShowingEPPD(true);
-                    }}
+                    onReceipt={(rec, checked) => handleEditWizard(rec, 3, checked)}
+                    onMPZIS={(rec, checked) => handleEditWizard(rec, 4, checked)}
+                    onEPPD={(rec, checked) => handleEditWizard(rec, 4, checked)}
                     onInternalMemo={(rec) => {
                       setSelectedRecipient(rec);
                       setIsShowingInternalMemo(true);

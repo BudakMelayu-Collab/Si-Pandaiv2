@@ -929,13 +929,13 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
                 <span>Siak Sri Indrapura, </span>
                 <span>{memoData.date}</span>
               </div>
-              <div className="mb-6">Hormat saya yang bermohon,</div>
+              <div className="mb-14">Hormat saya yang bermohon,</div>
               <div className="font-bold uppercase underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
             </div>
           </div>
 
           <div className="mt-2 w-full text-center text-black pt-2">
-            <p className="mb-4">
+            <p className="mb-14">
               Permohonan ini telah dikonsultasikan<br/>
               dan <strong>dapat/ tidak</strong>, dilanjutkan untuk dibantu sesuai dengan ketentuan/ survey lokasi
             </p>

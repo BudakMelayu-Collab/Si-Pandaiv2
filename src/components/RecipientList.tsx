@@ -38,7 +38,7 @@ import ActivityTicker from "./ActivityTicker";
 interface RecipientListProps {
   isLoading?: boolean;
   data: Recipient[];
-  onReceipt: (recipient: Recipient) => void;
+  onReceipt: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onMPZIS: (recipient: Recipient, lampiranItems?: Recipient[]) => void;
   onEPPD: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onInternalMemo?: (recipient: Recipient) => void;
@@ -641,7 +641,12 @@ export default function RecipientList({
 
                                           <div className="absolute right-0 top-0 mr-10 w-48 bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-slate-200 p-1.5 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 pointer-events-auto flex flex-col gap-0.5">
                                             <button
-                                              onClick={() => onReceipt(item)}
+                                              onClick={() => {
+                                                const checked = data.filter(
+                                                  (sub) => !!selectedSubItemIds[sub.id]
+                                                );
+                                                onReceipt(item, checked.length > 0 ? checked : [item]);
+                                              }}
                                               className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer"
                                             >
                                               <FileCheck className="w-3.5 h-3.5" />
@@ -650,19 +655,10 @@ export default function RecipientList({
 
                                             <button
                                               onClick={() => {
-                                                const checked =
-                                                  groupItems.filter(
-                                                    (sub) =>
-                                                      !!selectedSubItemIds[
-                                                        sub.id
-                                                      ],
-                                                  );
-                                                onMPZIS(
-                                                  item,
-                                                  checked.length > 0
-                                                    ? checked
-                                                    : [item],
+                                                const checked = data.filter(
+                                                  (sub) => !!selectedSubItemIds[sub.id]
                                                 );
+                                                onMPZIS(item, checked.length > 0 ? checked : [item]);
                                               }}
                                               className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer"
                                             >
@@ -672,19 +668,10 @@ export default function RecipientList({
 
                                             <button
                                               onClick={() => {
-                                                const checked =
-                                                  groupItems.filter(
-                                                    (sub) =>
-                                                      !!selectedSubItemIds[
-                                                        sub.id
-                                                      ],
-                                                  );
-                                                onEPPD(
-                                                  item,
-                                                  checked.length > 0
-                                                    ? checked
-                                                    : [item],
+                                                const checked = data.filter(
+                                                  (sub) => !!selectedSubItemIds[sub.id]
                                                 );
+                                                onEPPD(item, checked.length > 0 ? checked : [item]);
                                               }}
                                               className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer"
                                             >

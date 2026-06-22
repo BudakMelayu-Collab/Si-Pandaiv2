@@ -53,6 +53,7 @@ interface RecipientFormProps {
   onCancel: () => void;
   existingRecipients?: Recipient[];
   initialGroupRecipients?: Recipient[];
+  initialStep?: number;
   isPublic?: boolean;
   onReceipt?: (recipient: Recipient) => void;
   onMassReceipt?: (recipients: Recipient[]) => void;
@@ -191,6 +192,7 @@ export default function RecipientForm({
   onCancel,
   existingRecipients,
   initialGroupRecipients,
+  initialStep,
   isPublic = false,
   onReceipt,
   onMassReceipt,
@@ -242,7 +244,14 @@ export default function RecipientForm({
   const [isSavingAll, setIsSavingAll] = useState(false);
 
   // Step for Wizard UI
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(initialStep || 1);
+
+  // Set step if initialStep changes
+  useEffect(() => {
+    if (initialStep) {
+      setCurrentStep(initialStep);
+    }
+  }, [initialStep]);
 
   // Hospital options
   const [hospitalOptions, setHospitalOptions] = useState<string[]>(() => {
