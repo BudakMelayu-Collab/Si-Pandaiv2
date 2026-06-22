@@ -496,7 +496,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
   const renderReceiptContent = (type: 'PEMOHON' | 'ARSIP') => (
     <div 
       className={cn(
-        "w-full px-10 py-6 font-sans leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
+        "w-full px-10 py-6 font-sans font-medium leading-tight text-black flex flex-col relative border-gray-300 print:border-gray-400 bg-white",
         type === 'PEMOHON' ? "border-b border-dashed pb-6 mb-4 print:mb-0 print:pb-4" : "pt-4"
       )}
       style={{ fontSize: `${templateConfig.fontSize}pt` }}
@@ -786,7 +786,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
               <tr>
                 <td className="w-48">Nama</td>
                 <td className="w-4">:</td>
-                <td className="uppercase">{recipient.name || "………………………………………………"}</td>
+                <td className="capitalize">{recipient.name || "………………………………………………"}</td>
               </tr>
               <tr>
                 <td>NIK</td>
@@ -930,7 +930,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
                 <span>{memoData.date}</span>
               </div>
               <div className="mb-14">Hormat saya yang bermohon,</div>
-              <div className="font-bold uppercase underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
+              <div className="font-bold capitalize underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
             </div>
           </div>
 
