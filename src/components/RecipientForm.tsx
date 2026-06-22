@@ -25,6 +25,7 @@ import {
   Printer,
   Copy,
   Stethoscope,
+  FileCheck,
 } from "lucide-react";
 import {
   SIAK_REGIONAL_DATA,
@@ -32,6 +33,8 @@ import {
   SIAK_AID_TYPES,
   SIAK_PROGRAM_NAMES,
   SIAK_COMPANIONS,
+  DOCUMENT_OPTIONS,
+  getDefaultDocuments
 } from "../constants";
 import { cn } from "../lib/utils";
 import { AidDocument, Recipient } from "../types";
@@ -70,21 +73,7 @@ interface DocumentSlot {
 }
 
 const INITIAL_DOCUMENT_SLOTS: DocumentSlot[] = [
-  { label: "KTP" },
-  { label: "KK" },
-  { label: "SKTM" },
-  { label: "Surat Aktif Belajar" },
-  { label: "Surat Aktif Belajar" },
-  { label: "Rincian Bukti Tunggakan" },
-  { label: "Pas Foto" },
-  { label: "Surat Rawat Inap" },
-  { label: "Surat Rujukan" },
-  { label: "Lainnya", isCustomLabel: true },
-  { label: "Lainnya", isCustomLabel: true },
-  { label: "Lainnya", isCustomLabel: true },
-  { label: "Lainnya", isCustomLabel: true },
-  { label: "Lainnya", isCustomLabel: true },
-  { label: "Lainnya", isCustomLabel: true },
+  { label: "Berkas Persyaratan" },
 ];
 
 const DEFAULT_RECIPIENT_INPUT = {
@@ -425,6 +414,9 @@ export default function RecipientForm({
           if (draft.currentStep) {
             setCurrentStep(draft.currentStep);
           }
+          if (draft.savedGroups) {
+            setSavedGroups(draft.savedGroups);
+          }
         }
       } catch (err) {
         console.error("Failed to load draft:", err);
@@ -450,6 +442,7 @@ export default function RecipientForm({
             subRecipients: safeSubRecipients,
             recipientInput,
             currentStep,
+            savedGroups,
           };
           localStorage.setItem("recipient_form_draft", JSON.stringify(draft));
         } catch (err) {
@@ -1966,6 +1959,26 @@ export default function RecipientForm({
                               ].includes(p)
                             )
                               return false;
+                          } else if (registrationData.sector === "Siak Peduli") {
+                            if (
+                              ![
+                                "Biaya Hidup (Konsumtif)",
+                                "Program Rumah Tinggal Layak Huni (RTLH)",
+                                "Biaya Hidup (Ibnu Sabil)",
+                                "Program ATM Beras",
+                                "Bantuan Alat Kesehatan",
+                                "Program Rumah Layak Huni (RLH)",
+                                "Program Pemasangan KWH Listrik",
+                                "Program Khitanan Anak Sholeh",
+                                "Bantuan Biaya Hidup (Paket Bahagia BAZNAS)",
+                                "Bantuan Ghorimin",
+                                "Program Tebar Hewan Qur'ban (DSKL)",
+                                "Bantuan Makanan (Fidyah)",
+                                "Bantuan Biaya Hidup (Zakat Fitrah) UPZ",
+                                "Bantuan Biaya Hidup (Zakat Fitrah)"
+                              ].includes(p)
+                            )
+                              return false;
                           }
                         } else if (
                           registrationData.serviceType === "Program Bulanan"
@@ -2269,39 +2282,6 @@ export default function RecipientForm({
                   Sedang Mengubah Data
                 </span>
               )}
-              {subRecipients.length > 0 && editingIndex === null && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const prev = subRecipients[subRecipients.length - 1];
-                    if (prev) {
-                      setRecipientInput({
-                        ...recipientInput,
-                        kk: prev.kk || "",
-                        contact: prev.contact || "",
-                        address: prev.address || "",
-                        rt: prev.rt || "",
-                        rw: prev.rw || "",
-                        kampung: prev.kampung || "",
-                        district: prev.district || "",
-                        headOfFamilyName: prev.headOfFamilyName || "",
-                        headOfFamilyDob: prev.headOfFamilyDob || "",
-                        treatmentStart: prev.treatmentStart || "",
-                        departureDate: prev.departureDate || "",
-                        diagnosis: prev.diagnosis || "",
-                        hospitalName: prev.hospitalName || "",
-                        destinationPlace: prev.destinationPlace || "",
-                        accompanimentLocation: prev.accompanimentLocation || "",
-                      });
-                      alert("Berhasil menyalin data alamat & keluarga dari penerima sebelumnya.");
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 text-xs font-bold rounded-xl transition-all border border-indigo-200/50 shadow-sm active:scale-95 cursor-pointer self-start lg:self-auto"
-                >
-                  <Copy className="w-4 h-4 text-indigo-600" />
-                  Salin Data Alamat & Keluarga
-                </button>
-              )}
             </div>
 
             <div className="space-y-6">
@@ -2395,18 +2375,48 @@ export default function RecipientForm({
                   <label className="text-sm font-semibold text-slate-700">
                     Tanggal Lahir
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Hari/Bulan/Tahun"
-                    className="form-input-custom font-medium"
-                    value={recipientInput.dob}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        dob: e.target.value,
-                      })
-                    }
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.dob.split('/')[0] || ""}
+                      onChange={(e) => {
+                        const [, m = "", y = ""] = recipientInput.dob.split('/');
+                        setRecipientInput({ ...recipientInput, dob: `${e.target.value}/${m}/${y}` });
+                      }}
+                    >
+                      <option value="">Hari</option>
+                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
+                        <option key={d} value={String(d).padStart(2, '0')}>{String(d).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.dob.split('/')[1] || ""}
+                      onChange={(e) => {
+                        const [d = "", , y = ""] = recipientInput.dob.split('/');
+                        setRecipientInput({ ...recipientInput, dob: `${d}/${e.target.value}/${y}` });
+                      }}
+                    >
+                      <option value="">Bulan</option>
+                      {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => {
+                        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                        return <option key={m} value={m}>{months[i]}</option>
+                      })}
+                    </select>
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.dob.split('/')[2] || ""}
+                      onChange={(e) => {
+                        const [d = "", m = ""] = recipientInput.dob.split('/');
+                        setRecipientInput({ ...recipientInput, dob: `${d}/${m}/${e.target.value}` });
+                      }}
+                    >
+                      <option value="">Tahun</option>
+                      {Array.from({length: 120}, (_, i) => new Date().getFullYear() - i).map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -2471,18 +2481,48 @@ export default function RecipientForm({
                   <label className="text-sm font-semibold text-slate-700">
                     Tgl Lahir Kepala Keluarga
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Hari/Bulan/Tahun"
-                    className="form-input-custom font-medium"
-                    value={recipientInput.headOfFamilyDob}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        headOfFamilyDob: e.target.value,
-                      })
-                    }
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.headOfFamilyDob.split('/')[0] || ""}
+                      onChange={(e) => {
+                        const [, m = "", y = ""] = recipientInput.headOfFamilyDob.split('/');
+                        setRecipientInput({ ...recipientInput, headOfFamilyDob: `${e.target.value}/${m}/${y}` });
+                      }}
+                    >
+                      <option value="">Hari</option>
+                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
+                        <option key={d} value={String(d).padStart(2, '0')}>{String(d).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.headOfFamilyDob.split('/')[1] || ""}
+                      onChange={(e) => {
+                        const [d = "", , y = ""] = recipientInput.headOfFamilyDob.split('/');
+                        setRecipientInput({ ...recipientInput, headOfFamilyDob: `${d}/${e.target.value}/${y}` });
+                      }}
+                    >
+                      <option value="">Bulan</option>
+                      {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => {
+                        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                        return <option key={m} value={m}>{months[i]}</option>
+                      })}
+                    </select>
+                    <select
+                      className="form-input-custom font-medium px-2"
+                      value={recipientInput.headOfFamilyDob.split('/')[2] || ""}
+                      onChange={(e) => {
+                        const [d = "", m = ""] = recipientInput.headOfFamilyDob.split('/');
+                        setRecipientInput({ ...recipientInput, headOfFamilyDob: `${d}/${m}/${e.target.value}` });
+                      }}
+                    >
+                      <option value="">Tahun</option>
+                      {Array.from({length: 120}, (_, i) => new Date().getFullYear() - i).map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -2508,13 +2548,7 @@ export default function RecipientForm({
 
               </div>
 
-              {/* DOMISILI BLOK */}
-              <hr className="border-slate-100" />
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-indigo-500" /> Wilayah
-                  Domisili Penerima
-                </h4>
+              <div className="mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="space-y-2 lg:col-span-4">
                     <label className="text-sm font-semibold text-slate-700">
@@ -2643,13 +2677,14 @@ export default function RecipientForm({
                 </div>
               </div>
 
-              {/* STATUS BERKAS BLOK */}
+              {/* STATUS & UNGGAH BERKAS BLOK */}
               <hr className="border-slate-100" />
               <div className="pt-2">
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-indigo-700 uppercase tracking-wider block">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100 items-start">
+                    
+                    <div className="space-y-1.5 flex-1">
+                      <label className="text-xs font-bold text-indigo-700 tracking-wider block">
                         Status Berkas Saat ini *
                       </label>
                       <select
@@ -2670,9 +2705,69 @@ export default function RecipientForm({
                         <option value="Tidak Lengkap">Tidak Lengkap</option>
                       </select>
                     </div>
+
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center justify-between">
+                         <label className="text-xs font-bold text-slate-700 tracking-wider block">
+                           Unggah Berkas Persyaratan
+                         </label>
+                         {!isPublic && (
+                           <button
+                             type="button"
+                             onClick={handleConnectGDrive}
+                             disabled={isConnectingGDrive}
+                             className="flex items-center transition-opacity hover:opacity-80"
+                             title="Pengaturan Google Drive"
+                           >
+                             {isConnectingGDrive ? (
+                               <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+                             ) : gdriveToken ? (
+                               <span className="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">GDrive Tersambung</span>
+                             ) : (
+                               <span className="text-[9px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">Sambungkan GDrive</span>
+                             )}
+                           </button>
+                         )}
+                      </div>
+                      
+                      <div className="mt-1">
+                        {documentSlots.slice(0, 1).map((slot, idx) => (
+                           <div 
+                             key={idx} 
+                             className={cn(
+                               "rounded-xl border flex flex-col justify-center transition-all w-full", 
+                               slot.file ? "border-emerald-200 bg-emerald-50/40 p-1.5" : "border-slate-200 bg-white p-1"
+                             )} 
+                             style={{ minHeight: '42px' }}
+                           >
+                             {slot.file ? (
+                                <div className="flex items-center justify-between gap-2 px-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                   {slot.file.type === "pdf" ? <FileText className="w-4 h-4 text-rose-500 shrink-0" /> : slot.file.type === "excel" ? <FileText className="w-4 h-4 text-emerald-600 shrink-0" /> : <ImageIcon className="w-4 h-4 text-indigo-500 shrink-0" />}
+                                   <p className="text-[10px] font-bold text-slate-800 truncate" title={slot.file.name}>{slot.file.name}</p>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                     <button type="button" onClick={() => handleOpenPreview(slot.label, slot.file!.url)} className="p-1 hover:bg-indigo-100 text-indigo-600 rounded transition-colors" title="Lihat">
+                                       <Eye className="w-3.5 h-3.5" />
+                                     </button>
+                                     <button type="button" onClick={() => handleRemoveFileForSlot(idx)} className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors" title="Hapus">
+                                       <X className="w-3.5 h-3.5" />
+                                     </button>
+                                  </div>
+                                </div>
+                             ) : (
+                                <button type="button" onClick={() => triggerUploadForSlot(idx)} className="w-full py-1.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1 rounded-lg">
+                                  <Upload className="w-3.5 h-3.5" /> Pilih Berkas
+                                </button>
+                             )}
+                           </div>
+                        ))}
+                      </div>
+                    </div>
+
                     {recipientInput.documentStatus === "Tidak Lengkap" && (
-                      <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-150">
-                        <label className="text-xs font-bold text-rose-700 uppercase tracking-wider block">
+                      <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-150 flex-1">
+                        <label className="text-xs font-bold text-rose-700 tracking-wider block">
                           Keterangan Tidak Lengkap *
                         </label>
                         <input
@@ -2686,8 +2781,8 @@ export default function RecipientForm({
                             (e.target as HTMLInputElement).setCustomValidity("")
                           }
                           type="text"
-                          placeholder="Contoh: Kurang KK / NIK tidak jelas / dll"
-                          className="form-input-custom font-medium bg-white border-rose-200"
+                          placeholder="Contoh: Kurang KK / NIK tidak jelas"
+                          className="form-input-custom font-medium bg-white border-rose-200 w-full"
                           value={recipientInput.documentStatusNotes || ""}
                           onChange={(e) =>
                             setRecipientInput({
@@ -2699,166 +2794,6 @@ export default function RecipientForm({
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* UNGGAH BERKAS PERSYARATAN BLOK (15 SLOT) */}
-              <hr className="border-slate-100" />
-              <div className="space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4.5 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                        <Upload className="w-4 h-4 text-indigo-500 animate-bounce" />{" "}
-                        Unggah Berkas Persyaratan (15 Slot)
-                      </h4>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                      Unggah pindaian berkas pendukung. Pastikan ukuran file
-                      tidak melebihi batas batas penyimpanan.
-                    </p>
-                  </div>
-
-                  {!isPublic && (
-                    <div className="flex flex-wrap items-center gap-3 shrink-0">
-                      {gdriveToken ? (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Sinkronisasi Google Drive Internal Terhubung
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold font-sans">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                          Google Drive Kantor Belum Tersambung
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleConnectGDrive}
-                        disabled={isConnectingGDrive}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
-                      >
-                        {isConnectingGDrive ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Upload className="w-3.5 h-3.5" />
-                        )}
-                        <span>
-                          {gdriveToken
-                            ? "Sambungkan Ulang"
-                            : "Sambungkan Google Drive"}
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {documentSlots.map((slot, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "p-3.5 rounded-xl border flex flex-col justify-between min-h-[140px] transition-all",
-                        slot.file
-                          ? "bg-emerald-50/45 border-emerald-200 shadow-xs"
-                          : "bg-slate-50 border-slate-200 hover:bg-slate-100/70",
-                      )}
-                    >
-                      {/* Header Slot Label */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
-                            Slot {idx + 1}
-                          </span>
-                          {slot.file && (
-                            <span className="text-[8px] bg-emerald-100 border border-emerald-200 text-emerald-800 font-black px-1.5 py-0.5 rounded-full uppercase">
-                              Aktif
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1">
-                          {slot.isCustomLabel ? (
-                            <input
-                              type="text"
-                              placeholder="Label Manual"
-                              className="text-xs font-black text-slate-700 bg-white border border-slate-200 rounded px-1.5 py-1 focus:outline-none focus:border-indigo-500 w-full hover:bg-slate-50 transition-colors"
-                              value={slot.label === "Lainnya" ? "" : slot.label}
-                              onChange={(e) => {
-                                const updated = [...documentSlots];
-                                updated[idx].label =
-                                  e.target.value || "Lainnya";
-                                setDocumentSlots(updated);
-                              }}
-                            />
-                          ) : (
-                            <span className="text-xs font-black text-slate-700 line-clamp-1">
-                              {slot.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* File Info vs Drag-Click upload Trigger */}
-                      <div className="mt-3">
-                        {slot.file ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {slot.file.type === "pdf" ? (
-                                <FileText className="w-4 h-4 text-rose-500 shrink-0" />
-                              ) : slot.file.type === "excel" ? (
-                                <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
-                              ) : (
-                                <ImageIcon className="w-4 h-4 text-indigo-500 shrink-0" />
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p
-                                  className="text-[10px] font-bold text-slate-800 truncate"
-                                  title={slot.file.name}
-                                >
-                                  {slot.file.name}
-                                </p>
-                                {slot.file.size && (
-                                  <p className="text-[8px] text-slate-400 font-mono font-bold leading-none">
-                                    {slot.file.size}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 pt-1.5 border-t border-slate-200/50">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleOpenPreview(slot.label, slot.file!.url)
-                                }
-                                className="flex-1 py-1 text-[9px] text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 font-bold border border-indigo-100 rounded-lg transition-colors flex items-center justify-center gap-0.5 cursor-pointer"
-                              >
-                                <Eye className="w-2.5 h-2.5" />
-                                Lihat
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFileForSlot(idx)}
-                                className="py-1 px-1.5 text-[9px] text-rose-600 hover:bg-rose-50 hover:text-rose-800 font-bold border border-rose-100 rounded-lg transition-colors flex items-center justify-center cursor-pointer"
-                                title="Hapus berkas"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => triggerUploadForSlot(idx)}
-                            className="w-full py-2 bg-white border border-dashed border-slate-300 hover:border-indigo-400 rounded-lg text-[10px] font-black text-indigo-600 hover:bg-indigo-50/40 transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            <Upload className="w-3 h-3" />
-                            <span>Pilih Berkas</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -2989,13 +2924,14 @@ export default function RecipientForm({
                 Parameter Registrasi Aktif: {registrationData.registrationId}
               </h4>
 
-              {/* MEDICAL & SPECIAL DETAILS BLOK - DYNAMIC STEP 3 */}
+              {/* CHECKLIST & MEDICAL BLOK - DYNAMIC STEP 3 */}
               {[
                 { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
                 ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
               ].map((cfg, cIdx) => {
-                if (!(cfg.rData.sector === 'Siak Sehat' || cfg.rData.sector === 'Siak Peduli')) return null;
                 if (!cfg.subs || cfg.subs.length === 0) return null;
+
+                const docs = getDefaultDocuments(cfg.rData.programName || '', cfg.rData.aidType || '');
 
                 return (
                   <div key={cIdx} className="space-y-6 mb-8">
@@ -3004,13 +2940,54 @@ export default function RecipientForm({
                         Parameter Registrasi Tersimpan: {cfg.rData.registrationId}
                       </h4>
                     )}
+
                     <div className="space-y-6">
                       {cfg.subs.map((sub: any, idx: number) => (
-                        <div key={idx} className="bg-slate-50/50 p-4 border border-slate-200 rounded-xl">
-                          <div className="flex flex-col mb-4">
-                            <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2 mb-1">
-                              <Stethoscope className="w-4 h-4" /> Detail Medis & Khusus ({cfg.rData.sector})
-                            </h4>
+                        <div key={idx} className="space-y-6">
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h5 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+                              <FileCheck className="w-4 h-4 text-indigo-600" /> 
+                              Validasi Kelengkapan Berkas ({cfg.rData.programName || '-'}) - <span className="capitalize">{sub.name.toLowerCase()}</span>
+                            </h5>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                              {docs.map((docName) => (
+                                <label key={docName} className="flex items-start gap-2 text-sm text-slate-700 font-medium cursor-pointer hover:text-indigo-700 transition-colors">
+                                  <input 
+                                    type="checkbox" 
+                                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 mt-0.5 border-slate-300 transition-all cursor-pointer" 
+                                    checked={(sub.documentChecklist || []).includes(docName)}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      let newDocs = [...(sub.documentChecklist || [])];
+                                      if (isChecked) {
+                                        newDocs.push(docName);
+                                      } else {
+                                        newDocs = newDocs.filter((d: string) => d !== docName);
+                                      }
+
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, documentChecklist: newDocs };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, documentChecklist: newDocs };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                  <span className="leading-tight">{docName}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          {(cfg.rData.sector === 'Siak Sehat' || cfg.rData.sector === 'Siak Peduli') && (
+                            <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-xl">
+                              <div className="flex flex-col mb-4">
+                                <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2 mb-1">
+                                  <Stethoscope className="w-4 h-4" /> Detail Medis & Khusus ({cfg.rData.sector})
+                                </h4>
                             <p className="text-sm font-semibold text-black">
                               No Reg: {sub.registrationId || cfg.rData.registrationId} • Penerima: <span className="capitalize">{sub.name.toLowerCase()}</span>
                             </p>
@@ -3242,13 +3219,38 @@ export default function RecipientForm({
                                 />
                               </div>
                             )}
+
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-slate-700">Jumlah Bantuan (Untuk Formulir Saja) *</label>
+                              <input
+                                required
+                                type="text"
+                                className="form-input-custom font-mono"
+                                placeholder="0"
+                                value={sub.receiptAmount ? Number(sub.receiptAmount).toLocaleString("id-ID") : ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, "");
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, receiptAmount: val };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    const updated = [...subRecipients];
+                                    updated[idx] = { ...sub, receiptAmount: val };
+                                    setSubRecipients(updated);
+                                  }
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
 
               {subRecipients.length === 0 ? (
                 <div className="p-10 text-center space-y-2 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
@@ -3291,48 +3293,69 @@ export default function RecipientForm({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {subRecipients.map((sub, idx) => (
-                        <tr
-                          key={idx}
-                          className="hover:bg-slate-50/60 transition-colors text-black font-normal"
-                        >
-                          <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
-                            {idx + 1}
-                          </td>
-                          <td className="px-3 py-4 text-center border-r border-slate-200/40">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600 cursor-pointer"
-                              checked={sub.isReceiptGenerated !== false}
-                              onChange={(e) => {
-                                const updated = [...subRecipients];
-                                updated[idx] = {
-                                  ...sub,
-                                  isReceiptGenerated: e.target.checked,
-                                };
-                                setSubRecipients(updated);
-                              }}
-                            />
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
-                            {sub.registrationId || registrationData.registrationId || "-"}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
-                            {sub.name.toLowerCase()}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
-                            {sub.programName || registrationData.programName || "-"}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
-                            {sub.nik}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
-                            {sub.kk}
-                          </td>
-                          <td className="px-3 py-4 text-black truncate max-w-[200px]" title={`${sub.address}, ${sub.kampung}, ${sub.district}`}>
-                            {sub.address}, {sub.kampung}, {sub.district}
-                          </td>
-                        </tr>
+                      {[
+                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+                      ].map((cfg, cIdx) => (
+                        <React.Fragment key={cIdx}>
+                          {cfg.subs.map((sub: any, idx: number) => {
+                            const currentIdx = cIdx === 0 
+                              ? idx 
+                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+                            return (
+                              <tr
+                                key={`${cIdx}-${idx}`}
+                                className="hover:bg-slate-50/60 transition-colors text-black font-normal"
+                              >
+                                <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
+                                  {currentIdx + 1}
+                                </td>
+                                <td className="px-3 py-4 text-center border-r border-slate-200/40">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-600 cursor-pointer"
+                                    checked={sub.isReceiptGenerated !== false}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+                                          ...sub,
+                                          isReceiptGenerated: e.target.checked
+                                        };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = {
+                                          ...sub,
+                                          isReceiptGenerated: e.target.checked,
+                                        };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.registrationId || cfg.rData.registrationId || "-"}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
+                                  {sub.name.toLowerCase()}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.programName || cfg.rData.programName || "-"}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.nik}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.kk}
+                                </td>
+                                <td className="px-3 py-4 text-black truncate max-w-[200px]" title={`${sub.address}, ${sub.kampung}, ${sub.district}`}>
+                                  {sub.address}, {sub.kampung}, {sub.district}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -3521,6 +3544,31 @@ export default function RecipientForm({
                               <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Penyaluran</h4>
                               
                               <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Penerima Dana</label>
+                                <input
+                                  list={`penerima-dana-list-${cIdx}-${idx}`}
+                                  className="form-input-custom font-medium"
+                                  placeholder="Ketik atau pilih penerima dana"
+                                  value={sub.penerimaDana || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, penerimaDana: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, penerimaDana: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                                <datalist id={`penerima-dana-list-${cIdx}-${idx}`}>
+                                  {cfg.rData.institutionName && <option value={cfg.rData.institutionName} />}
+                                  {sub.schoolName && <option value={sub.schoolName} />}
+                                </datalist>
+                              </div>
+
+                              <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase">Jumlah Bantuan (Rp)</label>
                                 <input
                                   type="text"
@@ -3543,8 +3591,29 @@ export default function RecipientForm({
                               </div>
 
                               <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Penyaluran MPZIS</label>
+                                <input
+                                  type="text"
+                                  className="form-input-custom font-medium"
+                                  placeholder={`Melaksanakan Program ${cfg.rData.programName || ""}`}
+                                  value={sub.tujuanPenyaluranMPZIS || ""}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPenyaluranMPZIS: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, tujuanPenyaluranMPZIS: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Penyaluran</label>
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Uraian MPZIS</label>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3568,6 +3637,7 @@ export default function RecipientForm({
                                 </div>
                                 <textarea
                                   className="form-input-custom min-h-[60px] font-medium"
+                                  placeholder={`Melaksanakan Program ${cfg.rData.programName || ""}`}
                                   value={sub.purpose || ""}
                                   onChange={(e) => {
                                     if (cfg.isSavedGroup) {
@@ -3585,7 +3655,7 @@ export default function RecipientForm({
 
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Pengajuan</label>
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Pengajuan E-PPD</label>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -4130,7 +4200,7 @@ export default function RecipientForm({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">
-                    Sub Tabel Penerima ({subRecipients.length} Orang)
+                    Konfirmasi Data Penerima ({subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)} Orang)
                   </h3>
                   <p className="text-[11px] text-slate-500 font-medium">
                     Daftar individu yang akan diajukan bantuan dalam kelompok/ID
@@ -4138,15 +4208,15 @@ export default function RecipientForm({
                   </p>
                 </div>
               </div>
-              {subRecipients.length > 0 && (
+              {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) > 0 && (
                 <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 font-extrabold px-3 py-1 rounded-full">
-                  {subRecipients.length} Orang Ditambahkan
+                  {subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)} Orang Ditambahkan
                 </span>
               )}
             </div>
 
             <div className="overflow-hidden border border-slate-200/60 rounded-xl">
-              {subRecipients.length === 0 ? (
+              {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) === 0 ? (
                 <div className="p-10 text-center space-y-2 bg-slate-50/50">
                   <p className="text-slate-400 font-bold text-sm">
                     Belum Ada Penerima dalam Sub-Tabel
@@ -4223,21 +4293,30 @@ export default function RecipientForm({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {subRecipients.map((sub, idx) => (
-                        <tr
-                          key={idx}
-                          className="hover:bg-slate-50/60 transition-colors text-black font-normal"
-                        >
-                          <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
-                            {idx + 1}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
-                            {sub.name.toLowerCase()}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
-                            {sub.programName || registrationData.programName || "-"}
-                          </td>
-                          <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                      {[
+                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+                      ].map((cfg, cIdx) => (
+                        <React.Fragment key={cIdx}>
+                          {cfg.subs.map((sub: any, idx: number) => {
+                            const currentIdx = cIdx === 0 
+                              ? idx 
+                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+                            return (
+                              <tr
+                                key={`${cIdx}-${idx}`}
+                                className="hover:bg-slate-50/60 transition-colors text-black font-normal"
+                              >
+                                <td className="px-3.5 py-4 text-center border-r border-slate-200/40 text-xs font-mono">
+                                  {currentIdx + 1}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
+                                  {sub.name.toLowerCase()}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
+                                  {sub.programName || cfg.rData.programName || "-"}
+                                </td>
+                                <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
                             {sub.nik}
                           </td>
                           <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
@@ -4422,28 +4501,37 @@ export default function RecipientForm({
                           </td>
                           <td className="px-3 py-4">
                             <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleLoadEditRecipient(idx)}
-                                className="p-1 px-2 text-indigo-600 hover:text-indigo-800 hover:bg-slate-100 rounded border border-slate-150 shadow-xs transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                                title="Edit Data Penerima ini"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveRecipientFromSubTable(idx)
-                                }
-                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-100 shadow-xs transition-colors cursor-pointer"
-                                title="Hapus Penerima ini"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {!cfg.isSavedGroup ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleLoadEditRecipient(idx)}
+                                    className="p-1 px-2 text-indigo-600 hover:text-indigo-800 hover:bg-slate-100 rounded border border-slate-150 shadow-xs transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                                    title="Edit Data Penerima ini"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRemoveRecipientFromSubTable(idx)
+                                    }
+                                    className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-100 shadow-xs transition-colors cursor-pointer"
+                                    title="Hapus Penerima ini"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-slate-400 font-medium">Tersimpan</span>
+                              )}
                             </div>
                           </td>
                         </tr>
+                            );
+                          })}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -4453,37 +4541,6 @@ export default function RecipientForm({
 
             <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-4">
               <div className="flex items-center gap-3">
-                {onReceipt && subRecipients.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sub = subRecipients[0];
-                      const {
-                        documents: groupDocs,
-                        status: groupStatus,
-                        ...groupSettings
-                      } = registrationData;
-                      
-                      const mockId = Array.isArray(initialGroupRecipients) 
-                        ? initialGroupRecipients[0]?.registrationId?.split('-')[0] + '-' + (Math.floor(Math.random() * 900) + 100) 
-                        : 'TBD-'+Math.floor(Math.random() * 9999);
-
-                      const fullRecipientData = {
-                        ...sub,
-                        ...groupSettings,
-                        id: sub.id || mockId,
-                        registrationId: sub.registrationId || mockId,
-                        amountProposed: sub.amountProposed ? Number(sub.amountProposed) : 0,
-                        amountDisbursed: sub.amountDisbursed ? Number(sub.amountDisbursed) : 0,
-                      };
-                      onReceipt(fullRecipientData as Recipient);
-                    }}
-                    className="hidden sm:flex px-6 py-2.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-sm font-bold rounded-xl transition-all cursor-pointer items-center gap-2"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Cetak Tanda Terima
-                  </button>
-                )}
               </div>
 
               <div className="flex items-center gap-3 w-full sm:w-auto">

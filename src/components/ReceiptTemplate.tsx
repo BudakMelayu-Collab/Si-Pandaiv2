@@ -10,6 +10,7 @@ import { cn, compressImage, isBase64SizeValid } from '../lib/utils';
 import * as storage from '../lib/storage';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { DOCUMENT_OPTIONS, getDefaultDocuments } from '../constants';
 
 interface ReceiptTemplateProps {
   recipient: Recipient;
@@ -18,24 +19,7 @@ interface ReceiptTemplateProps {
   isEmbedded?: boolean;
 }
 
-const DOCUMENT_OPTIONS = [
-  "Surat Permohonan",
-  "Fotocopy KTP",
-  "Fotocopy KK",
-  "Surat Keterangan Tidak Mampu Asli",
-  "Surat Keterangan Tidak Mampu Fotocopy",
-  "Surat Kontrol Rumah Sakit",
-  "Surat Rawat Inap Pasien",
-  "Foto Mustahik",
-  "Fotocopy Buku Rekening Bank",
-  "Surat Keterangan Aktif Belajar",
-  "Surat Keterangan Aktif Kuliah",
-  "Fotocopy Rapor",
-  "Fotocopy KRS",
-  "Fotocopy KHS",
-  "Fotocopy Transkip Nilai",
-  "Lainnya"
-];
+
 
 const formatDobIndonesian = (dobStr: any): string => {
   if (!dobStr) return "………………………………..";
@@ -133,7 +117,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Local state for template-specific edits
-  const [receiptData, setReceiptData] = useState({
+  const [receiptData, setReceiptData] = useState<any>({
     name: recipient.name,
     subject: `${recipient.aidType} - ${recipient.programName}`,
     departureDate: recipient.departureDate || recipient.treatmentStart || '',
@@ -142,17 +126,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
     identity: `${recipient.nik} / ${recipient.kk}`,
     phone: recipient.contact,
     address: `${recipient.address}, ${recipient.kampung}, ${recipient.district}`,
-    documents: [
-      'Surat Permohonan',
-      'Fotocopy KTP',
-      'Fotocopy KK',
-      'Surat Keterangan Tidak Mampu Asli',
-      'Foto Mustahik'
-    ],
+    documents: getDefaultDocuments(recipient.programName || "", recipient.aidType || ""),
     giverName: '',
     receiverLabel: 'Penerima Berkas',
     receiverName: '',
-    giverLabel: 'Pemberi Berkas'
+    giverLabel: 'Pemberi Berkas',
+    memoNo: ''
   });
 
   // Load saved data from storage/cloud on mount
@@ -232,7 +211,34 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
       }
 
       if (savedData) {
-        setReceiptData(typeof savedData === 'string' ? JSON.parse(savedData) : savedData);
+        const parsed = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
+        if (!parsed.memoNo || parsed.memoNo.includes('0001')) {
+          const d = new Date();
+          const monthRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+          const currentCounter = parseInt(localStorage.getItem('fpb_seq_counter') || '1', 10);
+          parsed.memoNo = `${String(currentCounter).padStart(4, '0')}/FPB/BAZNAS-KS/${monthRoman[d.getMonth()]}/${d.getFullYear()}`;
+        }
+        setReceiptData(parsed);
+      } else {
+        const d = new Date();
+        const monthRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+        const currentCounter = parseInt(localStorage.getItem('fpb_seq_counter') || '1', 10);
+        setReceiptData({
+          name: recipient.name,
+          subject: `${recipient.aidType} - ${recipient.programName}`,
+          departureDate: recipient.departureDate || recipient.treatmentStart || '',
+          treatmentStart: recipient.treatmentStart || recipient.departureDate || '',
+          docCount: '1 (Satu) Berkas',
+          identity: `${recipient.nik} / ${recipient.kk}`,
+          phone: recipient.contact,
+          address: `${recipient.address}, ${recipient.kampung}, ${recipient.district}`,
+          documents: getDefaultDocuments(recipient.programName || "", recipient.aidType || ""),
+          giverName: '',
+          receiverLabel: 'Penerima Berkas',
+          receiverName: '',
+          giverLabel: 'Pemberi Berkas',
+          memoNo: `${String(currentCounter).padStart(4, '0')}/FPB/BAZNAS-KS/${monthRoman[d.getMonth()]}/${d.getFullYear()}`
+        });
       }
       
       setLoadedRecipientId(recipient.id);
@@ -252,6 +258,15 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
       }
       setSaveStatus('saving');
       try {
+        const match = receiptData.memoNo?.match(/^(\d+)\/FPB/);
+        if (match) {
+          const seq = parseInt(match[1], 10);
+          const currentCounter = parseInt(localStorage.getItem('fpb_seq_counter') || '1', 10);
+          if (seq >= currentCounter) {
+            localStorage.setItem('fpb_seq_counter', String(seq + 1));
+          }
+        }
+
         await storage.setItem(`receipt_data_${recipient.id}`, receiptData);
         const { saveRecipientTemplateData } = await import('../firebase');
         await saveRecipientTemplateData(recipient.id, 'receipt', receiptData);
@@ -560,7 +575,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
           ),
           { label: 'Jumlah Berkas', value: receiptData.docCount, key: 'docCount' },
           { label: 'NIK/No.KK', value: receiptData.identity, key: 'identity' },
-          { label: 'Nomor HP', value: receiptData.phone, key: 'phone' },
+          { label: 'Nomor HP', value: receiptData.phone || recipient.contact, key: 'phone' },
           { label: 'Alamat Lengkap', value: receiptData.address, key: 'address', multiline: true }
         ].map((item) => (
           <div key={item.key} className="grid grid-cols-[160px_20px_1fr] items-start">
@@ -591,54 +606,16 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
       <h4 className="border-b border-black pb-1 mb-2 tracking-wider capitalize" style={{ fontSize: '1.05em' }}>Berkas Lampiran :</h4>
       <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 mb-5 min-h-[30px]" style={{ fontSize: '0.9em' }}>
 
-
-        {receiptData.documents.map((doc, idx) => {
-          const isPredefined = DOCUMENT_OPTIONS.slice(0, -1).includes(doc);
-
+        {(recipient.documentChecklist || []).map((doc, idx) => {
           return (
-            <div key={idx} className="flex items-start gap-1">
-              <span className="text-black font-medium">[{idx + 1}]</span>
-              {isEditing ? (
-                <div className="flex flex-col flex-1 gap-1">
-                  <div className="flex items-center gap-1">
-                    <select 
-                      className="border-b border-indigo-200 focus:border-indigo-500 outline-none flex-1 bg-indigo-50/30 font-sans py-0"
-                      value={isPredefined ? doc : (doc === "" ? "" : "Lainnya")}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const newDocs = [...receiptData.documents];
-                        newDocs[idx] = val === "Lainnya" ? "" : val;
-                        setReceiptData({...receiptData, documents: newDocs});
-                      }}
-                    >
-                      <option value="">-- Pilih Berkas --</option>
-                      {DOCUMENT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                    <button 
-                      onClick={() => {
-                        const newDocs = receiptData.documents.filter((_, i) => i !== idx);
-                        setReceiptData({...receiptData, documents: newDocs});
-                      }}
-                      className="text-red-400 hover:text-red-600 p-0.5"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <span className="text-black font-sans">{doc || '-'}</span>
-              )}
+            <div key={idx} className="flex items-start gap-2 mb-1">
+              <div className="w-4 h-4 border-[1.5px] border-black flex-shrink-0 flex items-center justify-center mt-0.5 rounded-sm">
+                 <span className="text-black font-bold text-xs">✓</span>
+              </div>
+              <span className="text-black font-sans leading-tight">{doc || '-'}</span>
             </div>
           );
         })}
-        {isEditing && receiptData.documents.length < 12 && (
-          <button 
-            onClick={() => setReceiptData({...receiptData, documents: [...receiptData.documents, '']})}
-            className="col-span-2 mt-2 flex items-center justify-center gap-1.5 py-1.5 border-2 border-dashed border-indigo-100 text-indigo-400 hover:border-indigo-300 hover:text-indigo-600 rounded font-bold uppercase transition-all" style={{ fontSize: '0.8em' }}
-          >
-            + Tambah Berkas Lampiran
-          </button>
-        )}
       </div>
 
       {/* Signatures */}
@@ -737,7 +714,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
     const monthRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
     
     const memoData = {
-      no: `0001/FPB/BAZNAS-KS/${monthRoman[d.getMonth()]}/${d.getFullYear()}`,
+      no: receiptData.memoNo || `0001/FPB/BAZNAS-KS/${monthRoman[d.getMonth()]}/${d.getFullYear()}`,
       date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
       toPosition: 'Ketua BAZNAS Kabupaten Siak',
       toName: 'H. Samparis Bin Tatan, S.Pd.i',
@@ -752,18 +729,29 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
 
     return (
       <div 
-        className="w-full bg-white print:border-none p-12 print:p-8 relative font-sans text-black print:w-full min-h-full"
-        style={{ fontSize: `${Math.max(6, templateConfig.fontSize - 1)}pt` }}
+        className="w-full bg-white print:border-none p-10 print:p-6 relative font-sans text-black print:w-full min-h-full"
+        style={{ fontSize: '11pt' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+        <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
           <div className="w-[150px]">
              {(templateConfig.logo || logo) && <img src={templateConfig.logo || logo} alt="Logo" className="w-[120px] object-contain" />}
           </div>
           <div className="flex-1 text-center">
             <h1 className="text-xl font-bold uppercase tracking-wider">Formulir Permohonan Bantuan</h1>
             <div className="font-normal mt-1 w-full justify-center flex">
-              <span>No. {memoData.no}</span>
+              {isEditing ? (
+                <div className="flex items-center gap-1 justify-center w-full">
+                  <span>No. </span>
+                  <input
+                    className="border-b border-indigo-200 focus:border-indigo-500 outline-none bg-indigo-50/30 text-center px-1"
+                    value={receiptData.memoNo}
+                    onChange={e => setReceiptData({...receiptData, memoNo: e.target.value})}
+                  />
+                </div>
+              ) : (
+                <span>No. {memoData.no}</span>
+              )}
             </div>
           </div>
           <div className="w-[150px] flex justify-end">
@@ -771,37 +759,29 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
           </div>
         </div>
 
-        <div className="border border-slate-200 p-8 pt-6">
-          <div className="mb-4 text-black space-y-0.5">
-            <div><span className="inline-block w-32">Perihal</span>: Mohon Dana Zakat</div>
-            <div><span className="inline-block w-32"></span>&nbsp; {recipient.programName || ".............................................."}</div>
-            {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && !recipient.programName?.toLowerCase().includes('alat kesehatan') && (
-              recipient.programName?.toLowerCase().includes('transportasi pasien') ? (
-                <div><span className="inline-block w-32">Tanggal Berangkat</span>: {recipient.departureDate || recipient.treatmentStart || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Tanggal Berangkat..." />}</div>
-              ) : (
-                <div><span className="inline-block w-32">Mulai Dirawat</span>: {recipient.treatmentStart || recipient.departureDate || <input type="text" className="border-b border-black outline-none bg-transparent w-48 print:border-none print:w-auto" placeholder="Mulai dirawat..." />}</div>
-              )
-            )}
+        <div className="border border-slate-200 px-6 py-3">
+          <div className="mb-3 text-black space-y-0.5">
+            <div><span className="inline-block w-32">Perihal</span>: Mohon Bantuan Dana Zakat</div>
+            <div className="font-bold"><span className="inline-block w-32"></span>&nbsp; Bantuan Biaya {recipient.programName || ".............................................."}</div>
           </div>
 
-          <div className="flex justify-between items-start mb-6 text-black">
+          <div className="flex justify-between items-start mb-4 text-black">
             <div className="space-y-0.5">
               <div>Kepada Yth.</div>
               <div>{memoData.toPosition}</div>
-              <div>{memoData.toName}</div>
-              <div>di Tempat</div>
+              <div className="font-bold">di - Tempat</div>
             </div>
           </div>
 
-          <div className="mb-4 italic text-black">
+          <div className="mb-3 italic text-black">
             Assalamualaikum warohmatullahi wabarokatuh
           </div>
 
-          <div className="text-justify leading-relaxed mb-4 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-3 text-black">
              Dengan hormat saya sampaikan kepada bapak bahwa saya yang bertanda tangan di bawah ini:
           </div>
 
-          <table className="w-full mb-3 text-black leading-tight pl-8 block">
+          <table className="w-full mb-2 text-black leading-tight pl-12 block">
             <tbody className="table w-full">
               <tr>
                 <td className="w-48">Nama</td>
@@ -875,7 +855,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
               <tr>
                 <td>Nomor Kontak</td>
                 <td>:</td>
-                <td>{recipient.contact || "………………………………………………."}</td>
+                <td>{recipient.contact || receiptData.phone || "………………………………………………."}</td>
               </tr>
               <tr>
                 <td>Penerima Formulir</td>
@@ -885,8 +865,8 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
             </tbody>
           </table>
 
-          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
-            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak Rp. {recipient.amountProposed ? recipient.amountProposed.toLocaleString('id-ID') : "                                         "} untuk biaya {recipient.programName || ".............................................."}{' '}
+          <div className="text-justify leading-relaxed mb-2 text-black">
+            Dengan ini mengajukan permohonan bantuan dana zakat kepada Badan Amil Zakat Nasional Kabupaten Siak sebanyak <strong>Rp. {(recipient.receiptAmount ? Number(recipient.receiptAmount) : recipient.amountProposed) ? (recipient.receiptAmount ? Number(recipient.receiptAmount) : recipient.amountProposed).toLocaleString('id-ID') : "                                         "}</strong> untuk bantuan biaya <strong>{recipient.programName || ".............................................."}</strong>{' '}
             {recipient.programName?.toLowerCase().includes('pendamping pasien') && (
               <span>selama <strong>{recipient.daysCount || "....."}</strong> hari </span>
             )}
@@ -894,106 +874,68 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
               <span>pembelian Alat Kesehatan berupa <strong>{recipient.healthToolName || "..........................."}</strong>. </span>
             ) : (
               !(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
-                <span>di RS <strong>{recipient.hospitalName || <input type="text" className="border-b border-black font-bold outline-none bg-transparent print:border-none w-48" placeholder="..." />}</strong>. </span>
+                <span>di <strong>{recipient.hospitalName || <input type="text" className="border-b border-black font-bold outline-none bg-transparent print:border-none w-48" placeholder="..." />}</strong>. </span>
               )
             )}
             Sebagai bahan pertimbangan bapak, bersama ini saya lampirkan:
           </div>
 
-          <table className="w-full mb-3 text-black leading-tight pl-12 block">
-            <tbody className="table w-full">
-              <tr>
-                <td className="w-8">a.</td>
-                <td>Foto copy Kartu Keluarga (KK)/ Kartu Tanda Penduduk (KTP)</td>
-                <td className="w-32">
-                   <div className="flex gap-4">
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_a" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('ktp') || d.name.toLowerCase().includes('kk'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_a" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('ktp') || d.name.toLowerCase().includes('kk'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                   </div>
-                </td>
-              </tr>
-              <tr>
-                <td>b.</td>
-                <td>Surat Keterangan Miskin (Asli) / Jamkesmas / Jamkesda</td>
-                <td>
-                   <div className="flex gap-4">
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_b" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('miskin') || d.name.toLowerCase().includes('sktm'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_b" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('miskin') || d.name.toLowerCase().includes('sktm'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                   </div>
-                </td>
-              </tr>
-              {!(recipient.sector === 'Siak Peduli' && recipient.programName?.toLowerCase().includes('biaya hidup')) && (
-                <>
-                  <tr>
-                    <td>c.</td>
-                    <td>Surat Keterangan Inap dari RSUD/ Surat Kontrol Rutin</td>
-                    <td>
-                       <div className="flex gap-4">
-                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_c" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('inap') || d.name.toLowerCase().includes('kontrol'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_c" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('inap') || d.name.toLowerCase().includes('kontrol'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                       </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>d.</td>
-                    <td>Surat Rujukan dari Puskesmas</td>
-                    <td>
-                       <div className="flex gap-4">
-                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_d" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('rujukan') || d.name.toLowerCase().includes('puskesmas'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                         <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_d" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('rujukan') || d.name.toLowerCase().includes('puskesmas'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                       </div>
-                    </td>
-                  </tr>
-                </>
-              )}
-              <tr>
-                <td>e.</td>
-                <td>Photo Pasien yang akan diajukan</td>
-                <td>
-                   <div className="flex gap-4">
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_e" defaultChecked={!!recipient.documents?.some(d => d.name.toLowerCase().includes('foto') || d.name.toLowerCase().includes('photo'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_e" defaultChecked={!recipient.documents?.some(d => d.name.toLowerCase().includes('foto') || d.name.toLowerCase().includes('photo'))} className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                   </div>
-                </td>
-              </tr>
-              <tr>
-                <td>f.</td>
-                <td>Rincian Biaya</td>
-                <td>
-                   <div className="flex gap-4">
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_f" className="w-3.5 h-3.5 cursor-pointer accent-black" /> ada</label>
-                     <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="lampiran_f" className="w-3.5 h-3.5 cursor-pointer accent-black" /> tidak</label>
-                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div className="text-justify leading-relaxed mb-3 text-black pl-8">
-            Perlu kiranya saya tambahkan bahwa jika saya mendapat bantuan biaya pendamping pasien dari Badan Amil Zakat Nasional Kabupaten Siak, saya bersedia mematuhi segala ketentuan yang ditetapkan oleh Badan Amil Zakat Nasional Kabupaten Siak.
+          <div className="grid grid-cols-2 gap-x-4 mb-2 text-black leading-tight pl-12">
+            <div>
+              <table className="w-full">
+                <tbody>
+                  {(recipient.documentChecklist || []).slice(0, 4).map((doc, idx) => (
+                    <tr key={`col1-${idx}`}>
+                      <td className="w-6 align-top pb-1">{String.fromCharCode(97 + idx)}.</td>
+                      <td className="align-top pb-1">{doc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <table className="w-full">
+                <tbody>
+                  {(recipient.documentChecklist || []).slice(4, 8).map((doc, idx) => (
+                    <tr key={`col2-${idx}`}>
+                      <td className="w-6 align-top pb-1">{String.fromCharCode(97 + idx + 4)}.</td>
+                      <td className="align-top pb-1">{doc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="text-justify leading-relaxed mb-3 mt-4 text-black pl-8">
+          <div className="text-justify leading-relaxed mb-2 text-black">
+            Perlu kiranya saya tambahkan bahwa jika saya mendapat bantuan biaya <strong>{recipient.programName || ".............................................."}</strong> dari Badan Amil Zakat Nasional Kabupaten Siak, saya bersedia mematuhi segala ketentuan yang ditetapkan oleh Badan Amil Zakat Nasional Kabupaten Siak.
+          </div>
+
+          <div className="text-justify leading-relaxed mb-2 mt-2 text-black">
             Demikianlah permohonan ini saya ajukan, dengan pengharapan kiranya dapat dipertimbangkan dan terkabullah hendaknya.
           </div>
 
-          <div className="mb-4 italic text-black">
+          <div className="mb-2 italic text-black">
             Wassalamualaikum warahmatullahi wabarakatuh
           </div>
 
-          <div className="flex justify-end text-black mt-2">
+          <div className="flex justify-between items-start text-black mt-2">
+            <div className="w-[280px] border border-black p-3 text-left min-h-[120px]">
+              <div className="font-bold underline mb-8">Disposisi Kepala Bidang :</div>
+            </div>
+            
             <div className="text-center">
               <div className="mb-1">
                 <span>Siak Sri Indrapura, </span>
                 <span>{memoData.date}</span>
               </div>
-              <div className="mb-10">Hormat saya yang bermohon,</div>
+              <div className="mb-6">Hormat saya yang bermohon,</div>
               <div className="font-bold uppercase underline decoration-1 underline-offset-4">{recipient.name || "................................................"}</div>
             </div>
           </div>
 
-          <div className="mt-4 w-full text-center text-black pt-4">
-            <p className="mb-10">
+          <div className="mt-2 w-full text-center text-black pt-2">
+            <p className="mb-4">
               Permohonan ini telah dikonsultasikan<br/>
               dan <strong>dapat/ tidak</strong>, dilanjutkan untuk dibantu sesuai dengan ketentuan/ survey lokasi
             </p>
@@ -1254,7 +1196,7 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
               >
                 <div 
                   className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 print:block"
-                  style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
+                  style={{ minHeight: 'auto' }}
                 >
                   {renderReceiptContent('PEMOHON')}
                   {renderReceiptContent('ARSIP')}
@@ -1262,12 +1204,12 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
                 
                 <div 
                   className="bg-white w-full lg:w-[210mm] shadow-2xl rounded-sm receipt-print-page flex flex-col text-black font-sans relative shrink-0 p-0 print:block"
-                  style={{ minHeight: paperSize === 'A4' ? '297mm' : '330mm' }}
+                  style={{ minHeight: 'auto' }}
                 >
                   {renderApplicationForm()}
                 </div>
               </div>
-              <div style={{ height: `${Math.max(100, scale * 2400)}px` }} className="print:hidden h-20" />
+              {!isEmbedded && <div style={{ height: `${Math.max(100, scale * 2400)}px` }} className="print:hidden h-20" />}
             </div>
           ) : viewMode === 'scan' ? (
             <div className="w-full h-full max-w-4xl flex flex-col gap-4">

@@ -40,10 +40,14 @@ export interface Recipient {
   subSector: string; // Sub Bidang
   aidType: AidType;
   programName: string;
-  purpose: string; // Tujuan Penyaluran
-  tujuanPengajuan?: string; // Tujuan Pengajuan
+  documentChecklist?: string[]; // Kelengkapan berkas yang dicentang
+  purpose: string; // Uraian MPZIS
+  tujuanPenyaluranMPZIS?: string; // Tujuan Penyaluran MPZIS
+  tujuanPengajuan?: string; // Tujuan Pengajuan E-PPD
   amountProposed: number; // Nominal yang akan dibantu
+  receiptAmount?: string; // Nominal khusus untuk formulir permohonan bantuan (Detail Medis)
   fundingSource?: string; // Sumber Dana
+  penerimaDana?: string; // Penerima Dana
   contact: string;
   companion?: string; // Pendamping
   

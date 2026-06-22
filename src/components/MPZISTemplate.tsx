@@ -243,7 +243,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
             const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
             return {
               id: existingRow ? existingRow.id : (Date.now() + Math.random()),
-              description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || existingRow?.description || '',
+              description: r.purpose || recipient.purpose || '',
               name: r.name || existingRow?.name || '',
               nik: r.nik || existingRow?.nik || '',
               amount: Number(r.amountProposed) || (existingRow ? Number(existingRow.amount) : 0)
@@ -253,10 +253,11 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
           parsed.rows[0].name = recipient.name || parsed.rows[0].name || '';
           parsed.rows[0].nik = recipient.nik || parsed.rows[0].nik || '';
           parsed.rows[0].amount = Number(recipient.amountProposed) || parsed.rows[0].amount || 0;
-          parsed.rows[0].description = recipient.tujuanPengajuan || recipient.purpose || parsed.rows[0].description || '';
+          parsed.rows[0].description = recipient.purpose || parsed.rows[0].description || '';
         }
 
-        parsed.purpose = recipient.purpose || parsed.purpose || '';
+        parsed.purpose = recipient.tujuanPenyaluranMPZIS || `Melaksanakan Program ${recipient.programName || ''}`;
+        parsed.budgetPost = `Program ${recipient.programName || ''}`;
 
         setMemoData(parsed);
       }
@@ -568,10 +569,10 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
       programValue: recipient.sector || '',
       headerDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       classification: recipient.sector || 'Siak Sehat',
-      purpose: recipient.purpose || '',
+      purpose: recipient.tujuanPenyaluranMPZIS || `Melaksanakan Program ${recipient.programName || ''}`,
       ashnaf: recipient.ashnaf || '',
       source: recipient.fundingSource || '',
-      budgetPost: (recipient.budgetCode && recipient.budgetName) ? `${recipient.budgetCode} ${recipient.budgetName}` : (recipient.programName || ''),
+      budgetPost: `Program ${recipient.programName || ''}`,
       transactionType: (!recipient.transactionType || ['Uang Muka', 'Reimbursment', 'Pembayaran', 'Piutang Penyaluran', 'Bank Program', 'Lain-lain'].includes(recipient.transactionType)) ? 'TRANSFER' : 'CASH',
       columns: [
         { key: 'description', label: 'Uraian' },
@@ -582,7 +583,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
       rows: lampiranItems && lampiranItems.length > 0 
         ? lampiranItems.map(r => ({
             id: Date.now() + Math.random(),
-            description: r.tujuanPengajuan || recipient.tujuanPengajuan || r.purpose || recipient.purpose || '',
+            description: r.purpose || recipient.purpose || '',
             name: r.name || '',
             nik: r.nik || '',
             amount: Number(r.amountProposed) || 0
@@ -590,7 +591,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
         : [
         { 
           id: Date.now(), 
-          description: recipient.tujuanPengajuan || recipient.purpose || '', 
+          description: recipient.purpose || '', 
           name: recipient.name, 
           nik: recipient.nik,
           amount: Number(recipient.amountProposed) 
@@ -1102,14 +1103,14 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
 
           {/* Date removed as per request */}
 
-          <p className="text-[10px] mb-6 leading-relaxed text-black font-sans">
+          <p className="text-[10px] mb-6 leading-relaxed text-black font-sans font-medium">
             Kami yang bertanda tangan dibawah ini Komite Pendistribusian dan Pendayagunaan menyetujui dan memutuskan penyaluran sebagai berikut :
           </p>
 
           {/* List Details */}
-          <div className="space-y-3 text-[10px] mb-8 text-black font-sans">
+          <div className="space-y-3 text-[10px] mb-8 text-black font-sans font-medium">
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">1. Klasifikasi program</span>
+              <span className="font-medium">1. Klasifikasi program</span>
               <span>:</span>
               {isEditing ? (
                 <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.classification} onChange={e => setMemoData({...memoData, classification: e.target.value})} />
@@ -1118,7 +1119,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">2. Tujuan penyaluran</span>
+              <span className="font-medium">2. Tujuan penyaluran</span>
               <span>:</span>
               {isEditing ? (
                 <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.purpose} onChange={e => setMemoData({...memoData, purpose: e.target.value})} />
@@ -1127,7 +1128,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">3. Ashnaf</span>
+              <span className="font-medium">3. Ashnaf</span>
               <span>:</span>
               {isEditing ? (
                 <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.ashnaf} onChange={e => setMemoData({...memoData, ashnaf: e.target.value})} />
@@ -1136,7 +1137,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">4. Sumber dana</span>
+              <span className="font-medium">4. Sumber dana</span>
               <span>:</span>
               {isEditing ? (
                 <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.source} onChange={e => setMemoData({...memoData, source: e.target.value})} />
@@ -1145,7 +1146,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">5. Post anggaran rkat</span>
+              <span className="font-medium">5. Post anggaran rkat</span>
               <span>:</span>
               {isEditing ? (
                 <input className="bg-amber-50 border-b border-amber-200 outline-none w-full px-1 text-[10px] font-bold text-black" value={memoData.budgetPost} onChange={e => setMemoData({...memoData, budgetPost: e.target.value})} />
@@ -1154,7 +1155,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
               )}
             </div>
             <div className="grid grid-cols-[220px_10px_1fr] items-center">
-              <span className="font-normal">6. Jenis transaksi</span>
+              <span className="font-medium">6. Jenis transaksi</span>
               <span>:</span>
               <div className="flex items-center gap-6">
                 <div 
@@ -1176,7 +1177,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
           </div>
 
           <div className="flex items-center justify-between mb-3 text-black font-sans">
-            <p className="text-[10px] font-normal tracking-wide">7. Penerima dana :</p>
+            <p className="text-[10px] font-medium tracking-wide">7. Penerima dana :</p>
             {isEditing && (
               <div className="flex gap-2">
                 <button 
@@ -1205,7 +1206,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
             )}
           </div>
           
-          <table className="w-full border-collapse border border-black text-[10px] mb-6 text-black font-sans">
+          <table className="w-full border-collapse border border-black text-[10px] mb-6 text-black font-sans font-medium">
             <thead>
               <tr className="bg-slate-100">
                 <th className="border border-black p-3 w-12 font-bold text-[10px]">No</th>
@@ -1321,7 +1322,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
             Terbilang : {terbilang(totalAmount)}
           </div>
 
-          <p className="text-[10px] italic mb-12 text-center leading-relaxed text-black">
+          <p className="text-[10px] font-medium italic mb-12 text-center leading-relaxed text-black">
             Demikian Memorandum Penyaluran ZIS ini dibuat dengan sebenarnya dan dapat dipergunakan dengan semestinya.
           </p>
 
@@ -1444,11 +1445,14 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
                 pageIndex > 0 && "print:break-before-page",
                 isEditing && "ring-4 ring-amber-500/30"
               )}
-              style={{ fontSize: `${templateConfig.fontSize + 2.5}pt`, minHeight: paperSize === 'A4' ? '210mm' : '215.9mm' }}>
+              style={{ fontSize: '11pt', minHeight: 'auto' }}>
                 <h3 className="font-bold text-center mb-6 text-lg">LAMPIRAN PENERIMA DANA ZIS</h3>
                 <h4 className="font-bold text-center mb-6 text-md uppercase">PROGRAM: {memoData.classification}</h4>
                 
-                <table className="w-full border-collapse border border-black text-[10px] bg-transparent mb-auto">
+                <table 
+                  className="w-full border-collapse border border-black bg-transparent mb-auto"
+                  style={{ fontSize: `${templateConfig.fontSize || 9}pt` }}
+                >
                   <thead>
                     <tr className="bg-slate-100/50 print:bg-white text-center">
                       <th className="border border-black p-2 font-bold w-12">No</th>
@@ -1499,14 +1503,17 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
                     })}
                     {pageIndex === allPages.length - 1 && (
                       <tr className="bg-slate-50 border-t border-black">
-                        <td colSpan={memoData.columns.length} className="border border-black p-2 text-right font-bold text-[10px]">TOTAL Rp</td>
-                        <td className="border border-black p-2 text-right font-bold text-[10px]">{totalAmount.toLocaleString('id-ID')}</td>
+                        <td colSpan={memoData.columns.length} className="border border-black p-2 text-right font-bold" style={{ fontSize: `${templateConfig.fontSize || 9}pt` }}>TOTAL Rp</td>
+                        <td className="border border-black p-2 text-right font-bold" style={{ fontSize: `${templateConfig.fontSize || 9}pt` }}>{totalAmount.toLocaleString('id-ID')}</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
                 
-                <div className="grid grid-cols-2 mt-auto text-center text-[10px] pt-4 h-32">
+                <div 
+                  className="grid grid-cols-2 mt-auto text-center pt-4 h-32" 
+                  style={{ fontSize: `${templateConfig.fontSize || 9}pt` }}
+                >
                   <div className="flex flex-col items-center justify-start">
                     <span className="mb-auto">Diperiksa</span>
                     <div className="font-bold border-b border-black w-64 mb-1 leading-none pb-1">
@@ -1716,20 +1723,6 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
                         onChange={(e) => setTemplateConfig(p => ({ ...p, logoSize: Number(e.target.value) }))}
                       />
                       <span className="text-white font-mono text-[10px] w-12 text-right">{templateConfig.logoSize}px</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Base Font Size (pt)</label>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.max(6, p.fontSize - 1) }))}
-                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
-                      >-</button>
-                      <span className="text-white font-mono text-[10px] w-8 text-center">{templateConfig.fontSize}</span>
-                      <button 
-                        onClick={() => setTemplateConfig(p => ({ ...p, fontSize: Math.min(14, p.fontSize + 1) }))}
-                        className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white"
-                      >+</button>
                     </div>
                   </div>
                 </div>

@@ -69,7 +69,6 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
         @media print {
           @page {
             margin: 0;
-            size: 215.9mm 330.2mm; /* F4 size or close to it */
           }
           #root > div > *:not(.mass-print-overlay) {
             display: none !important;
@@ -102,14 +101,36 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
             min-height: auto !important;
             overflow: visible !important;
             transform: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .mass-print-item {
             page-break-after: always !important;
             break-after: page !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .mass-print-item:last-child {
             page-break-after: auto !important;
             break-after: auto !important;
+          }
+          
+          /* Prevent internal pages from spilling over and causing blank pages */
+          .eppd-print-page,
+          .lampiran-print-page,
+          .receipt-print-page,
+          .mpzis-template-overlay .print-container {
+             height: auto !important;
+             min-height: auto !important;
+             margin-bottom: 0 !important;
+             margin-top: 0 !important;
+             padding-bottom: 0 !important; 
+          }
+          
+          /* Target wrappers that have pb-20 or mt-6 */
+          .mass-print-item > div > div {
+             margin: 0 !important;
+             padding: 0 !important;
           }
         }
       `}} />
@@ -142,9 +163,9 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
       </div>
 
       <div className="flex-1 overflow-y-auto bg-slate-900 print:bg-white print:overflow-visible print:block print:p-0 flex flex-col py-10 gap-10 items-center">
-        <div id="mass-print-container" className="w-full max-w-[900px] flex flex-col gap-10 print:block print:w-full print:max-w-none print:m-0 print:p-0">
+        <div id="mass-print-container" className="w-full max-w-[1300px] flex flex-col gap-10 items-center print:block print:w-full print:max-w-none print:m-0 print:p-0">
           {recipients.map((rec, index) => (
-            <div key={rec.id || `print-${index}`} className="lembar mass-print-item relative bg-white shadow-2xl overflow-hidden rounded-sm print:block print:break-after-page print:shadow-none print:overflow-visible print:w-full print:m-0 print:p-0">
+            <div key={rec.id || `print-${index}`} className="lembar mass-print-item relative w-full flex flex-col items-center print:block print:shadow-none print:overflow-visible print:w-full print:m-0 print:p-0">
               {type === 'receipt' && (
                 <ReceiptTemplate 
                   recipient={rec} 

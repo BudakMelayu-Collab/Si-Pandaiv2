@@ -326,8 +326,78 @@ export const SIAK_PROGRAM_NAMES: Record<string, string[]> = {
     "Santripreneur",
     "Terunapreneur",
   ],
-  "Siak Peduli": ["Safa", "Program ATM Beras", "Yafa"],
+  "Siak Peduli": [
+    "Safa", 
+    "Program ATM Beras", 
+    "Yafa",
+    "Biaya Hidup (Konsumtif)",
+    "Program Rumah Tinggal Layak Huni (RTLH)",
+    "Biaya Hidup (Ibnu Sabil)",
+    "Bantuan Alat Kesehatan",
+    "Program Rumah Layak Huni (RLH)",
+    "Program Pemasangan KWH Listrik",
+    "Program Khitanan Anak Sholeh",
+    "Bantuan Biaya Hidup (Paket Bahagia BAZNAS)",
+    "Bantuan Ghorimin",
+    "Program Tebar Hewan Qur'ban (DSKL)",
+    "Bantuan Makanan (Fidyah)",
+    "Bantuan Biaya Hidup (Zakat Fitrah) UPZ",
+    "Bantuan Biaya Hidup (Zakat Fitrah)"
+  ],
   "Siak Sehat": ["Transportasi Pasien", "Pendamping Pasien"],
+};
+
+export const DOCUMENT_OPTIONS = [
+  "Surat Permohonan",
+  "Fotocopy KTP",
+  "Fotocopy KK",
+  "Surat Keterangan Tidak Mampu Asli",
+  "Surat Keterangan Tidak Mampu Fotocopy",
+  "Surat Kontrol",
+  "Surat Rujukan",
+  "Surat Rawat Inap",
+  "Foto Pasien",
+  "Foto Mustahik",
+  "Foto Alat Kesehatan",
+  "Rincian Harga Alat",
+  "Rincian Hutang",
+  "Surat Aktif Belajar",
+  "Rincian Biaya Sekolah",
+  "Fotocopy Raport Terakhir",
+  "Surat Aktif Kuliah",
+  "Rincian Biaya SPP",
+  "Fotocopy Buku Rekening Bank",
+  "Lainnya"
+];
+
+export const getDefaultDocuments = (programName: string, aidType: string) => {
+  const p = (programName || "").toLowerCase();
+  const a = (aidType || "").toLowerCase();
+  
+  let docs = [
+    'Surat Permohonan',
+    'Fotocopy KTP',
+    'Fotocopy KK',
+    'Surat Keterangan Tidak Mampu Asli'
+  ];
+
+  if (p.includes('transportasi pasien')) {
+    docs.push('Surat Kontrol', 'Surat Rujukan', 'Foto Pasien');
+  } else if (p.includes('pendamping pasien')) {
+    docs.push('Surat Rawat Inap', 'Foto Pasien');
+  } else if (p.includes('alat kesehatan')) {
+    docs.push('Foto Alat Kesehatan', 'Rincian Harga Alat');
+  } else if (p.includes('ghorimin')) {
+    docs.push('Rincian Hutang');
+  } else if (p.includes('pendidikan') && (p.includes('mahasiswa') || p.includes('s1') || p.includes('d3') || p.includes('d4') || a.includes('mahasiswa'))) {
+    docs.push('Surat Aktif Kuliah', 'Rincian Biaya SPP');
+  } else if (p.includes('pendidikan') || p.includes('beasiswa') || p.includes('bantuan pendidikan') || p.includes('sd') || p.includes('smp') || p.includes('sma') || p.includes('smu') || p.includes('mi') || p.includes('mts') || p.includes('ma')) {
+    docs.push('Surat Aktif Belajar', 'Rincian Biaya Sekolah', 'Fotocopy Raport Terakhir');
+  } else {
+    docs.push('Foto Mustahik');
+  }
+
+  return docs;
 };
 
 export const SIAK_COMPANIONS = [

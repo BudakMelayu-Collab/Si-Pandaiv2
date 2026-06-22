@@ -1094,8 +1094,8 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
             style={{ 
               fontSize: `${templateConfig.fontSize}pt`,
               width: '210mm',
-              minHeight: '330mm',
-              height: '330mm'
+              minHeight: 'auto',
+              height: 'auto'
             }}
           >
              {/* Document Header */}
@@ -1348,8 +1348,8 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
-                minHeight: '330mm',
-                height: '330mm'
+                minHeight: 'auto',
+                height: 'auto'
               }}
             >
                <div className="mb-6">
@@ -1519,8 +1519,8 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
-                minHeight: '330mm',
-                height: '330mm'
+                minHeight: 'auto',
+                height: 'auto'
               }}
             >
                <h3 className="font-bold underline mb-4 uppercase" style={{ fontSize: `${templateConfig.fontSize + 2}pt` }}>Profil Bidang Usaha Mustahik</h3>
@@ -1719,8 +1719,8 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
               style={{ 
                 fontSize: `${templateConfig.fontSize}pt`,
                 width: '210mm',
-                minHeight: '330mm',
-                height: '330mm'
+                minHeight: 'auto',
+                height: 'auto'
               }}
             >
                <h3 className="font-bold underline mb-8 uppercase text-center" style={{ fontSize: `${templateConfig.fontSize + 4}pt` }}>DOKUMENTASI FOTO SURVEY</h3>
