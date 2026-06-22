@@ -32,10 +32,17 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
           @page {
             margin: 0;
           }
+          #mass-print-toolbar,
           .mass-print-toolbar,
           .print\\:hidden,
           [class*="print:hidden"] {
             display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
           }
           #root > div > *:not(.mass-print-overlay) {
             display: none !important;
@@ -57,9 +64,9 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
              /* We cannot wildcard * because it breaks flex inside the actual pages, but we can target the containers up to receipt-print-page */
           }
           .mass-print-overlay, 
-          .mass-print-overlay > div,
-          .mass-print-overlay > div > div,
-          .mass-print-overlay > div > div > div,
+          .mass-print-overlay > div:not(.mass-print-toolbar),
+          .mass-print-overlay > div:not(.mass-print-toolbar) > div,
+          .mass-print-overlay > div:not(.mass-print-toolbar) > div > div,
           .mass-print-overlay .receipt-template-overlay,
           .mass-print-overlay .receipt-scrollable-container {
             display: block !important;
@@ -102,7 +109,7 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
         }
       `}} />
       {/* Universal Toolbar for Mass Print */}
-      <div className="bg-[#0f172a] border-b border-white/10 p-4 flex items-center justify-between mass-print-toolbar print:hidden shrink-0">
+      <div id="mass-print-toolbar" className="bg-[#0f172a] border-b border-white/10 p-4 flex items-center justify-between mass-print-toolbar print:hidden shrink-0">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
