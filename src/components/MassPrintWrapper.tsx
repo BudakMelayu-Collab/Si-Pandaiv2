@@ -22,45 +22,7 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
   }, []);
 
   const cetakMassal = () => {
-    const printContent = document.getElementById('mass-print-container')?.innerHTML;
-    if (!printContent) return;
-
-    const printWindow = window.open('', '_blank', 'width=1000,height=800');
-    if (!printWindow) {
-      alert("Pop-up diblokir. Harap izinkan pop-up untuk mencetak.");
-      return;
-    }
-
-    const styles = document.head.innerHTML;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Cetak Massal</title>
-          ${styles}
-          <style>
-            @media print {
-              @page { margin: 0; }
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; margin: 0;}
-              .lembar { page-break-after: always !important; break-after: page !important; }
-              .lembar:last-child { page-break-after: auto !important; break-after: auto !important; }
-              .print\\:hidden { display: none !important; }
-            }
-          </style>
-        </head>
-        <body class="bg-white m-0 p-0">
-          ${printContent}
-          <script>
-            setTimeout(() => {
-              window.print();
-              window.close();
-            }, 1000);
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    window.print();
   };
 
   return (
