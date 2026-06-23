@@ -14,6 +14,7 @@ interface EPPDModuleProps {
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecord: (id: string) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
+  onDeleteGroup?: (groupItems: Recipient[]) => void;
   onEditRecipient?: (recipient: Recipient) => void;
   onEditGroup?: (groupItems: Recipient[]) => void;
   onDuplicateGroup?: (groupItems: Recipient[]) => void;
@@ -29,6 +30,7 @@ export default function EPPDModule({
   onSurvey,
   onDeleteRecord,
   onDeleteRecipient,
+  onDeleteGroup,
   onEditRecipient,
   onEditGroup,
   onDuplicateGroup,
@@ -172,6 +174,7 @@ export default function EPPDModule({
               onEPPD={onSelectEPPD}
               onSurvey={onSurvey}
               onDeleteRecipient={onDeleteRecipient}
+              onDeleteGroup={onDeleteGroup}
               onEditRecipient={onEditRecipient}
               onEditGroup={onEditGroup}
               onDuplicateGroup={onDuplicateGroup}

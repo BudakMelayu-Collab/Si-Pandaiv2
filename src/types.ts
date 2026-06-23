@@ -110,6 +110,7 @@ export interface Recipient {
   rsCompanionRelation?: string;
   rsHospital?: string;
   rsJenisRawatan?: string;
+  subRecipients?: any[];
 
   createdAt: string;
   updatedAt: string;

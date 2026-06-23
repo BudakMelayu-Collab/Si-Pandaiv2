@@ -154,7 +154,7 @@ service cloud.firestore {
 
     // SETTINGS
     match /settings/{settingId} {
-      allow read: if true;
+      allow read: if isVerified() && (settingId != "gdrive_service_account" || isAdmin());
       allow write: if isAdmin();
     }
 

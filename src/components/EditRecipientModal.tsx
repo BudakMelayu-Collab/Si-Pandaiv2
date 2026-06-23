@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User, Wand2 } from 'lucide-react';
+import { X, Save, Upload, FileText, ImageIcon, Eye, Loader2, MapPin, User, Wand2, Settings } from 'lucide-react';
 import { Recipient, AidDocument } from '../types';
 import { cn } from '../lib/utils';
 import { SIAK_REGIONAL_DATA } from '../constants';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { 
   getGoogleAccessToken, 
   setGoogleAccessToken,
@@ -10,7 +11,8 @@ import {
   uploadFileToGoogleDrive, 
   downloadGoogleDriveFileAsBase64,
   fetchSharedGoogleAccessToken,
-  auth
+  auth,
+  db
 } from '../firebase';
 
 interface DocumentSlot {
@@ -137,6 +139,26 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
       localStorage.setItem('ppd_save_gdrive', val ? 'true' : 'false');
     }
   };
+
+  // Google Service Account Integration States & Handlers
+  const [isSaConnected, setIsSaConnected] = useState(false);
+  const [saClientEmail, setSaClientEmail] = useState('');
+
+  useEffect(() => {
+    const checkServiceAccount = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'gdrive_service_account');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setIsSaConnected(true);
+          setSaClientEmail(snap.data().client_email || 'Terhubung');
+        }
+      } catch (e) {
+        console.warn("Failed checking service account settings:", e);
+      }
+    };
+    checkServiceAccount();
+  }, []);
 
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -648,8 +670,8 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest flex items-center gap-1.5 animate-pulse">
-                      <Upload className="w-4 h-4 text-indigo-500 animate-pulse" /> Edit Unggah Berkas Persyaratan (15 Slot)
+                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest flex items-center gap-1.5 align-middle">
+                      <Upload className="w-4 h-4 text-indigo-500" /> Edit Unggah Berkas Persyaratan (15 Slot)
                     </h4>
                     {isCompressing && (
                       <span className="text-[10px] bg-amber-50 text-amber-650 px-2 py-0.5 flex items-center gap-1 rounded-full font-bold">
@@ -663,7 +685,12 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {gdriveToken ? (
+                  {isSaConnected ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold font-sans">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Google Service Account Aktif ({saClientEmail.substring(0, 20)}...)
+                    </div>
+                  ) : gdriveToken ? (
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold font-sans">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Sinkronisasi Google Drive Aktif (Super Admin)
@@ -673,22 +700,22 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                       Google Drive Belum Tersambung
                     </div>
-                  )}
-
-                  {auth.currentUser?.email === 'muhammad.nawa@gmail.com' && (
-                    <button
-                      type="button"
-                      onClick={handleConnectGDrive}
-                      disabled={isConnectingGDrive}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50 font-sans"
-                    >
-                      {isConnectingGDrive ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Upload className="w-3.5 h-3.5" />
-                      )}
-                      <span>{gdriveToken ? 'Sambungkan Ulang' : 'Sambungkan Drive Super Admin'}</span>
-                    </button>
+                  )}                  {auth.currentUser?.email === 'muhammad.nawa@gmail.com' && (
+                    <div className="flex items-center gap-1.5 font-sans">
+                      <button
+                        type="button"
+                        onClick={handleConnectGDrive}
+                        disabled={isConnectingGDrive}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isConnectingGDrive ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>{gdriveToken ? 'Sambungkan Ulang OAuth' : 'Sambungkan Drive Super Admin'}</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -765,8 +792,8 @@ export default function EditRecipientModal({ recipient, onClose, onSave }: EditR
                                       alert('Berkas tidak ditemukan.');
                                       setPreviewDoc(null);
                                     }
-                                  } catch (e) {
-                                    alert('Gagal mengambil berkas dari database.');
+                                  } catch (e: any) {
+                                    alert('Gagal mengambil berkas: ' + (e?.message || e));
                                     setPreviewDoc(null);
                                   }
                                 }

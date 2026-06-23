@@ -416,6 +416,23 @@ export default function App() {
     }
   };
 
+  const handleDeleteGroup = async (groupItems: Recipient[]) => {
+    try {
+      const { deleteRecipientServer } = await import("./firebase");
+      for (const recipient of groupItems) {
+        if (recipient.id) await deleteRecipientServer(recipient.id);
+      }
+      setToastConfig({
+        title: "Berhasil Dihapus!",
+        description: `Rombongan (${groupItems.length} penerima) telah dihapus secara permanen.`,
+        type: "delete",
+      });
+      setShowSuccessToast(true);
+    } catch (error) {
+      alert("Gagal menghapus rombongan. Pastikan Anda memiliki akses.");
+    }
+  };
+
   const handleUpdateRecipientData = async (
     id: string,
     data: Partial<Recipient>,
@@ -879,6 +896,7 @@ export default function App() {
                     setActiveTab("input");
                   }}
                   onDuplicateGroup={handleDuplicateGroup}
+                  onDeleteGroup={handleDeleteGroup}
                 />
               )}
             </div>
@@ -912,6 +930,7 @@ export default function App() {
                       setActiveTab("input");
                     }}
                     onDuplicateGroup={handleDuplicateGroup}
+                    onDeleteGroup={handleDeleteGroup}
                   />
                 </div>
               </div>
@@ -1009,6 +1028,7 @@ export default function App() {
             }}
             onDeleteRecord={deletePPDRecordLocal}
             onDeleteRecipient={handleDeleteRecipient}
+            onDeleteGroup={handleDeleteGroup}
             onEditRecipient={(rec) => setEditingRecipient(rec)}
             onEditGroup={(group) => {
               setEditingGroupData(group);

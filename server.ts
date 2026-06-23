@@ -3,8 +3,130 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import crypto from "crypto";
 
 dotenv.config();
+
+// Service Account Access Token Cache
+interface CachedToken {
+  accessToken: string;
+  expiresAt: number;
+}
+let tokenCache: CachedToken | null = null;
+
+// Firebase ID token verifier using Firebase Auth REST API
+async function verifyFirebaseIdToken(idToken: string): Promise<string | null> {
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) {
+    console.error("VITE_FIREBASE_API_KEY is not defined on server.");
+    return null;
+  }
+  try {
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const email = data.users?.[0]?.email;
+      return email || null;
+    } else {
+      const txt = await res.text();
+      console.warn("IdToken verification failed:", txt);
+    }
+  } catch (e) {
+    console.error("Error verifying Firebase ID token:", e);
+  }
+  return null;
+}
+
+// Fetch settings/gdrive_service_account document REST-fully
+async function fetchServiceAccountFromFirestoreRes(idToken: string): Promise<any> {
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  if (!projectId) {
+    throw new Error("VITE_FIREBASE_PROJECT_ID environment variable is not defined on the Server.");
+  }
+  
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/gdrive_service_account`;
+  const res = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${idToken}`
+    }
+  });
+  
+  if (res.status === 404 || res.status === 403) {
+    // Document not found or insufficient permissions (e.g. not configured yet)
+    return null;
+  }
+  
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("fetchServiceAccountFromFirestoreRes error:", res.status, text);
+    throw new Error(`Gagal mengambil Service Account dari Firestore: ${res.status}`);
+  }
+  
+  const body = await res.json();
+  const fields = body.fields || {};
+  const jsonStr = fields.service_account_json?.stringValue;
+  if (!jsonStr) {
+    return null;
+  }
+  
+  return JSON.parse(jsonStr);
+}
+
+// Sign RS256 JWT
+function signGoogleJwt(payload: any, privateKey: string): string {
+  const header = { alg: "RS256", typ: "JWT" };
+  const base64Header = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  
+  const sign = crypto.createSign("SHA256");
+  sign.update(`${base64Header}.${base64Payload}`);
+  
+  const formattedKey = privateKey.replace(/\\n/g, '\n');
+  const signature = sign.sign(formattedKey, "base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+  
+  return `${base64Header}.${base64Payload}.${signature}`;
+}
+
+// Exchange JWT for GDrive bearer access token
+async function getDriveAccessTokenFromServiceAccount(sa: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  };
+  
+  const jwt = signGoogleJwt(payload, sa.private_key);
+  
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    })
+  });
+  
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Google OAuth exchanges failed: ${response.statusText} (${errText})`);
+  }
+  
+  const data = await response.json();
+  if (!data.access_token) {
+    throw new Error("Google tidak mengembalikan access_token.");
+  }
+  return data.access_token;
+}
 
 async function startServer() {
   const app = express();
@@ -177,6 +299,111 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
       res.status(500).json({ 
         error: err.message || "Terjadi kesalahan ketika melakukan klasifikasi menggunakan Gemini AI." 
       });
+    }
+  });
+
+  // GET /api/gdrive/token - Return a cached/issued Google OAuth2 token using the Service Account
+  app.get("/api/gdrive/token", async (req: express.Request, res: express.Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Sesi autentikasi diperlukan. Hubungkan akun Anda." });
+      }
+      
+      const idToken = authHeader.substring(7);
+      const email = await verifyFirebaseIdToken(idToken);
+      if (!email) {
+        return res.status(401).json({ error: "Sesi Anda tidak valid atau telah kadaluarsa." });
+      }
+
+      // Check Cache
+      if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
+        return res.json({ accessToken: tokenCache.accessToken });
+      }
+
+      let sa: any = null;
+      // 1. Env variable secret checks
+      if (process.env.GDRIVE_SERVICE_ACCOUNT_JSON) {
+        try {
+          sa = JSON.parse(process.env.GDRIVE_SERVICE_ACCOUNT_JSON);
+        } catch (e: any) {
+          console.error("Failed to parse GDRIVE_SERVICE_ACCOUNT_JSON:", e);
+        }
+      }
+
+      // 2. Db fallback
+      if (!sa) {
+        sa = await fetchServiceAccountFromFirestoreRes(idToken);
+      }
+
+      if (!sa || !sa.private_key || !sa.client_email) {
+        return res.status(404).json({ error: "Service account tidak dikonfigurasi. Silakan minta Super Admin mengaturnya." });
+      }
+
+      const accessToken = await getDriveAccessTokenFromServiceAccount(sa);
+
+      // Cache it
+      tokenCache = {
+        accessToken: accessToken,
+        expiresAt: Date.now() + 3500 * 1000 // Cache for 58 mins
+      };
+
+      return res.json({ accessToken });
+    } catch (err: any) {
+      console.error("Service Account Token Endpoint Error:", err);
+      return res.status(500).json({ error: err.message || "Gagal mendapatkan token Google Drive." });
+    }
+  });
+
+  // POST /api/gdrive/test-auth - Test custom Service Account keys
+  app.post("/api/gdrive/test-auth", async (req: express.Request, res: express.Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Sesi administratif diperlukan." });
+      }
+      
+      const idToken = authHeader.substring(7);
+      const email = await verifyFirebaseIdToken(idToken);
+      if (!email) {
+        return res.status(401).json({ error: "Layanan autentikasi gagal dihubungi." });
+      }
+
+      // Strict admin filter
+      if (email !== "muhammad.nawa@gmail.com") {
+        return res.status(403).json({ error: "Hanya Super Admin muhammad.nawa@gmail.com yang berhak menguji Service Account." });
+      }
+
+      const { service_account_json } = req.body;
+      if (!service_account_json) {
+        return res.status(400).json({ error: "JSON Service Account daddituhkan." });
+      }
+
+      const sa = JSON.parse(service_account_json);
+      if (!sa.private_key || !sa.client_email) {
+        return res.status(400).json({ error: "Struktur JSON tidak sah. Harus memiliki 'private_key' dan 'client_email'." });
+      }
+
+      const accessToken = await getDriveAccessTokenFromServiceAccount(sa);
+
+      // Quick test call to verification endpoint
+      const testRes = await fetch("https://www.googleapis.com/drive/v3/files?pageSize=1", {
+        headers: { "Authorization": `Bearer ${accessToken}` }
+      });
+
+      if (!testRes.ok) {
+        const driveErr = await testRes.text();
+        throw new Error(`Tes Google Drive API Gagal. Aktifkan Google Drive API di Google Cloud Console. Detail: ${driveErr}`);
+      }
+
+      return res.json({ 
+        status: "ok", 
+        clientEmail: sa.client_email,
+        message: "Akun Robot Service Anda berhasil terhubung dan diotorisasi!"
+      });
+    } catch (err: any) {
+      console.error("Service Account Test Route Error:", err);
+      return res.status(400).json({ error: err.message || "Format JSON salah/gagal divalidasi oleh Google." });
     }
   });
 

@@ -96,8 +96,40 @@ export const setGoogleAccessToken = (token: string | null) => {
   cachedGoogleAccessToken = token;
 };
 
+export const fetchServiceAccountDriveToken = async (): Promise<string | null> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+    
+    // Get Firebase ID Token
+    const idToken = await currentUser.getIdToken();
+    
+    // Call server API endpoint
+    const response = await fetch('/api/gdrive/token', {
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.accessToken || null;
+    }
+  } catch (error) {
+    console.error("Gagal mendapatkan Token Google Drive Service Account dari server:", error);
+  }
+  return null;
+};
+
 export const fetchSharedGoogleAccessToken = async (): Promise<string | null> => {
   try {
+    // 1. Prioritaskan Google Service Account (Akses Otomatis Tanpa Login Ulang)
+    const saToken = await fetchServiceAccountDriveToken();
+    if (saToken) {
+      return saToken;
+    }
+
+    // 2. Fallback ke akses manual Google Drive Super Admin
     const docRef = doc(db, 'settings', 'gdrive_token');
     const snap = await getDoc(docRef);
     if (snap.exists()) {
@@ -110,6 +142,17 @@ export const fetchSharedGoogleAccessToken = async (): Promise<string | null> => 
   return null;
 };
 
+export const validateGoogleToken = async (token: string): Promise<boolean> => {
+  try {
+    const res = await fetch('https://www.googleapis.com/drive/v3/files?pageSize=1', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+};
+
 const handleDriveFetch = async (url: string, options?: RequestInit) => {
   const res = await fetch(url, options);
   if (res.status === 401) {
@@ -120,7 +163,7 @@ const handleDriveFetch = async (url: string, options?: RequestInit) => {
     } catch(e) {
       console.warn('Failed to delete expired GDrive token from Firestore', e);
     }
-    throw new Error('Otorisasi Google Drive kadaluarsa (Token berlaku 1 Jam). Silakan sinkronkan ulang akun Google Anda.');
+    throw new Error('Sesi Google Drive kadaluarsa (Token berlaku 1 Jam). Silakan hubungi Super Admin (muhammad.nawa@gmail.com) di menu Form Pendaftaran untuk mengklik tombol "Sambungkan Kembali Drive Super Admin".');
   }
   return res;
 };
@@ -148,7 +191,7 @@ export const uploadBase64ToGoogleDrive = async (
     }
   }
   if (!token) {
-    throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
+    throw new Error("Sesi Google Drive Super Admin belum diaktifkan atau telah kadaluarsa. Silakan hubungi Super Admin (muhammad.nawa@gmail.com) di menu Form Pendaftaran untuk mendelegasikan/menyambungkan kembali Google Drive Super Admin.");
   }
 
   // Parse mime type and base64 helper
@@ -246,6 +289,23 @@ export const ensureGoogleDriveConnected = async (): Promise<boolean> => {
       cachedGoogleAccessToken = token;
     }
   }
+
+  // Active validation to detect expired tokens before doing GDrive ops
+  if (token) {
+    const isValid = await validateGoogleToken(token);
+    if (!isValid) {
+      console.warn("Detected expired or invalid Google Drive token in ensureGoogleDriveConnected. Clearing document...");
+      cachedGoogleAccessToken = null;
+      token = null;
+      try {
+        const { deleteDoc, doc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, 'settings', 'gdrive_token'));
+      } catch (e) {
+        console.warn('Failed to delete expired GDrive token from Firestore during validation', e);
+      }
+    }
+  }
+
   if (!token) {
     const currentUser = auth.currentUser;
     const isSuperAdmin = currentUser?.email === 'muhammad.nawa@gmail.com';
@@ -512,7 +572,7 @@ export const uploadFileToGoogleDrive = async (
     }
   }
   if (!token) {
-    throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan Google Drive Anda.");
+    throw new Error("Sesi Google Drive Super Admin belum diaktifkan atau telah kadaluarsa. Silakan hubungi Super Admin (muhammad.nawa@gmail.com) di menu Form Pendaftaran untuk mendelegasikan/menyambungkan kembali Google Drive Super Admin.");
   }
 
   // Resolve directory parent
@@ -587,9 +647,15 @@ export const uploadFileToGoogleDrive = async (
 
 export const downloadGoogleDriveFileAsBase64 = async (fileId: string): Promise<string | null> => {
   try {
-    const token = getGoogleAccessToken();
+    let token = getGoogleAccessToken();
     if (!token) {
-      throw new Error("OAuth Google Drive belum diotorisasi. Silakan hubungkan akun Google Anda.");
+      token = await fetchSharedGoogleAccessToken();
+      if (token) {
+        cachedGoogleAccessToken = token;
+      }
+    }
+    if (!token) {
+      throw new Error("Sesi Google Drive Super Admin belum diaktifkan atau telah kadaluarsa. Silakan hubungi Super Admin (muhammad.nawa@gmail.com) di menu Form Pendaftaran untuk mendelegasikan/menyambungkan kembali Google Drive Super Admin.");
     }
     const res = await handleDriveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -963,6 +1029,7 @@ export const deletePPDRecordServer = async (id: string) => {
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -989,6 +1056,7 @@ export const deleteRecipientServer = async (id: string) => {
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -1006,8 +1074,11 @@ export const getRecipientFile = async (recipientId: string, fileType: string) =>
       return snap.data().base64 as string;
     }
     return null;
-  } catch (error) {
-    console.warn(`Error loading recipient file for. Returning null.`, error);
+  } catch (error: any) {
+    console.warn(`Error loading recipient file:`, error);
+    if (error?.message?.includes('Google Drive') || error?.message?.includes('Otorisasi') || error?.message?.includes('OAuth')) {
+      throw error;
+    }
     return null;
   }
 };
@@ -1464,6 +1535,7 @@ export const deleteCompanionReport = async (reportId: string) => {
     await deleteDoc(doc(db, 'companionReports', reportId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -1535,6 +1607,7 @@ export const deleteMonthlyPayment = async (id: string) => {
     await deleteDoc(doc(db, 'monthly_payments', id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -1634,6 +1707,7 @@ export const deleteAnnouncement = async (id: string) => {
     await deleteDoc(doc(db, 'announcements', id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -1712,6 +1786,7 @@ export const deleteAssessment = async (id: string) => {
     await deleteDoc(doc(db, 'assessments', id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 
@@ -1829,6 +1904,7 @@ export const deleteUserConfig = async (id: string) => {
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+    throw error;
   }
 };
 

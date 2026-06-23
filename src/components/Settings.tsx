@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Loader2
 } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { 
   updateAppSettings, 
   streamAppSettings, 
@@ -22,7 +23,10 @@ import {
   streamAnnouncements, 
   updateAnnouncement, 
   deleteAnnouncement,
-  syncAllLocalFilesToGoogleDrive
+  syncAllLocalFilesToGoogleDrive,
+  db,
+  auth,
+  fetchSharedGoogleAccessToken
 } from '../firebase';
 import { AppSettings, Announcement } from '../types';
 import { cn } from '../lib/utils';
@@ -40,6 +44,107 @@ export default function Settings() {
   const [syncCurrent, setSyncCurrent] = useState(0);
   const [syncStatusText, setSyncStatusText] = useState('');
   const [syncResult, setSyncResult] = useState<{ successCount: number; errors: string[] } | null>(null);
+
+  // Google Service Account Integration States & Handlers
+  const [saJsonInput, setSaJsonInput] = useState('');
+  const [isTestingSA, setIsTestingSA] = useState(false);
+  const [isSaConnected, setIsSaConnected] = useState(false);
+  const [saClientEmail, setSaClientEmail] = useState('');
+
+  useEffect(() => {
+    const checkServiceAccount = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'gdrive_service_account');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setIsSaConnected(true);
+          setSaClientEmail(snap.data().client_email || 'Terhubung');
+        }
+      } catch (e) {
+        console.warn("Failed checking service account settings:", e);
+      }
+    };
+    checkServiceAccount();
+  }, []);
+
+  const handleTestAndSaveSA = async () => {
+    if (!saJsonInput.trim()) {
+      alert("Silakan masukkan teks JSON Kunci Service Account terlebih dahulu.");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saJsonInput);
+      if (!parsed.private_key || !parsed.client_email) {
+        alert("JSON tidak valid. Pastikan menyalin seluruh isi berkas JSON kunci yang memiliki field 'private_key' dan 'client_email'.");
+        return;
+      }
+    } catch (e) {
+      alert("Format teks tidak valid. Kunci harus berupa teks JSON murni. Silakan salin ulang dari file .json Anda.");
+      return;
+    }
+
+    setIsTestingSA(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Pengguna tidak terautentikasi.");
+      
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch('/api/gdrive/test-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ service_account_json: saJsonInput })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menguji koneksi Service Account.");
+      }
+
+      const resData = await response.json();
+      alert(resData.message || "Berhasil terhubung!");
+
+      // Save to Firestore settings
+      const docRef = doc(db, 'settings', 'gdrive_service_account');
+      await setDoc(docRef, {
+        service_account_json: saJsonInput,
+        client_email: resData.clientEmail,
+        updatedAt: new Date().toISOString()
+      });
+
+      setIsSaConnected(true);
+      setSaClientEmail(resData.clientEmail);
+      setSaJsonInput('');
+      
+      // Enforce refreshing driving token cache immediately
+      await fetchSharedGoogleAccessToken();
+
+      alert("Sukses! Google Service Account berhasil dipasang dan dihubungkan secara otomatis di latar belakang.");
+    } catch (err: any) {
+      console.error("Verification failed:", err);
+      alert("Gagal Terhubung: " + (err.message || err));
+    } finally {
+      setIsTestingSA(false);
+    }
+  };
+
+  const handleDisconnectSA = async () => {
+    if (window.confirm("Batal menyinkronkan dengan Service Account otomatis? Tindakan ini akan menghapus akun robot asisten dari database.")) {
+      try {
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, 'settings', 'gdrive_service_account'));
+        setIsSaConnected(false);
+        setSaClientEmail('');
+        
+        alert("Service Account berhasil diputuskan.");
+      } catch (e: any) {
+        alert("Gagal menghapus Service Account: " + e.message);
+      }
+    }
+  };
 
   const handleSyncAllLocalFiles = async () => {
     if (!confirm('Apakah Anda yakin ingin memeriksa dan menyinkronkan seluruh berkas lokal ke Google Drive? Sesi Google Drive Super Admin saat ini harus aktif.')) {
@@ -231,6 +336,94 @@ export default function Settings() {
               </button>
             </form>
           </div>
+        </div>
+
+        {/* GOOGLE SERVICE ACCOUNT INTEGRATION */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="space-y-2">
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2.5">
+                <Cloud className="w-5 h-5 text-indigo-600" />
+                Google Service Account (Akses Latar Belakang)
+              </h3>
+              <p className="text-sm text-slate-500 max-w-2xl leading-relaxed font-sans">
+                Dengan metode <strong>Google Service Account (Rekomendasi Utama)</strong>, seluruh staf pendaftaran dapat mengunggah dan menyinkronkan file persyaratan ke Google Drive secara otomatis di latar belakang tanpa membutuhkan sesi login Super Admin yang harus diperbarui berulang kali.
+              </p>
+            </div>
+            
+            {isSaConnected ? (
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold font-sans">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Terhubung: {saClientEmail.length > 30 ? `${saClientEmail.substring(0, 30)}...` : saClientEmail}
+                </div>
+                {auth.currentUser?.email === 'muhammad.nawa@gmail.com' && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectSA}
+                    className="text-[11px] text-rose-600 hover:underline font-bold mt-1 cursor-pointer"
+                  >
+                    Batalkan Hubungan Robot
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold font-sans shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Belum Terhubung
+              </div>
+            )}
+          </div>
+
+          {auth.currentUser?.email === 'muhammad.nawa@gmail.com' ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs leading-relaxed text-slate-600 font-sans space-y-2">
+                <span className="font-extrabold text-indigo-700 block uppercase tracking-wider text-[10px]">Instruksi Langkah Penyambungan:</span>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>Buat Service Account gratis di Google Cloud Console untuk web app ini.</li>
+                  <li>Buat kunci berformat <strong>JSON</strong> baru ("Create New Key" lalu pilih tipe JSON) untuk akun robot asisten tersebut dan unduh berkasnya.</li>
+                  <li>Tempel seluruh isi teks file JSON tersebut ke bidang input di bawah ini.</li>
+                  <li><strong>Sangat Penting:</strong> Bagikan (Share) folder induk berkas pendaftaran Anda di Google Drive ke alamat email robot asisten Anda (<code className="bg-slate-200 px-1 py-0.5 rounded text-indigo-750 font-semibold">{isSaConnected ? saClientEmail : "alamat-email-robot-anda@..."}</code>) dengan peran sebagai <strong>Editor</strong> agar ia bisa mengunggah berkas.</li>
+                </ol>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10.5px] font-bold text-slate-700 block uppercase tracking-wider">Tempel Teks File Kunci JSON</label>
+                <textarea
+                  rows={6}
+                  value={saJsonInput}
+                  onChange={(e) => setSaJsonInput(e.target.value)}
+                  placeholder='{ "type": "service_account", "project_id": "...", "private_key": "...", ... }'
+                  className="w-full text-xs font-mono p-3 border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestAndSaveSA}
+                  disabled={isTestingSA}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold font-sans cursor-pointer disabled:opacity-50 transition-colors shadow-md shadow-indigo-100"
+                >
+                  {isTestingSA ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sedang Memverifikasi Kunci...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Simpan & Aktifkan Robot</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-rose-500 italic">
+              * Hanya Super Admin (muhammad.nawa@gmail.com) yang dapat mengakses dan mengonfigurasi Google Service Account ini.
+            </p>
+          )}
         </div>
 
         {/* SINKRONISASI MASSAL GOOGLE DRIVE */}

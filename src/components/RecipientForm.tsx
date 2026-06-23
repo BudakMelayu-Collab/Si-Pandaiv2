@@ -375,6 +375,7 @@ export default function RecipientForm({
   useEffect(() => {
     if (initialGroupRecipients && initialGroupRecipients.length > 0) {
       const first = initialGroupRecipients[0];
+      if (!first) return;
       setRegistrationData({
         registrationId: first.registrationId || generateRegId(),
         adminCategory: first.adminCategory || "",
@@ -397,7 +398,7 @@ export default function RecipientForm({
         status: first.status || "Masuk Berkas",
         documents: [],
       });
-      setSubRecipients(initialGroupRecipients);
+      setSubRecipients(first.subRecipients || []);
     }
   }, [initialGroupRecipients]);
 
@@ -418,7 +419,7 @@ export default function RecipientForm({
             setSubRecipients(draft.subRecipients);
           }
           if (draft.recipientInput) {
-            setRecipientInput(draft.recipientInput);
+            setRecipientInput({ ...DEFAULT_RECIPIENT_INPUT, ...draft.recipientInput });
           }
           if (draft.currentStep) {
             setCurrentStep(draft.currentStep);
@@ -467,6 +468,7 @@ export default function RecipientForm({
     subRecipients,
     recipientInput,
     currentStep,
+    savedGroups,
     initialGroupRecipients,
   ]);
 
@@ -775,6 +777,7 @@ export default function RecipientForm({
         setGdriveBase64Data(base64);
       } catch (err: any) {
         console.error("Gagal memuat pratinjau Drive:", err);
+        alert("Gagal memuat pratinjau Google Drive: " + (err?.message || err));
       } finally {
         setPreviewLoading(false);
       }
@@ -1016,19 +1019,19 @@ export default function RecipientForm({
 
   // Handle addition of a recipient into the sub-table
   const handleAddRecipientToSubTable = async (): Promise<boolean> => {
-    if (!recipientInput.name.trim()) {
+    if (!(recipientInput.name || "").trim()) {
       alert("Nama penerima wajib diisi.");
       return false;
     }
-    if (!recipientInput.nik || recipientInput.nik.length !== 16) {
+    if (!(recipientInput.nik || "") || (recipientInput.nik || "").length !== 16) {
       alert("NIK penerima wajib diisi dan harus tepat 16 digit.");
       return false;
     }
-    if (!recipientInput.kk || recipientInput.kk.length !== 16) {
+    if (!(recipientInput.kk || "") || (recipientInput.kk || "").length !== 16) {
       alert("Nomor KK penerima wajib diisi dan harus tepat 16 digit.");
       return false;
     }
-    if (!recipientInput.address.trim()) {
+    if (!(recipientInput.address || "").trim()) {
       alert("Alamat domisili lengkap wajib diisi.");
       return false;
     }
@@ -1104,6 +1107,7 @@ export default function RecipientForm({
     let recipient = subRecipients[index];
 
     setRecipientInput({
+      ...DEFAULT_RECIPIENT_INPUT,
       ...recipient,
     });
 
@@ -1209,6 +1213,12 @@ export default function RecipientForm({
     localStorage.removeItem("recipient_form_draft");
   };
 
+  const handleDeleteSavedGroup = (index: number) => {
+    const newSavedGroups = [...savedGroups];
+    newSavedGroups.splice(index, 1);
+    setSavedGroups(newSavedGroups);
+  };
+
   const handleEditSavedGroup = (index: number) => {
     const groupToEdit = savedGroups[index];
     const newSavedGroups = [...savedGroups];
@@ -1225,14 +1235,14 @@ export default function RecipientForm({
 
     setSavedGroups(newSavedGroups);
     setRegistrationData(groupToEdit.registrationData);
-    setSubRecipients(groupToEdit.subRecipients);
+    setSubRecipients(groupToEdit.subRecipients || []);
     setCurrentStep(1); // Back to Step 1
 
     // Auto-load the first recipient into edit form so the user doesn't see an empty form
     if (groupToEdit.subRecipients && groupToEdit.subRecipients.length > 0) {
       setEditingIndex(0);
       const recipient = groupToEdit.subRecipients[0];
-      setRecipientInput({ ...recipient });
+      setRecipientInput({ ...DEFAULT_RECIPIENT_INPUT, ...recipient });
 
       const slotsCopy: DocumentSlot[] = INITIAL_DOCUMENT_SLOTS.map((s) => ({ ...s }));
       if (recipient.documents && Array.isArray(recipient.documents)) {
@@ -1301,7 +1311,7 @@ export default function RecipientForm({
         );
         return;
       }
-      if (recipientInput.nik.length !== 16 || recipientInput.kk.length !== 16) {
+      if ((recipientInput.nik || "").length !== 16 || (recipientInput.kk || "").length !== 16) {
         alert("NIK dan No KK harus tepat 16 digit.");
         return;
       }
@@ -1505,14 +1515,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.adminCategory}
                   onChange={(e) => handleAdminCategoryChange(e.target.value)}
@@ -1533,14 +1535,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.serviceType}
                   onChange={(e) => handleServiceTypeChange(e.target.value)}
@@ -1569,14 +1563,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.ashnaf}
                   onChange={(e) =>
@@ -1604,14 +1590,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.source}
                   onChange={(e) => {
@@ -1646,14 +1624,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.fundingSource}
                   onChange={(e) =>
@@ -1680,14 +1650,6 @@ export default function RecipientForm({
                   </label>
                   <input
                     required
-                    onInvalid={(e) =>
-                      (e.target as HTMLInputElement).setCustomValidity(
-                        "Harap isi bidang ini.",
-                      )
-                    }
-                    onInput={(e) =>
-                      (e.target as HTMLInputElement).setCustomValidity("")
-                    }
                     type="text"
                     placeholder="Ketik nama lembaga/instansi/UPZ"
                     className="form-input-custom font-medium animate-in slide-in-from-top-1 duration-250 border-indigo-200"
@@ -1708,14 +1670,6 @@ export default function RecipientForm({
                 </label>
                 <input
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLInputElement).setCustomValidity(
-                      "Harap isi bidang ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLInputElement).setCustomValidity("")
-                  }
                   type="date"
                   className="form-input-custom font-medium"
                   value={registrationData.submissionDate}
@@ -1870,14 +1824,6 @@ export default function RecipientForm({
                 </label>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.sector}
                   onChange={(e) =>
@@ -1928,14 +1874,6 @@ export default function RecipientForm({
                 </div>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.programName}
                   onChange={(e) => handleProgramNameChange(e.target.value)}
@@ -2086,14 +2024,6 @@ export default function RecipientForm({
                 </div>
                 <select
                   required
-                  onInvalid={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity(
-                      "Harap pilih item dalam daftar ini.",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLSelectElement).setCustomValidity("")
-                  }
                   className="form-input-custom font-medium"
                   value={registrationData.aidType}
                   onChange={(e) =>
@@ -2330,10 +2260,10 @@ export default function RecipientForm({
                     }
                     placeholder="16 Digit NIK"
                   />
-                  {recipientInput.nik.length > 0 &&
-                    recipientInput.nik.length < 16 && (
+                  {(recipientInput.nik || "").length > 0 &&
+                    (recipientInput.nik || "").length < 16 && (
                       <p className="text-xs text-rose-500 font-medium">
-                        NIK kurang {16 - recipientInput.nik.length} digit
+                        NIK kurang {16 - (recipientInput.nik || "").length} digit
                       </p>
                     )}
                 </div>
@@ -2355,10 +2285,10 @@ export default function RecipientForm({
                     }
                     placeholder="16 Digit No KK"
                   />
-                  {recipientInput.kk.length > 0 &&
-                    recipientInput.kk.length < 16 && (
+                  {(recipientInput.kk || "").length > 0 &&
+                    (recipientInput.kk || "").length < 16 && (
                       <p className="text-xs text-rose-500 font-medium">
-                        Nomor KK kurang {16 - recipientInput.kk.length} digit
+                        Nomor KK kurang {16 - (recipientInput.kk || "").length} digit
                       </p>
                     )}
                 </div>
@@ -2387,9 +2317,9 @@ export default function RecipientForm({
                   <div className="grid grid-cols-3 gap-2">
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.dob.split('/')[0] || ""}
+                      value={(recipientInput.dob || "").split('/')[0] || ""}
                       onChange={(e) => {
-                        const [, m = "", y = ""] = recipientInput.dob.split('/');
+                        const [, m = "", y = ""] = (recipientInput.dob || "").split('/');
                         setRecipientInput({ ...recipientInput, dob: `${e.target.value}/${m}/${y}` });
                       }}
                     >
@@ -2400,9 +2330,9 @@ export default function RecipientForm({
                     </select>
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.dob.split('/')[1] || ""}
+                      value={(recipientInput.dob || "").split('/')[1] || ""}
                       onChange={(e) => {
-                        const [d = "", , y = ""] = recipientInput.dob.split('/');
+                        const [d = "", , y = ""] = (recipientInput.dob || "").split('/');
                         setRecipientInput({ ...recipientInput, dob: `${d}/${e.target.value}/${y}` });
                       }}
                     >
@@ -2414,9 +2344,9 @@ export default function RecipientForm({
                     </select>
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.dob.split('/')[2] || ""}
+                      value={(recipientInput.dob || "").split('/')[2] || ""}
                       onChange={(e) => {
-                        const [d = "", m = ""] = recipientInput.dob.split('/');
+                        const [d = "", m = ""] = (recipientInput.dob || "").split('/');
                         setRecipientInput({ ...recipientInput, dob: `${d}/${m}/${e.target.value}` });
                       }}
                     >
@@ -2493,9 +2423,9 @@ export default function RecipientForm({
                   <div className="grid grid-cols-3 gap-2">
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.headOfFamilyDob.split('/')[0] || ""}
+                      value={(recipientInput.headOfFamilyDob || "").split('/')[0] || ""}
                       onChange={(e) => {
-                        const [, m = "", y = ""] = recipientInput.headOfFamilyDob.split('/');
+                        const [, m = "", y = ""] = (recipientInput.headOfFamilyDob || "").split('/');
                         setRecipientInput({ ...recipientInput, headOfFamilyDob: `${e.target.value}/${m}/${y}` });
                       }}
                     >
@@ -2506,9 +2436,9 @@ export default function RecipientForm({
                     </select>
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.headOfFamilyDob.split('/')[1] || ""}
+                      value={(recipientInput.headOfFamilyDob || "").split('/')[1] || ""}
                       onChange={(e) => {
-                        const [d = "", , y = ""] = recipientInput.headOfFamilyDob.split('/');
+                        const [d = "", , y = ""] = (recipientInput.headOfFamilyDob || "").split('/');
                         setRecipientInput({ ...recipientInput, headOfFamilyDob: `${d}/${e.target.value}/${y}` });
                       }}
                     >
@@ -2520,9 +2450,9 @@ export default function RecipientForm({
                     </select>
                     <select
                       className="form-input-custom font-medium px-2"
-                      value={recipientInput.headOfFamilyDob.split('/')[2] || ""}
+                      value={(recipientInput.headOfFamilyDob || "").split('/')[2] || ""}
                       onChange={(e) => {
-                        const [d = "", m = ""] = recipientInput.headOfFamilyDob.split('/');
+                        const [d = "", m = ""] = (recipientInput.headOfFamilyDob || "").split('/');
                         setRecipientInput({ ...recipientInput, headOfFamilyDob: `${d}/${m}/${e.target.value}` });
                       }}
                     >
@@ -2657,14 +2587,6 @@ export default function RecipientForm({
                     </label>
                     <select
                       required
-                      onInvalid={(e) =>
-                        (e.target as HTMLSelectElement).setCustomValidity(
-                          "Harap pilih item dalam daftar ini.",
-                        )
-                      }
-                      onInput={(e) =>
-                        (e.target as HTMLSelectElement).setCustomValidity("")
-                      }
                       className="form-input-custom font-medium"
                       value={recipientInput.district}
                       onChange={(e) =>
@@ -2781,14 +2703,6 @@ export default function RecipientForm({
                         </label>
                         <input
                           required
-                          onInvalid={(e) =>
-                            (e.target as HTMLInputElement).setCustomValidity(
-                              "Harap isi bidang ini.",
-                            )
-                          }
-                          onInput={(e) =>
-                            (e.target as HTMLInputElement).setCustomValidity("")
-                          }
                           type="text"
                           placeholder="Contoh: Kurang KK / NIK tidak jelas"
                           className="form-input-custom font-medium bg-white border-rose-200 w-full"
@@ -2886,10 +2800,10 @@ export default function RecipientForm({
                       onClick={async () => {
                         // If user is currently filling out the form, auto-save first
                         if (
-                          recipientInput.name.trim() !== "" ||
-                          recipientInput.nik.trim() !== "" ||
-                          recipientInput.kk.trim() !== "" ||
-                          recipientInput.address.trim() !== ""
+                          (recipientInput.name || "").trim() !== "" ||
+                          (recipientInput.nik || "").trim() !== "" ||
+                          (recipientInput.kk || "").trim() !== "" ||
+                          (recipientInput.address || "").trim() !== ""
                         ) {
                           const success = await handleAddRecipientToSubTable();
                           if (success) {
@@ -2956,7 +2870,7 @@ export default function RecipientForm({
                           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                             <h5 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
                               <FileCheck className="w-4 h-4 text-indigo-600" /> 
-                              Validasi Kelengkapan Berkas ({cfg.rData.programName || '-'}) - <span className="capitalize">{sub.name.toLowerCase()}</span>
+                              Validasi Kelengkapan Berkas ({cfg.rData.programName || '-'}) - <span className="capitalize">{(sub.name || "(Tanpa Nama)").toLowerCase()}</span>
                             </h5>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                               {docs.map((docName) => (
@@ -2998,7 +2912,7 @@ export default function RecipientForm({
                                   <Stethoscope className="w-4 h-4" /> Detail Medis & Khusus ({cfg.rData.sector})
                                 </h4>
                             <p className="text-sm font-semibold text-black">
-                              No Reg: {sub.registrationId || cfg.rData.registrationId} • Penerima: <span className="capitalize">{sub.name.toLowerCase()}</span>
+                              No Reg: {sub.registrationId || cfg.rData.registrationId} • Penerima: <span className="capitalize">{(sub.name || "(Tanpa Nama)").toLowerCase()}</span>
                             </p>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -3347,7 +3261,7 @@ export default function RecipientForm({
                                   {sub.registrationId || cfg.rData.registrationId || "-"}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
-                                  {sub.name.toLowerCase()}
+                                  {(sub.name || "(Tanpa Nama)").toLowerCase()}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
                                   {sub.programName || cfg.rData.programName || "-"}
@@ -3401,17 +3315,32 @@ export default function RecipientForm({
                           </p>
                         </div>
                       </label>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleEditSavedGroup(idx);
-                        }}
-                        className="absolute right-3 top-3 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-lg opacity-0 group-hover/card:opacity-100"
-                        title="Sunting Parameter & Data Penerima"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-all">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleEditSavedGroup(idx);
+                          }}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-lg"
+                          title="Sunting Parameter & Data Penerima"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if(confirm("Hapus kelompok draf ini?")) {
+                              handleDeleteSavedGroup(idx);
+                            }
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all rounded-lg"
+                          title="Hapus kelompok draf"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3536,7 +3465,7 @@ export default function RecipientForm({
                               </div>
                               <div>
                                 <h4 className="font-bold text-black text-sm capitalize">
-                                  {sub.name.toLowerCase()}
+                                  {(sub.name || "(Tanpa Nama)").toLowerCase()}
                                 </h4>
                                 <p className="text-black text-xs font-medium">
                                   NIK: {sub.nik} • KK: {sub.kk}
@@ -4041,7 +3970,7 @@ export default function RecipientForm({
                                   {sub.registrationId || cfg.rData.registrationId || "-"}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
-                                  {sub.name.toLowerCase()}
+                                  {(sub.name || "(Tanpa Nama)").toLowerCase()}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
                                   {sub.programName || cfg.rData.programName || "-"}
@@ -4320,7 +4249,7 @@ export default function RecipientForm({
                                   {currentIdx + 1}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 font-bold text-black capitalize whitespace-nowrap">
-                                  {sub.name.toLowerCase()}
+                                  {(sub.name || "(Tanpa Nama)").toLowerCase()}
                                 </td>
                                 <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap">
                                   {sub.programName || cfg.rData.programName || "-"}
@@ -4493,7 +4422,7 @@ export default function RecipientForm({
                           </td>
                           <td className="px-3 py-4 border-r border-slate-200/40 text-black whitespace-nowrap capitalize">
                             {sub.bankAccountHolder
-                              ? sub.bankAccountHolder.toLowerCase()
+                              ? (sub.bankAccountHolder || "").toLowerCase()
                               : "-"}
                           </td>
                           <td

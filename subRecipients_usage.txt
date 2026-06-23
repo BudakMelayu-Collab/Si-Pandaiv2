@@ -1,0 +1,121 @@
+235:  const [subRecipients, setSubRecipients] = useState<any[]>([]);
+238:  const [savedGroups, setSavedGroups] = useState<{registrationData: any, subRecipients: any[], printGroup: boolean}[]>([]);
+418:          if (draft.subRecipients) {
+419:            setSubRecipients(draft.subRecipients);
+442:          const safeSubRecipients = subRecipients.map((sub) => ({
+452:            subRecipients: safeSubRecipients,
+468:    subRecipients,
+942:        subIndexToIgnore !== null ? subRecipients[subIndexToIgnore]?.id : null;
+947:        const isCurrentlyBeingEditedInBatch = subRecipients.some(
+966:        const isCurrentlyBeingEditedInBatch = subRecipients.some(
+983:    // 2. Check in current sub-table batch (subRecipients)
+985:    const matchedNikBatchIdx = subRecipients.findIndex((r, idx) => {
+991:      const matchedR = subRecipients[matchedNikBatchIdx];
+1001:    const matchedNameBatchIdx = subRecipients.findIndex((r, idx) => {
+1007:      const matchedR = subRecipients[matchedNameBatchIdx];
+1079:      const updated = [...subRecipients];
+1085:      setSubRecipients([...subRecipients, finalRecipient]);
+1106:    let recipient = subRecipients[index];
+1175:        `Apakah Anda yakin ingin menghapus penerima "${subRecipients[index].name}" dari daftar sub-tabel ini?`,
+1190:    if (!subRecipients.length) {
+1198:      subRecipients: JSON.parse(JSON.stringify(subRecipients)),
+1220:    if (subRecipients.length > 0) {
+1223:        subRecipients: JSON.parse(JSON.stringify(subRecipients)),
+1230:    setSubRecipients(groupToEdit.subRecipients);
+1234:    if (groupToEdit.subRecipients && groupToEdit.subRecipients.length > 0) {
+1236:      const recipient = groupToEdit.subRecipients[0];
+1285:    let finalRecipients = [...subRecipients];
+1374:      return group.subRecipients.map(r => ({
+1430:              if (item.step > 2 && subRecipients.length === 0) {
+2885:                  {subRecipients.length > 0 && (
+2940:                { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+2941:                ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+2981:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, documentChecklist: newDocs };
+2984:                                        const updated = [...subRecipients];
+3016:                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, job: e.target.value };
+3019:                                    const updated = [...subRecipients];
+3041:                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, physicalCondition: e.target.value as any };
+3044:                                    const updated = [...subRecipients];
+3072:                                              updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, departureDate: e.target.value, treatmentStart: e.target.value };
+3075:                                              const updated = [...subRecipients];
+3093:                                              updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, treatmentStart: e.target.value, departureDate: e.target.value };
+3096:                                              const updated = [...subRecipients];
+3117:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, diagnosis: e.target.value };
+3120:                                        const updated = [...subRecipients];
+3145:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, hospitalName: e.target.value };
+3148:                                        const updated = [...subRecipients];
+3173:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, patientCompanionName: e.target.value };
+3176:                                        const updated = [...subRecipients];
+3198:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, daysCount: parseInt(e.target.value) || 0 };
+3201:                                      const updated = [...subRecipients];
+3222:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, healthToolName: e.target.value };
+3225:                                      const updated = [...subRecipients];
+3246:                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, receiptAmount: val };
+3249:                                    const updated = [...subRecipients];
+3266:              {subRecipients.length === 0 ? (
+3308:                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+3309:                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+3315:                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+3332:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+3338:                                        const updated = [...subRecipients];
+3402:                            {group.subRecipients.length} Penerima
+3425:                {onMassReceipt && (subRecipients.length > 0 || savedGroups.length > 0) && (
+3433:                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+3436:                        .filter(group => group.subRecipients && group.subRecipients.length > 0)
+3438:                            return group.subRecipients
+3516:                { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+3517:                ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+3567:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, penerimaDana: e.target.value };
+3570:                                      const updated = [...subRecipients];
+3593:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, amountProposed: val };
+3596:                                      const updated = [...subRecipients];
+3614:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPenyaluranMPZIS: e.target.value };
+3617:                                      const updated = [...subRecipients];
+3636:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, purpose: generated };
+3639:                                        const updated = [...subRecipients];
+3656:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, purpose: e.target.value };
+3659:                                      const updated = [...subRecipients];
+3678:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: generated };
+3681:                                        const updated = [...subRecipients];
+3697:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: e.target.value };
+3700:                                      const updated = [...subRecipients];
+3721:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { 
+3728:                                        const updated = [...subRecipients];
+3756:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, budgetName: e.target.value };
+3759:                                        const updated = [...subRecipients];
+3775:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, transactionType: e.target.value };
+3778:                                      const updated = [...subRecipients];
+3808:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolName: e.target.value };
+3811:                                      const updated = [...subRecipients];
+3829:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolLevel: e.target.value };
+3832:                                        const updated = [...subRecipients];
+3848:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, schoolClass: e.target.value };
+3851:                                        const updated = [...subRecipients];
+3870:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankName: e.target.value };
+3873:                                        const updated = [...subRecipients];
+3890:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankAccountNo: e.target.value.replace(/\D/g, "") };
+3893:                                        const updated = [...subRecipients];
+3911:                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, bankAccountHolder: e.target.value };
+3914:                                      const updated = [...subRecipients];
+3931:              {subRecipients.length === 0 && savedGroups.length === 0 ? (
+3976:                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+3977:                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+3984:                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+4002:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+4008:                                        const updated = [...subRecipients];
+4026:                                        updatedGroups[cfg.sIdx].subRecipients[idx] = {
+4032:                                        const updated = [...subRecipients];
+4073:                {onMassMPZIS && (subRecipients.length > 0 || savedGroups.length > 0) && (
+4081:                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+4085:                            const validChildren = group.subRecipients.filter((sub: any) => sub.isMPZISGenerated !== false);
+4129:                {onMassEPPD && (subRecipients.length > 0 || savedGroups.length > 0) && (
+4137:                      const activeGroupPayload = subRecipients.length > 0 ? [{ registrationData, subRecipients }] : [];
+4141:                            const validChildren = group.subRecipients.filter((sub: any) => sub.isEPPDGenerated !== false);
+4214:                    Konfirmasi Data Penerima ({subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)} Orang)
+4222:              {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) > 0 && (
+4224:                  {subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)} Orang Ditambahkan
+4230:              {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) === 0 ? (
+4308:                        { isSavedGroup: false, rData: registrationData, subs: subRecipients, sIdx: -1 },
+4309:                        ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
+4315:                              : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
+4593:                      : subRecipients.length > 0

@@ -44,6 +44,7 @@ interface RecipientListProps {
   onInternalMemo?: (recipient: Recipient) => void;
   onSurvey: (recipient: Recipient) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
+  onDeleteGroup?: (group: Recipient[]) => void;
   onEditRecipient?: (recipient: Recipient) => void;
   onEditGroup?: (groupItems: Recipient[]) => void;
   onDuplicateGroup?: (groupItems: Recipient[]) => void;
@@ -141,6 +142,7 @@ export default function RecipientList({
   onInternalMemo,
   onSurvey,
   onDeleteRecipient,
+  onDeleteGroup,
   onEditRecipient,
   onEditGroup,
   onDuplicateGroup,
@@ -152,6 +154,7 @@ export default function RecipientList({
   const [recipientToDelete, setRecipientToDelete] = useState<Recipient | null>(
     null,
   );
+  const [groupToDelete, setGroupToDelete] = useState<Recipient[] | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [previewDoc, setPreviewDoc] = useState<{
     name: string;
@@ -199,9 +202,9 @@ export default function RecipientList({
           "Gagal memuat berkas persyaratan. Kemungkinan berkas belum diunggah.",
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Terjadi kesalahan saat mengunduh berkas persyaratan.");
+      alert("Gagal memuat berkas persyaratan: " + (error?.message || error));
     } finally {
       setLoadingFile(null);
     }
@@ -259,8 +262,8 @@ export default function RecipientList({
   const filteredData = data
     .filter((item) => {
       const matchesSearch =
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.nik.includes(search);
+        (item.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (item.nik || "").includes(search);
       const matchesProgram =
         filterProgram === "All" || item.programName === filterProgram;
       const matchesType = filterType === "All" || item.aidType === filterType;
@@ -737,10 +740,10 @@ export default function RecipientList({
                                                 <span>Edit Formulir</span>
                                               </button>
                                             )}
-                                            {onDeleteRecipient && (
+                                            {(onDeleteGroup || onDeleteRecipient) && (
                                               <button
                                                 onClick={() =>
-                                                  setRecipientToDelete(item)
+                                                  setGroupToDelete(groupItems)
                                                 }
                                                 className="w-full py-1.5 px-2.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer"
                                               >
@@ -1385,6 +1388,65 @@ export default function RecipientList({
                     onDeleteRecipient(recipientToDelete);
                   }
                   setRecipientToDelete(null);
+                }}
+                className="flex-1 py-2.5 text-sm font-normal text-black bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-black" />
+                Ya, hapus permanen
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {groupToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden text-center"
+          >
+            <div className="p-8">
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight">
+                Hapus Rombongan Berkas
+              </h3>
+              <p className="text-slate-500 font-normal leading-relaxed text-[13px] mb-4">
+                Apakah Anda yakin ingin menghapus {groupToDelete.length} penerima dalam rombongan ini? Aksi ini akan menghapus semua data dan berkas terkait secara permanen.
+              </p>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-left space-y-1">
+                <p className="text-xs text-slate-400 font-bold tracking-wider mb-2">
+                  RINCIAN ROMBONGAN:
+                </p>
+                {groupToDelete.map((r, i) => (
+                  <p key={i} className="text-[13px] font-semibold text-slate-700 capitalize">
+                    {i + 1}. {(r.name || "(Tanpa Nama)").toLowerCase()} ({r.programName || r.aidType || "-"})
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3 font-normal">
+              <button
+                type="button"
+                onClick={() => setGroupToDelete(null)}
+                className="flex-1 py-2.5 text-sm font-normal text-black bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer active:scale-95 text-center"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteGroup) {
+                    onDeleteGroup(groupToDelete);
+                  } else if (onDeleteRecipient) {
+                    // Fallback to iterative deletion if bulk is not provided
+                    groupToDelete.forEach(r => onDeleteRecipient(r));
+                  }
+                  setGroupToDelete(null);
                 }}
                 className="flex-1 py-2.5 text-sm font-normal text-black bg-slate-100 hover:bg-slate-200 border border-slate-350 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
               >
