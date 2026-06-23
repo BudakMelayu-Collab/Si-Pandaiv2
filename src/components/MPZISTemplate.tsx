@@ -1174,11 +1174,15 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
                 </div>
               </div>
             </div>
+            <div className="grid grid-cols-[220px_10px_1fr] items-center">
+              <span className="font-medium">7. Penerima dana</span>
+              <span>:</span>
+              <span className="text-[10px] font-bold underline">{recipient.penerimaDana || ''}</span>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between mb-3 text-black font-sans">
-            <p className="text-[10px] font-medium tracking-wide">7. Penerima dana :</p>
-            {isEditing && (
+          {isEditing && (
+            <div className="flex items-center justify-end mb-3 text-black font-sans">
               <div className="flex gap-2">
                 <button 
                   onClick={resetColumns}
@@ -1203,8 +1207,8 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
                   Tambah Baris
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
           
           <table className="w-full border-collapse border border-black text-[10px] mb-6 text-black font-sans font-medium">
             <thead>
