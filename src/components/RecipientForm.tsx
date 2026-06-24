@@ -147,6 +147,17 @@ const BUDGET_OPTIONS = [
   { code: "5.1.02.07.03.12", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif BAZNAS Microfinance" },
   { code: "5.1.02.07.03.13", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Produktif Program Penguatan Ekonomi Pondok Pesantren" },
   { code: "5.1.02.07.03.99", name: "Penyaluran zakat maal asnaf fisabilillah Program Siak Sejahtera Dana Assesment, Asistensi dan Monev" },
+  { code: "5.1.02.07.05.01", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Bantuan Biaya Pendidikan Santri" },
+  { code: "5.1.02.07.05.02", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Bantuan Biaya Pendidikan Dasar" },
+  { code: "5.1.02.07.05.03", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Bantuan Santri Binaan BAZNAS Siak" },
+  { code: "5.1.02.07.05.04", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Program Satu Keluarga Satu Sarjana (SKSS)" },
+  { code: "5.1.02.07.05.05", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Program Beasiswa Cendikia BAZNAS (BCB)" },
+  { code: "5.1.02.07.05.06", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Bantuan Beasiswa Riset BAZNAS" },
+  { code: "5.1.02.07.05.07", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Program Bantuan Seragam Sekolah" },
+  { code: "5.1.02.07.05.08", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Program Santunan Tenaga Pendidik" },
+  { code: "5.1.02.07.05.09", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Program Beasiswa Santri Yatim Dhuafa" },
+  { code: "5.1.02.07.05.10", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Bantuan Beasiswa Disabilitas, 3T dan KAT" },
+  { code: "5.1.02.07.05.99", name: "Penyaluran zakat maal Asnaf Fisabillah Program Siak Cerdas Biaya Assesment, Asistensi dan Monev Program Siak Cerdas" },
 ];
 
 const PERSON_IN_CHARGE_OPTIONS = [
