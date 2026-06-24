@@ -99,7 +99,16 @@ export const setGoogleAccessToken = (token: string | null) => {
 export const fetchServiceAccountDriveToken = async (): Promise<string | null> => {
   try {
     const currentUser = auth.currentUser;
-    if (!currentUser) return null;
+    
+    // If not logged in, try the public token endpoint (for public forms)
+    if (!currentUser) {
+      const response = await fetch('/api/gdrive/public-token');
+      if (response.ok) {
+        const data = await response.json();
+        return data.accessToken || null;
+      }
+      return null;
+    }
     
     // Get Firebase ID Token
     const idToken = await currentUser.getIdToken();

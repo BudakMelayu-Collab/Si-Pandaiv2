@@ -318,6 +318,39 @@ Kembalikan jawaban Anda dalam format JSON murni dengan struktur berikut:
   });
 
   // GET /api/gdrive/token - Return a cached/issued Google OAuth2 token using the Service Account
+  app.get("/api/gdrive/public-token", async (req: express.Request, res: express.Response) => {
+    try {
+      // 1. Env variable secret checks
+      let sa: any = null;
+      if (process.env.GDRIVE_SERVICE_ACCOUNT_JSON) {
+        try {
+          sa = JSON.parse(process.env.GDRIVE_SERVICE_ACCOUNT_JSON);
+        } catch (e: any) {
+          console.error("Failed to parse GDRIVE_SERVICE_ACCOUNT_JSON:", e);
+        }
+      }
+
+      // Check Cache
+      if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
+        return res.json({ accessToken: tokenCache.accessToken });
+      }
+
+      if (sa) {
+        const accessToken = await getDriveAccessTokenFromServiceAccount(sa);
+        tokenCache = {
+          accessToken: accessToken,
+          expiresAt: Date.now() + 3500 * 1000 // Cache for 58 mins
+        };
+        return res.json({ accessToken });
+      }
+
+      return res.status(403).json({ error: "Service Account Google Drive belum terkonfigurasi. Sesi Google Drive Super Admin tidak tersedia untuk Form Publik." });
+    } catch (err: any) {
+      console.error("Public Token Endpoint Error:", err);
+      return res.status(500).json({ error: err.message || "Gagal mendapatkan token Google Drive publik." });
+    }
+  });
+
   app.get("/api/gdrive/token", async (req: express.Request, res: express.Response) => {
     try {
       const authHeader = req.headers.authorization;
