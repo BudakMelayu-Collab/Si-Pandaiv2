@@ -361,40 +361,40 @@ export const getOrCreateFolderHierarchy = async (
     // 1. Get or create main folder
     let mainFolderId = folderCache[mainFolderName];
     if (!mainFolderId) {
-      const qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-      const searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
+      // Try to find a folder shared with the account first (to avoid picking up a self-created orphan folder)
+      let qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and sharedWithMe=true and trashed=false`;
+      let searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
       
-      const searchMainRes = await handleDriveFetch(searchMainUrl, {
+      let searchMainRes = await handleDriveFetch(searchMainUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       if (searchMainRes.ok) {
-        const data = await searchMainRes.json();
+        let data = await searchMainRes.json();
         if (data.files && data.files.length > 0) {
           mainFolderId = data.files[0].id;
         }
       }
-      
+
+      // Fallback: If not found, try finding any folder with that name (e.g. if the user is using OAuth and owns it)
       if (!mainFolderId) {
-        const createMainRes = await handleDriveFetch('https://www.googleapis.com/drive/v3/files', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: mainFolderName,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: ['root']
-          })
+        qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
+        
+        searchMainRes = await handleDriveFetch(searchMainUrl, {
+          headers: { Authorization: `Bearer ${token}` }
         });
         
-        if (createMainRes.ok) {
-          const data = await createMainRes.json();
-          mainFolderId = data.id;
-        } else {
-          console.error("Gagal membuat folder utama di Google Drive:", await createMainRes.text());
+        if (searchMainRes.ok) {
+          let data = await searchMainRes.json();
+          if (data.files && data.files.length > 0) {
+            mainFolderId = data.files[0].id;
+          }
         }
+      }
+      
+      if (!mainFolderId) {
+        throw new Error("Folder utama 'SI-PANDAI Berkas Administratif' tidak ditemukan. Harap pastikan folder tersebut sudah dibuat dan dibagikan (Share) ke email robot asisten dengan peran Editor.");
       }
       
       if (mainFolderId) {
