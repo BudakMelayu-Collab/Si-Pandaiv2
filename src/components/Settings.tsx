@@ -383,7 +383,7 @@ export default function Settings() {
                   <li>Buat Service Account gratis di Google Cloud Console untuk web app ini.</li>
                   <li>Buat kunci berformat <strong>JSON</strong> baru ("Create New Key" lalu pilih tipe JSON) untuk akun robot asisten tersebut dan unduh berkasnya.</li>
                   <li>Tempel seluruh isi teks file JSON tersebut ke bidang input di bawah ini.</li>
-                  <li><strong>Sangat Penting:</strong> Bagikan (Share) folder induk berkas pendaftaran Anda di Google Drive ke alamat email robot asisten Anda (<code className="bg-slate-200 px-1 py-0.5 rounded text-indigo-750 font-semibold">{isSaConnected ? saClientEmail : "alamat-email-robot-anda@..."}</code>) dengan peran sebagai <strong>Editor</strong> agar ia bisa mengunggah berkas.</li>
+                  <li><strong>Sangat Penting:</strong> Buat folder dengan nama persis <strong>SI-PANDAI Berkas Administratif</strong> di Google Drive Anda, lalu Bagikan (Share) folder tersebut ke alamat email robot asisten Anda (<code className="bg-slate-200 px-1 py-0.5 rounded text-indigo-750 font-semibold">{isSaConnected ? saClientEmail : "alamat-email-robot-anda@..."}</code>) dengan peran sebagai <strong>Editor</strong> agar ia bisa mengunggah berkas.</li>
                 </ol>
               </div>
 

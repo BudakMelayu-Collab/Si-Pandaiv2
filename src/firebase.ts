@@ -361,7 +361,7 @@ export const getOrCreateFolderHierarchy = async (
     // 1. Get or create main folder
     let mainFolderId = folderCache[mainFolderName];
     if (!mainFolderId) {
-      const qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`;
+      const qMain = `name='${mainFolderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
       const searchMainUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qMain)}&fields=files(id)`;
       
       const searchMainRes = await handleDriveFetch(searchMainUrl, {
