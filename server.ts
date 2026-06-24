@@ -44,11 +44,12 @@ async function verifyFirebaseIdToken(idToken: string): Promise<string | null> {
 // Fetch settings/gdrive_service_account document REST-fully
 async function fetchServiceAccountFromFirestoreRes(idToken: string): Promise<any> {
   const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || "(default)";
   if (!projectId) {
     throw new Error("VITE_FIREBASE_PROJECT_ID environment variable is not defined on the Server.");
   }
   
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/gdrive_service_account`;
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/settings/gdrive_service_account`;
   const res = await fetch(url, {
     headers: {
       "Authorization": `Bearer ${idToken}`
