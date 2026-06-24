@@ -409,7 +409,7 @@ export default function RecipientForm({
         status: first.status || "Masuk Berkas",
         documents: [],
       });
-      setSubRecipients(first.subRecipients || []);
+      setSubRecipients(initialGroupRecipients || []);
     }
   }, [initialGroupRecipients]);
 
