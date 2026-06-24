@@ -26,7 +26,10 @@ import {
   syncAllLocalFilesToGoogleDrive,
   db,
   auth,
-  fetchSharedGoogleAccessToken
+  fetchSharedGoogleAccessToken,
+  loginWithGoogle,
+  getGoogleAccessToken,
+  setGoogleAccessToken
 } from '../firebase';
 import { AppSettings, Announcement } from '../types';
 import { cn } from '../lib/utils';
@@ -44,6 +47,33 @@ export default function Settings() {
   const [syncCurrent, setSyncCurrent] = useState(0);
   const [syncStatusText, setSyncStatusText] = useState('');
   const [syncResult, setSyncResult] = useState<{ successCount: number; errors: string[] } | null>(null);
+
+  // Personal Google Drive Connection States
+  const [personalGdriveToken, setPersonalGdriveToken] = useState<string | null>(() => getGoogleAccessToken());
+  const [isConnectingPersonalGDrive, setIsConnectingPersonalGDrive] = useState(false);
+
+  const handleConnectPersonalGDrive = async () => {
+    setIsConnectingPersonalGDrive(true);
+    try {
+      await loginWithGoogle();
+      const token = getGoogleAccessToken();
+      setPersonalGdriveToken(token);
+      alert('Berhasil menyambungkan Google Drive Pribadi!');
+    } catch (err: any) {
+      console.error('Gagal menyambungkan Google Drive:', err);
+      alert('Gagal menyambungkan Google Drive: ' + err.message);
+    } finally {
+      setIsConnectingPersonalGDrive(false);
+    }
+  };
+
+  const handleDisconnectPersonalGDrive = () => {
+    if (confirm('Apakah Anda yakin ingin memutuskan sambungan Google Drive Pribadi?')) {
+      setGoogleAccessToken(null);
+      setPersonalGdriveToken(null);
+      alert('Google Drive Pribadi berhasil diputuskan.');
+    }
+  };
 
   // Google Service Account Integration States & Handlers
   const [saJsonInput, setSaJsonInput] = useState('');
@@ -335,6 +365,53 @@ export default function Settings() {
                 {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
             </form>
+          </div>
+        </div>
+
+        {/* GOOGLE DRIVE PERSONAL INTEGRATION */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="space-y-2">
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2.5">
+                <Cloud className="w-5 h-5 text-indigo-600" />
+                Google Drive Pribadi (Akses Langsung)
+              </h3>
+              <p className="text-sm text-slate-500 max-w-2xl leading-relaxed font-sans">
+                Dengan menghubungkan <strong>Google Drive Pribadi</strong>, akun Google Anda saat ini akan digunakan untuk mengunggah berkas persyaratan. Akses ini hanya berlaku di browser/perangkat Anda yang saat ini digunakan (Sesi Lokal).
+              </p>
+            </div>
+            
+            {personalGdriveToken ? (
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold font-sans">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  GDrive Tersambung
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDisconnectPersonalGDrive}
+                  className="text-[11px] text-rose-600 hover:underline font-bold mt-1 cursor-pointer"
+                >
+                  Putuskan Sambungan
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleConnectPersonalGDrive}
+                  disabled={isConnectingPersonalGDrive}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 rounded-xl text-xs font-bold font-sans transition-colors cursor-pointer"
+                >
+                  {isConnectingPersonalGDrive ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                  Sambungkan GDrive
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -5,11 +5,6 @@ import {
   Upload,
   FileText,
   Image as ImageIcon,
-  MapPin,
-  User,
-  Hash,
-  Phone,
-  Calendar,
   DollarSign,
   Plus,
   Trash2,
@@ -26,6 +21,20 @@ import {
   Copy,
   Stethoscope,
   FileCheck,
+  CreditCard,
+  MapPin,
+  Calendar,
+  Phone,
+  Map,
+  Hash,
+  Building,
+  User,
+  BookOpen,
+  Search,
+  Download,
+  IdCard,
+  MapPinned,
+  FolderCheck,
 } from "lucide-react";
 import {
   SIAK_REGIONAL_DATA,
@@ -41,7 +50,6 @@ import { AidDocument, Recipient } from "../types";
 import {
   getGoogleAccessToken,
   setGoogleAccessToken,
-  loginWithGoogle,
   uploadFileToGoogleDrive,
   downloadGoogleDriveFileAsBase64,
   fetchSharedGoogleAccessToken,
@@ -76,6 +84,36 @@ interface DocumentSlot {
 const INITIAL_DOCUMENT_SLOTS: DocumentSlot[] = [
   { label: "Berkas Persyaratan" },
 ];
+
+const toTitleCase = (str: string) => {
+  return str.replace(/\w\S*/g, function(txt){
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+};
+
+const extractNIK = (nik: string) => {
+  if (nik.length !== 16) return null;
+  const dateStr = nik.substring(6, 8);
+  const monthStr = nik.substring(8, 10);
+  const yearStr = nik.substring(10, 12);
+  
+  let date = parseInt(dateStr, 10);
+  let gender = "Laki-laki";
+  
+  if (date > 40) {
+    gender = "Perempuan";
+    date -= 40;
+  }
+  
+  let year = parseInt(yearStr, 10);
+  const currentYear = new Date().getFullYear() % 100;
+  year += (year > currentYear ? 1900 : 2000);
+  
+  const formattedDate = date.toString().padStart(2, '0');
+  const dob = `${formattedDate}/${monthStr}/${year}`;
+  
+  return { gender, dob };
+};
 
 const DEFAULT_RECIPIENT_INPUT = {
   name: "",
@@ -256,6 +294,8 @@ export default function RecipientForm({
 
   // Step for Wizard UI
   const [currentStep, setCurrentStep] = useState(initialStep || 1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const excelFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Set step if initialStep changes
   useEffect(() => {
@@ -312,34 +352,12 @@ export default function RecipientForm({
   const [saveToGDrive, setSaveToGDrive] = useState<boolean>(() => {
     return localStorage.getItem("ppd_save_gdrive") !== "false";
   });
-  const [gdriveToken, setGdriveToken] = useState<string | null>(
-    getGoogleAccessToken(),
-  );
-  const [isConnectingGDrive, setIsConnectingGDrive] = useState<boolean>(false);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [gdriveBase64Data, setGdriveBase64Data] = useState<string | null>(null);
 
-  const handleConnectGDrive = async (): Promise<string | null> => {
-    setIsConnectingGDrive(true);
-    try {
-      await loginWithGoogle();
-      const token = getGoogleAccessToken();
-      setGdriveToken(token);
-      setSaveToGDrive(true);
-      localStorage.setItem("ppd_save_gdrive", "true");
-      return token;
-    } catch (err: any) {
-      console.error("Gagal menghubungkan Google Drive:", err);
-      alert("Gagal menghubungkan Google Drive: " + (err.message || err));
-      return null;
-    } finally {
-      setIsConnectingGDrive(false);
-    }
-  };
-
   const handleToggleGDrive = (val: boolean) => {
     if (val && !getGoogleAccessToken()) {
-      handleConnectGDrive();
+      alert("Silakan hubungkan Google Drive Pribadi di menu Pengaturan terlebih dahulu.");
     } else {
       setSaveToGDrive(val);
       localStorage.setItem("ppd_save_gdrive", val ? "true" : "false");
@@ -357,6 +375,29 @@ export default function RecipientForm({
   } | null>(null);
   const [mergingIdx, setMergingIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setActiveSlotIndex(idx);
+      const file = e.dataTransfer.files[0];
+      await processSelectedFile(file, idx);
+    }
+  };
 
   // States for adding custom dropdown options
   const [customSubSectors, setCustomSubSectors] = useState<
@@ -376,9 +417,6 @@ export default function RecipientForm({
   useEffect(() => {
     const fetchToken = async () => {
       const token = await fetchSharedGoogleAccessToken();
-      if (token) {
-        setGdriveToken(token);
-      }
     };
     fetchToken();
   }, []);
@@ -482,6 +520,17 @@ export default function RecipientForm({
     savedGroups,
     initialGroupRecipients,
   ]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (subRecipients.length > 0 || savedGroups.length > 0 || currentStep > 1) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [subRecipients.length, savedGroups.length, currentStep]);
 
   useEffect(() => {
     if (!existingRecipients) return;
@@ -799,11 +848,7 @@ export default function RecipientForm({
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeSlotIndex === null) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processSelectedFile = async (file: File, slotIndex: number) => {
     let type: "image" | "pdf" | "excel" = "image";
     if (
       file.type === "application/pdf" ||
@@ -828,7 +873,6 @@ export default function RecipientForm({
         token = await fetchSharedGoogleAccessToken();
         if (token) {
           setGoogleAccessToken(token);
-          setGdriveToken(token);
         }
       }
 
@@ -836,7 +880,7 @@ export default function RecipientForm({
       if (token) {
         try {
           const slotLabel =
-            documentSlots[activeSlotIndex]?.label || "Berkas_Penerima";
+            documentSlots[slotIndex]?.label || "Berkas_Penerima";
           const recipientName = recipientInput.name || "Penerima_Tanpa_Nama";
           const recipientNik = recipientInput.nik || "";
           const sectorVal = registrationData.sector || "Umum";
@@ -887,8 +931,8 @@ export default function RecipientForm({
       }
 
       const updatedSlots = [...documentSlots];
-      updatedSlots[activeSlotIndex] = {
-        ...updatedSlots[activeSlotIndex],
+      updatedSlots[slotIndex] = {
+        ...updatedSlots[slotIndex],
         file: {
           name: file.name,
           type,
@@ -904,6 +948,13 @@ export default function RecipientForm({
       setIsSavingAll(false);
       setActiveSlotIndex(null);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (activeSlotIndex === null) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processSelectedFile(file, activeSlotIndex);
   };
 
   const handleRemoveFileForSlot = (idx: number) => {
@@ -967,8 +1018,8 @@ export default function RecipientForm({
         return {
           isDuplicate: true,
           type: "NIK",
-          strict: true,
-          message: `Gagal: NIK (${cleanNik}) sudah terdaftar di database atas nama "${matchedNikDb.name}" pada program "${matchedNikDb.programName || "-"}"!`,
+          strict: false,
+          message: `INFORMASI RIWAYAT PENERIMA:\n\nNIK (${cleanNik}) sudah pernah terdaftar di database atas nama "${matchedNikDb.name}".\n\nRiwayat Bantuan Sebelumnya:\n- Program: ${matchedNikDb.programName || "-"}\n- Jenis Bantuan: ${matchedNikDb.aidType || "-"}\n- Sektor: ${matchedNikDb.sector || "-"}\n\nPenerima diperbolehkan mengajukan lebih dari 1 kali.\nApakah Anda yakin ingin mendaftarkan pengajuan bantuan baru untuk penerima ini?`,
         };
       }
 
@@ -1004,8 +1055,8 @@ export default function RecipientForm({
       return {
         isDuplicate: true,
         type: "NIK",
-        strict: true,
-        message: `Gagal: NIK (${cleanNik}) sudah ada di sub-tabel pendaftaran rombongan ini atas nama "${matchedR.name}"!`,
+        strict: false,
+        message: `PERINGATAN GANDA (ROMBONGAN SAAT INI):\n\nNIK (${cleanNik}) sudah ada di sub-tabel pendaftaran rombongan ini atas nama "${matchedR.name}"!\n\nApakah Anda yakin penerima ini mengajukan beberapa bantuan sekaligus dalam satu rombongan ini?`,
       };
     }
 
@@ -1196,6 +1247,84 @@ export default function RecipientForm({
       } else if (editingIndex !== null && editingIndex > index) {
         setEditingIndex(editingIndex - 1);
       }
+    }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const { read, utils } = await import("xlsx");
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = read(data, { type: "array" });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData = utils.sheet_to_json(sheet) as any[];
+
+          const importedRecipients = jsonData.map((row) => {
+            return {
+              ...DEFAULT_RECIPIENT_INPUT,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              name: row.Nama || row.name || "",
+              nik: String(row.NIK || row.nik || "").trim(),
+              kk: String(row.KK || row.kk || "").trim(),
+              address: row.Alamat || row.address || "",
+              district: row.Kecamatan || row.district || "",
+              kampung: row.Kampung || row.Kelurahan || row.kampung || "",
+              phone: String(row.Telepon || row.NoHP || row.phone || "").trim(),
+              gender: row.Gender || row["Jenis Kelamin"] || "Laki-laki",
+              amountProposed: row["Jumlah Bantuan"] || row.amountProposed || 0,
+              amountDisbursed: row["Jumlah Bantuan"] || row.amountDisbursed || 0,
+            };
+          });
+
+          if (importedRecipients.length > 0) {
+            setSubRecipients(prev => [...prev, ...importedRecipients]);
+            alert(`${importedRecipients.length} data penerima berhasil diimpor!`);
+          } else {
+            alert("Tidak ada data yang valid ditemukan di dalam file Excel.");
+          }
+        } catch (err) {
+          console.error("Gagal parse excel", err);
+          alert("Format file tidak valid.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Gagal import excel", error);
+      alert("Gagal mengimpor file Excel. Pastikan format sudah benar.");
+    }
+
+    if (excelFileInputRef.current) {
+      excelFileInputRef.current.value = "";
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const { utils, writeFile } = await import("xlsx");
+      const templateData = [{
+        Nama: "Budi Santoso",
+        NIK: "1408010101900001",
+        KK: "1408010101900001",
+        Alamat: "Jl. Sudirman No 1",
+        Kecamatan: "Siak",
+        Kampung: "Kampung Dalam",
+        Telepon: "081234567890",
+        "Jenis Kelamin": "Laki-laki",
+        "Jumlah Bantuan": 500000
+      }];
+      const worksheet = utils.json_to_sheet(templateData);
+      const workbook = utils.book_new();
+      utils.book_append_sheet(workbook, worksheet, "Template Penerima");
+      writeFile(workbook, "Template_Data_Penerima.xlsx");
+    } catch (error) {
+      console.error("Gagal download template", error);
+      alert("Gagal mengunduh template Excel.");
     }
   };
 
@@ -1411,8 +1540,36 @@ export default function RecipientForm({
     }
   };
 
+  const handleNextStep = async () => {
+    const formElement = document.getElementById("recipient-form") as HTMLFormElement;
+    if (formElement && !formElement.reportValidity()) {
+      return;
+    }
+
+    if (currentStep === 2) {
+      if (
+        (recipientInput.name || "").trim() !== "" ||
+        (recipientInput.nik || "").trim() !== "" ||
+        (recipientInput.kk || "").trim() !== "" ||
+        (recipientInput.address || "").trim() !== ""
+      ) {
+        const success = await handleAddRecipientToSubTable();
+        if (success) {
+          setCurrentStep(3);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      } else {
+        setCurrentStep(3);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    } else if (currentStep < 5) {
+      setCurrentStep(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 pb-28 relative">
       {/* Stepper Progress */}
       <div className="bg-white p-3 sm:px-6 sm:py-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between relative">
         <div className="absolute top-1/2 left-8 right-8 h-1 bg-slate-100 -translate-y-1/2 rounded-full hidden sm:block z-0"></div>
@@ -2174,34 +2331,6 @@ export default function RecipientForm({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-slate-100 gap-4">
-              <div />
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-                >
-                  Batalkan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const formElement = document.getElementById(
-                      "recipient-form",
-                    ) as HTMLFormElement;
-                    if (formElement && !formElement.reportValidity()) {
-                      return;
-                    }
-                    setCurrentStep(2);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-                >
-                  Berikutnya <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
@@ -2209,12 +2338,12 @@ export default function RecipientForm({
         {currentStep === 2 && (
           <div
             id="form-input-penerima"
-            className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-600 animate-in fade-in duration-300"
+            className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300"
           >
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-2 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                  <User className="w-5 h-5" />
+                  <IdCard className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">
@@ -2227,50 +2356,114 @@ export default function RecipientForm({
                   </p>
                 </div>
               </div>
-              {editingIndex !== null && (
-                <span className="text-xs bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full animate-pulse self-start lg:self-auto">
-                  Sedang Mengubah Data
-                </span>
-              )}
+              <div className="flex items-center gap-3 self-start lg:self-auto">
+                {editingIndex === null && (
+                  <>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      ref={excelFileInputRef}
+                      onChange={handleImportExcel}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => excelFileInputRef.current?.click()}
+                      className="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Import Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="text-xs bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Template Excel
+                    </button>
+                  </>
+                )}
+                {editingIndex !== null && (
+                  <span className="text-xs bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full animate-pulse">
+                    Sedang Mengubah Data
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2 lg:col-span-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Nama Penerima *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input-custom font-medium"
-                    value={recipientInput.name}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        name: e.target.value,
-                      })
-                    }
-                    placeholder="Nama lengkap sesuai KTP"
-                  />
+            <div className="space-y-8">
+              {/* SECTION: INFORMASI PRIBADI */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                  <IdCard className="h-5 w-5 text-indigo-600" />
+                  <h4 className="text-base font-bold text-slate-800">Informasi Pribadi</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
+                  <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700">
+                      Nama Penerima *
+                    </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <User className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      className="form-input-custom font-medium pl-10"
+                      value={recipientInput.name}
+                      onChange={(e) =>
+                        setRecipientInput({
+                          ...recipientInput,
+                          name: e.target.value,
+                        })
+                      }
+                      onBlur={() => 
+                        setRecipientInput({
+                          ...recipientInput,
+                          name: toTitleCase(recipientInput.name),
+                        })
+                      }
+                      placeholder="Nama lengkap sesuai KTP"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-semibold text-slate-700">
                     NIK *
                   </label>
-                  <input
-                    type="text"
-                    maxLength={16}
-                    className="form-input-custom font-mono"
-                    value={recipientInput.nik}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        nik: e.target.value.replace(/\D/g, ""),
-                      })
-                    }
-                    placeholder="16 Digit NIK"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <CreditCard className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      className={cn(
+                        "form-input-custom font-mono pl-10 transition-colors",
+                        (recipientInput.nik || "").length > 0 && (recipientInput.nik || "").length < 16 && "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20",
+                        (recipientInput.nik || "").length === 16 && "border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      )}
+                      value={recipientInput.nik}
+                      onChange={(e) => {
+                        const newNik = e.target.value.replace(/\D/g, "");
+                        const updates: any = { nik: newNik };
+                        if (newNik.length === 16) {
+                          const extracted = extractNIK(newNik);
+                          if (extracted && !extracted.dob.includes("NaN")) {
+                            updates.gender = extracted.gender;
+                            updates.dob = extracted.dob;
+                          }
+                        }
+                        setRecipientInput({
+                          ...recipientInput,
+                          ...updates
+                        });
+                      }}
+                      placeholder="16 Digit NIK"
+                    />
+                  </div>
                   {(recipientInput.nik || "").length > 0 &&
                     (recipientInput.nik || "").length < 16 && (
                       <p className="text-xs text-rose-500 font-medium">
@@ -2279,23 +2472,32 @@ export default function RecipientForm({
                     )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-semibold text-slate-700">
                     Nomor KK *
                   </label>
-                  <input
-                    type="text"
-                    maxLength={16}
-                    className="form-input-custom font-mono"
-                    value={recipientInput.kk}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        kk: e.target.value.replace(/\D/g, ""),
-                      })
-                    }
-                    placeholder="16 Digit No KK"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <FileText className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      className={cn(
+                        "form-input-custom font-mono pl-10 transition-colors",
+                        (recipientInput.kk || "").length > 0 && (recipientInput.kk || "").length < 16 && "border-rose-400 focus:border-rose-500 focus:ring-rose-500/20",
+                        (recipientInput.kk || "").length === 16 && "border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+                      )}
+                      value={recipientInput.kk}
+                      onChange={(e) =>
+                        setRecipientInput({
+                          ...recipientInput,
+                          kk: e.target.value.replace(/\D/g, ""),
+                        })
+                      }
+                      placeholder="16 Digit No KK"
+                    />
+                  </div>
                   {(recipientInput.kk || "").length > 0 &&
                     (recipientInput.kk || "").length < 16 && (
                       <p className="text-xs text-rose-500 font-medium">
@@ -2304,72 +2506,48 @@ export default function RecipientForm({
                     )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-semibold text-slate-700">
                     Tempat Lahir
                   </label>
-                  <input
-                    type="text"
-                    className="form-input-custom font-medium"
-                    value={recipientInput.pob}
-                    onChange={(e) =>
-                      setRecipientInput({
-                        ...recipientInput,
-                        pob: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Tanggal Lahir
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <select
-                      className="form-input-custom font-medium px-2"
-                      value={(recipientInput.dob || "").split('/')[0] || ""}
-                      onChange={(e) => {
-                        const [, m = "", y = ""] = (recipientInput.dob || "").split('/');
-                        setRecipientInput({ ...recipientInput, dob: `${e.target.value}/${m}/${y}` });
-                      }}
-                    >
-                      <option value="">Hari</option>
-                      {Array.from({length: 31}, (_, i) => i + 1).map(d => (
-                        <option key={d} value={String(d).padStart(2, '0')}>{String(d).padStart(2, '0')}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="form-input-custom font-medium px-2"
-                      value={(recipientInput.dob || "").split('/')[1] || ""}
-                      onChange={(e) => {
-                        const [d = "", , y = ""] = (recipientInput.dob || "").split('/');
-                        setRecipientInput({ ...recipientInput, dob: `${d}/${e.target.value}/${y}` });
-                      }}
-                    >
-                      <option value="">Bulan</option>
-                      {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => {
-                        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-                        return <option key={m} value={m}>{months[i]}</option>
-                      })}
-                    </select>
-                    <select
-                      className="form-input-custom font-medium px-2"
-                      value={(recipientInput.dob || "").split('/')[2] || ""}
-                      onChange={(e) => {
-                        const [d = "", m = ""] = (recipientInput.dob || "").split('/');
-                        setRecipientInput({ ...recipientInput, dob: `${d}/${m}/${e.target.value}` });
-                      }}
-                    >
-                      <option value="">Tahun</option>
-                      {Array.from({length: 120}, (_, i) => new Date().getFullYear() - i).map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <MapPin className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      className="form-input-custom font-medium pl-10"
+                      value={recipientInput.pob}
+                      onChange={(e) =>
+                        setRecipientInput({
+                          ...recipientInput,
+                          pob: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-1">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Tanggal Lahir
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="DD/MM/YYYY"
+                    className="form-input-custom font-medium"
+                    value={recipientInput.dob}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      if (val.length > 2) val = val.substring(0, 2) + "/" + val.substring(2);
+                      if (val.length > 5) val = val.substring(0, 5) + "/" + val.substring(5, 9);
+                      setRecipientInput({ ...recipientInput, dob: val });
+                    }}
+                    maxLength={10}
+                  />
+                </div>
+
+                <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-semibold text-slate-700">
                     Jenis Kelamin
                   </label>
@@ -2388,7 +2566,7 @@ export default function RecipientForm({
                   </select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-semibold text-slate-700">
                     Status Hubungan Keluarga
                   </label>
@@ -2410,7 +2588,7 @@ export default function RecipientForm({
                   </select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-2">
                   <label className="text-sm font-semibold text-slate-700">
                     Nama Kepala Keluarga
                   </label>
@@ -2427,7 +2605,7 @@ export default function RecipientForm({
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-2">
                   <label className="text-sm font-semibold text-slate-700">
                     Tgl Lahir Kepala Keluarga
                   </label>
@@ -2469,96 +2647,114 @@ export default function RecipientForm({
                     >
                       <option value="">Tahun</option>
                       {Array.from({length: 120}, (_, i) => new Date().getFullYear() - i).map(y => (
-                        <option key={y} value={y}>{y}</option>
+                        <option key={y} value={String(y)}>{y}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    No Handphone
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+62"
-                    className="form-input-custom font-medium"
-                    value={recipientInput.contact}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/[^\d+]/g, "");
-                      if (val.startsWith("0")) {
-                        val = "+62" + val.substring(1);
-                      } else if (val.startsWith("62")) {
-                        val = "+" + val;
-                      }
-                      setRecipientInput({ ...recipientInput, contact: val });
-                    }}
-                  />
-                </div>
-
+              </div>
               </div>
 
-              <div className="mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="space-y-2 lg:col-span-4">
+              {/* SECTION: KONTAK & ALAMAT */}
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                  <MapPinned className="h-5 w-5 text-indigo-600" />
+                  <h4 className="text-base font-bold text-slate-800">Kontak & Alamat</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
+                  <div className="space-y-2 lg:col-span-2 xl:col-span-2">
                     <label className="text-sm font-semibold text-slate-700">
-                      Alamat Lengkap *
+                      No Handphone
                     </label>
-                    <textarea
-                      className="form-input-custom min-h-[60px]"
-                      value={recipientInput.address}
-                      onChange={(e) =>
-                        setRecipientInput({
-                          ...recipientInput,
-                          address: e.target.value,
-                        })
-                      }
-                      placeholder="Jalan"
-                    />
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Phone className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder="+62"
+                        className="form-input-custom font-medium pl-10"
+                        value={recipientInput.contact}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^\d+]/g, "");
+                          if (val.startsWith("0")) {
+                            val = "+62" + val.substring(1);
+                          } else if (val.startsWith("62")) {
+                            val = "+" + val;
+                          }
+                          setRecipientInput({ ...recipientInput, contact: val });
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
+                  
+                  <div className="space-y-2 lg:col-span-2 xl:col-span-2">
                     <label className="text-sm font-semibold text-slate-700">
-                      RT
+                      Alamat Lengkap (Jl, RT/RW) *
                     </label>
-                    <input
-                      type="text"
-                      maxLength={3}
-                      className="form-input-custom font-mono"
-                      value={recipientInput.rt}
-                      onChange={(e) =>
-                        setRecipientInput({
-                          ...recipientInput,
-                          rt: e.target.value.replace(/\D/g, ""),
-                        })
-                      }
-                      placeholder="000"
-                    />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                          <MapPin className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <input
+                          type="text"
+                          className="form-input-custom font-medium pl-10"
+                          value={recipientInput.address}
+                          onChange={(e) =>
+                            setRecipientInput({
+                              ...recipientInput,
+                              address: e.target.value,
+                            })
+                          }
+                          placeholder="Jalan"
+                        />
+                      </div>
+                      <div className="w-16">
+                        <input
+                          type="text"
+                          maxLength={3}
+                          className="form-input-custom font-mono text-center px-1"
+                          value={recipientInput.rt}
+                          onChange={(e) =>
+                            setRecipientInput({
+                              ...recipientInput,
+                              rt: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                          placeholder="RT"
+                        />
+                      </div>
+                      <div className="w-16">
+                        <input
+                          type="text"
+                          maxLength={3}
+                          className="form-input-custom font-mono text-center px-1"
+                          value={recipientInput.rw}
+                          onChange={(e) =>
+                            setRecipientInput({
+                              ...recipientInput,
+                              rw: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                          placeholder="RW"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700">
-                      RW
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={3}
-                      className="form-input-custom font-mono"
-                      value={recipientInput.rw}
-                      onChange={(e) =>
-                        setRecipientInput({
-                          ...recipientInput,
-                          rw: e.target.value.replace(/\D/g, ""),
-                        })
-                      }
-                      placeholder="000"
-                    />
-                  </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 lg:col-span-2 xl:col-span-2">
                     <label className="text-sm font-semibold text-slate-700">
                       Kampung / Kelurahan
                     </label>
-                    <select
-                      className="form-input-custom font-medium"
-                      value={recipientInput.kampung}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MapPin className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        list="kampung-list"
+                        className="form-input-custom font-medium pl-9"
+                        value={recipientInput.kampung}
                       onChange={(e) => {
                         const selectedKampung = e.target.value;
                         let detectedDistrict = recipientInput.district;
@@ -2577,29 +2773,42 @@ export default function RecipientForm({
                           district: detectedDistrict,
                         });
                       }}
-                    >
-                      <option value="">Pilih Kampung/Kelurahan</option>
-                      {Object.entries(SIAK_REGIONAL_DATA).map(
-                        ([district, villages]) => (
-                          <optgroup key={district} label={district}>
-                            {villages.map((v) => (
-                              <option key={v} value={v}>
-                                {v}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ),
-                      )}
-                    </select>
+                      placeholder="Pilih atau ketik Kampung..."
+                    />
+                    <datalist id="kampung-list">
+                      {recipientInput.district && SIAK_REGIONAL_DATA[recipientInput.district as keyof typeof SIAK_REGIONAL_DATA]
+                        ? SIAK_REGIONAL_DATA[recipientInput.district as keyof typeof SIAK_REGIONAL_DATA].map((v) => (
+                            <option key={v} value={v}>
+                              {v}
+                            </option>
+                          ))
+                        : Object.entries(SIAK_REGIONAL_DATA).map(
+                            ([district, villages]) => (
+                              <React.Fragment key={district}>
+                                {villages.map((v) => (
+                                  <option key={v} value={v}>
+                                    {v} - {district}
+                                  </option>
+                                ))}
+                              </React.Fragment>
+                            ),
+                          )}
+                    </datalist>
+                    </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 lg:col-span-2 xl:col-span-2">
                     <label className="text-sm font-semibold text-slate-700">
                       Kecamatan *
                     </label>
-                    <select
-                      required
-                      className="form-input-custom font-medium"
-                      value={recipientInput.district}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Map className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        list="kecamatan-list"
+                        required
+                        className="form-input-custom font-medium pl-9"
+                        value={recipientInput.district}
                       onChange={(e) =>
                         setRecipientInput({
                           ...recipientInput,
@@ -2607,126 +2816,126 @@ export default function RecipientForm({
                           kampung: "",
                         })
                       }
-                    >
-                      <option value="">Pilih Kecamatan</option>
+                      placeholder="Pilih atau ketik Kecamatan..."
+                    />
+                    <datalist id="kecamatan-list">
                       {Object.keys(SIAK_REGIONAL_DATA).map((d) => (
                         <option key={d} value={d}>
                           {d}
                         </option>
                       ))}
-                    </select>
+                    </datalist>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* STATUS & UNGGAH BERKAS BLOK */}
-              <hr className="border-slate-100" />
-              <div className="pt-2">
+              <div className="pt-6 space-y-4">
+                <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                  <FolderCheck className="h-5 w-5 text-indigo-600" />
+                  <h4 className="text-base font-bold text-slate-800">Administrasi & Berkas</h4>
+                </div>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100 items-start">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 items-start">
                     
-                    <div className="space-y-1.5 flex-1">
-                      <label className="text-xs font-bold text-indigo-700 tracking-wider block">
-                        Status Berkas Saat ini *
-                      </label>
-                      <select
-                        className="form-input-custom font-medium bg-white border-indigo-200"
-                        value={recipientInput.documentStatus || "Lengkap"}
-                        onChange={(e) =>
-                          setRecipientInput({
-                            ...recipientInput,
-                            documentStatus: e.target.value,
-                            documentStatusNotes:
-                              e.target.value === "Lengkap"
-                                ? ""
-                                : recipientInput.documentStatusNotes,
-                          })
-                        }
-                      >
-                        <option value="Lengkap">Lengkap</option>
-                        <option value="Tidak Lengkap">Tidak Lengkap</option>
-                      </select>
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700 tracking-wider block">
+                          Status Berkas Saat ini *
+                        </label>
+                        <select
+                          className="form-input-custom font-medium bg-white border-indigo-200"
+                          value={recipientInput.documentStatus || "Lengkap"}
+                          onChange={(e) =>
+                            setRecipientInput({
+                              ...recipientInput,
+                              documentStatus: e.target.value,
+                              documentStatusNotes:
+                                e.target.value === "Lengkap"
+                                  ? ""
+                                  : recipientInput.documentStatusNotes,
+                            })
+                          }
+                        >
+                          <option value="Lengkap">Lengkap</option>
+                          <option value="Tidak Lengkap">Tidak Lengkap</option>
+                        </select>
+                      </div>
+
+                      {recipientInput.documentStatus === "Tidak Lengkap" && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                          <label className="text-sm font-semibold text-rose-700 tracking-wider block">
+                            Keterangan Tidak Lengkap *
+                          </label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Contoh: Kurang fotokopi KK / KTP buram"
+                            className="form-input-custom font-medium bg-white border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 w-full"
+                            value={recipientInput.documentStatusNotes || ""}
+                            onChange={(e) =>
+                              setRecipientInput({
+                                ...recipientInput,
+                                documentStatusNotes: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center justify-between">
-                         <label className="text-xs font-bold text-slate-700 tracking-wider block">
-                           Unggah Berkas Persyaratan
-                         </label>
-                         {!isPublic && (
-                           <button
-                             type="button"
-                             onClick={handleConnectGDrive}
-                             disabled={isConnectingGDrive}
-                             className="flex items-center transition-opacity hover:opacity-80"
-                             title="Pengaturan Google Drive"
-                           >
-                             {isConnectingGDrive ? (
-                               <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
-                             ) : gdriveToken ? (
-                               <span className="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">GDrive Tersambung</span>
-                             ) : (
-                               <span className="text-[9px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">Sambungkan GDrive</span>
-                             )}
-                           </button>
-                         )}
-                      </div>
-                      
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 tracking-wider block mb-1">
+                         Unggah Berkas Persyaratan Utama
+                      </label>
                       <div className="mt-1">
                         {documentSlots.slice(0, 1).map((slot, idx) => (
                            <div 
                              key={idx} 
+                             onDragEnter={handleDrag}
+                             onDragLeave={handleDrag}
+                             onDragOver={handleDrag}
+                             onDrop={(e) => handleDrop(e, idx)}
                              className={cn(
-                               "rounded-xl border flex flex-col justify-center transition-all w-full", 
-                               slot.file ? "border-emerald-200 bg-emerald-50/40 p-1.5" : "border-slate-200 bg-white p-1"
+                               "rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all w-full relative overflow-hidden group bg-white", 
+                               dragActive ? "border-indigo-400 bg-indigo-50" : slot.file ? "border-emerald-300 bg-emerald-50/50" : "border-slate-300 hover:bg-slate-50 hover:border-slate-400"
                              )} 
-                             style={{ minHeight: '42px' }}
+                             style={{ minHeight: '140px' }}
                            >
                              {slot.file ? (
-                                <div className="flex items-center justify-between gap-2 px-1">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                   {slot.file.type === "pdf" ? <FileText className="w-4 h-4 text-rose-500 shrink-0" /> : slot.file.type === "excel" ? <FileText className="w-4 h-4 text-emerald-600 shrink-0" /> : <ImageIcon className="w-4 h-4 text-indigo-500 shrink-0" />}
-                                   <p className="text-[10px] font-bold text-slate-800 truncate" title={slot.file.name}>{slot.file.name}</p>
+                                <div className="flex flex-col items-center justify-center p-4 w-full h-full text-center">
+                                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 mb-3">
+                                   {slot.file.type === "pdf" ? <FileText className="w-6 h-6 text-rose-500" /> : slot.file.type === "excel" ? <FileText className="w-6 h-6 text-emerald-600" /> : <ImageIcon className="w-6 h-6 text-indigo-500" />}
                                   </div>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                     <button type="button" onClick={() => handleOpenPreview(slot.label, slot.file!.url)} className="p-1 hover:bg-indigo-100 text-indigo-600 rounded transition-colors" title="Lihat">
-                                       <Eye className="w-3.5 h-3.5" />
+                                  <p className="text-sm font-bold text-slate-800 truncate w-full max-w-[220px]" title={slot.file.name}>{slot.file.name}</p>
+                                  <p className="text-xs font-medium text-slate-500 mt-1">{slot.file.size}</p>
+                                  <div className="flex items-center gap-2 mt-4 z-10">
+                                     <button type="button" onClick={() => handleOpenPreview(slot.label, slot.file!.url)} className="px-4 py-2 text-xs font-bold bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm" title="Lihat">
+                                       <Eye className="w-4 h-4" /> Lihat
                                      </button>
-                                     <button type="button" onClick={() => handleRemoveFileForSlot(idx)} className="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors" title="Hapus">
-                                       <X className="w-3.5 h-3.5" />
+                                     <button type="button" onClick={() => handleRemoveFileForSlot(idx)} className="px-4 py-2 text-xs font-bold bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm" title="Hapus">
+                                       <X className="w-4 h-4" /> Hapus
                                      </button>
                                   </div>
                                 </div>
                              ) : (
-                                <button type="button" onClick={() => triggerUploadForSlot(idx)} className="w-full py-1.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1 rounded-lg">
-                                  <Upload className="w-3.5 h-3.5" /> Pilih Berkas
-                                </button>
+                                <>
+                                  <button type="button" onClick={() => triggerUploadForSlot(idx)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" aria-label="Upload Berkas"></button>
+                                  <div className="flex flex-col items-center justify-center p-4 text-center pointer-events-none">
+                                    <div className={cn("flex items-center justify-center w-14 h-14 rounded-full mb-3 transition-colors", dragActive ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-500")}>
+                                      <Upload className="w-7 h-7" />
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-700">Tarik & Lepas berkas di sini</p>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">atau <span className="text-indigo-600">klik untuk mencari</span></p>
+                                    <p className="text-[10px] text-slate-400 mt-2 font-mono bg-slate-100 px-2 py-1 rounded">Mendukung: JPG, PNG, PDF, Excel (Maks 1MB)</p>
+                                  </div>
+                                </>
                              )}
                            </div>
                         ))}
                       </div>
                     </div>
-
-                    {recipientInput.documentStatus === "Tidak Lengkap" && (
-                      <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-150 flex-1">
-                        <label className="text-xs font-bold text-rose-700 tracking-wider block">
-                          Keterangan Tidak Lengkap *
-                        </label>
-                        <input
-                          required
-                          type="text"
-                          placeholder="Contoh: Kurang KK / NIK tidak jelas"
-                          className="form-input-custom font-medium bg-white border-rose-200 w-full"
-                          value={recipientInput.documentStatusNotes || ""}
-                          onChange={(e) =>
-                            setRecipientInput({
-                              ...recipientInput,
-                              documentStatusNotes: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -2783,53 +2992,6 @@ export default function RecipientForm({
                     </>
                   )}
                 </button>
-              </div>
-
-              {/* SECTION WIZARD SUBMIT */}
-              <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-8 border-t border-slate-100 gap-4">
-                <div />
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Batalkan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCurrentStep(1);
-                    }}
-                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
-                  >
-                    Kembali
-                  </button>
-                  {subRecipients.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        // If user is currently filling out the form, auto-save first
-                        if (
-                          (recipientInput.name || "").trim() !== "" ||
-                          (recipientInput.nik || "").trim() !== "" ||
-                          (recipientInput.kk || "").trim() !== "" ||
-                          (recipientInput.address || "").trim() !== ""
-                        ) {
-                          const success = await handleAddRecipientToSubTable();
-                          if (success) {
-                            setCurrentStep(3);
-                          }
-                        } else {
-                          setCurrentStep(3);
-                        }
-                      }}
-                      className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                    >
-                      Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -2929,27 +3091,34 @@ export default function RecipientForm({
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="space-y-2">
                               <label className="text-sm font-semibold text-slate-700">Pekerjaan *</label>
-                              <select
-                                required
-                                className="form-input-custom"
-                                value={sub.job || ''}
-                                onChange={(e) => {
-                                  if (cfg.isSavedGroup) {
-                                    const updatedGroups = [...savedGroups];
-                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, job: e.target.value };
-                                    setSavedGroups(updatedGroups);
-                                  } else {
-                                    const updated = [...subRecipients];
-                                    updated[idx] = { ...sub, job: e.target.value };
-                                    setSubRecipients(updated);
-                                  }
-                                }}
-                              >
-                                <option value="">Pilih Pekerjaan</option>
-                                {JOB_OPTIONS.map((jobOpt) => (
-                                  <option key={jobOpt} value={jobOpt}>{jobOpt.replace(/_/g, ' ')}</option>
-                                ))}
-                              </select>
+                              <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <User className="h-4 w-4 text-slate-400" />
+                                </div>
+                                <input
+                                  list={`pekerjaan-list-${cIdx}-${idx}`}
+                                  required
+                                  className="form-input-custom pl-9"
+                                  value={sub.job || ''}
+                                  onChange={(e) => {
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, job: e.target.value };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, job: e.target.value };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                  placeholder="Pilih atau ketik Pekerjaan..."
+                                />
+                                <datalist id={`pekerjaan-list-${cIdx}-${idx}`}>
+                                  {JOB_OPTIONS.map((jobOpt) => (
+                                    <option key={jobOpt} value={jobOpt}>{jobOpt.replace(/_/g, ' ')}</option>
+                                  ))}
+                                </datalist>
+                              </div>
                             </div>
                             
                             <div className="space-y-2">
@@ -3156,25 +3325,30 @@ export default function RecipientForm({
 
                             <div className="space-y-2">
                               <label className="text-sm font-semibold text-slate-700">Jumlah Bantuan (Untuk Formulir Saja) *</label>
-                              <input
-                                required
-                                type="text"
-                                className="form-input-custom font-mono"
-                                placeholder="0"
-                                value={sub.receiptAmount ? Number(sub.receiptAmount).toLocaleString("id-ID") : ""}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, "");
-                                  if (cfg.isSavedGroup) {
-                                    const updatedGroups = [...savedGroups];
-                                    updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, receiptAmount: val };
-                                    setSavedGroups(updatedGroups);
-                                  } else {
-                                    const updated = [...subRecipients];
-                                    updated[idx] = { ...sub, receiptAmount: val };
-                                    setSubRecipients(updated);
-                                  }
-                                }}
-                              />
+                              <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <span className="text-slate-500 font-bold font-mono text-sm">Rp</span>
+                                </div>
+                                <input
+                                  required
+                                  type="text"
+                                  className="form-input-custom font-mono pl-9"
+                                  placeholder="0"
+                                  value={sub.receiptAmount ? Number(sub.receiptAmount).toLocaleString("id-ID") : ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    if (cfg.isSavedGroup) {
+                                      const updatedGroups = [...savedGroups];
+                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, receiptAmount: val };
+                                      setSavedGroups(updatedGroups);
+                                    } else {
+                                      const updated = [...subRecipients];
+                                      updated[idx] = { ...sub, receiptAmount: val };
+                                      setSubRecipients(updated);
+                                    }
+                                  }}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3400,34 +3574,6 @@ export default function RecipientForm({
                    Tambah Parameter Registrasi
                 </button>
               </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-                >
-                  Batalkan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(2);
-                  }}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
-                >
-                  Kembali
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(4);
-                  }}
-                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                >
-                  Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -3519,24 +3665,29 @@ export default function RecipientForm({
 
                               <div className="space-y-1">
                                 <label className="text-xs font-bold text-slate-500 uppercase">Jumlah Bantuan (Rp)</label>
-                                <input
-                                  type="text"
-                                  className="form-input-custom font-mono"
-                                  placeholder="0"
-                                  value={sub.amountProposed ? Number(sub.amountProposed).toLocaleString("id-ID") : ""}
-                                  onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, "");
-                                    if (cfg.isSavedGroup) {
-                                      const updatedGroups = [...savedGroups];
-                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, amountProposed: val };
-                                      setSavedGroups(updatedGroups);
-                                    } else {
-                                      const updated = [...subRecipients];
-                                      updated[idx] = { ...sub, amountProposed: val };
-                                      setSubRecipients(updated);
-                                    }
-                                  }}
-                                />
+                                <div className="relative">
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-slate-500 font-bold font-mono text-sm">Rp</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    className="form-input-custom font-mono pl-9"
+                                    placeholder="0"
+                                    value={sub.amountProposed ? Number(sub.amountProposed).toLocaleString("id-ID") : ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, "");
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, amountProposed: val };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, amountProposed: val };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  />
+                                </div>
                               </div>
 
                               <div className="space-y-1">
@@ -3757,10 +3908,13 @@ export default function RecipientForm({
 
                             {/* PENDIDIKAN & PERBANKAN BLOK */}
                             <div className="space-y-4">
-                              <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Detail Pendidikan & Perbankan</h4>
+                              <div className="flex items-center space-x-2 border-b border-slate-100 pb-1.5 mt-2">
+                                <BookOpen className="h-4 w-4 text-indigo-500" />
+                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Pendidikan (Opsional)</h4>
+                              </div>
                               
                               <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Nama Sekolah / Instansi (Opsional)</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase">Nama Sekolah / Instansi</label>
                                 <input
                                   type="text"
                                   className="form-input-custom font-medium"
@@ -3820,13 +3974,22 @@ export default function RecipientForm({
                                 </div>
                               </div>
 
+                              <div className="flex items-center space-x-2 border-b border-slate-100 pb-1.5 mt-6 mb-2">
+                                <CreditCard className="h-4 w-4 text-emerald-500" />
+                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Rekening Bank (Opsional)</h4>
+                              </div>
+
                               <div className="grid grid-cols-2 gap-3 pt-2">
                                 <div className="space-y-1">
                                   <label className="text-xs font-bold text-slate-500 uppercase">Nama Bank</label>
-                                  <input
-                                    type="text"
-                                    className="form-input-custom font-medium"
-                                    value={sub.bankName || ""}
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <Building className="h-3.5 w-3.5 text-slate-400" />
+                                    </div>
+                                    <input
+                                      type="text"
+                                      className="form-input-custom font-medium pl-9 text-sm"
+                                      value={sub.bankName || ""}
                                     onChange={(e) => {
                                       if (cfg.isSavedGroup) {
                                         const updatedGroups = [...savedGroups];
@@ -3839,14 +4002,19 @@ export default function RecipientForm({
                                       }
                                     }}
                                   />
+                                  </div>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-xs font-bold text-slate-500 uppercase">Nomor Rekening</label>
-                                  <input
-                                    type="text"
-                                    maxLength={16}
-                                    className="form-input-custom font-mono"
-                                    value={sub.bankAccountNo || ""}
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <CreditCard className="h-3.5 w-3.5 text-slate-400" />
+                                    </div>
+                                    <input
+                                      type="text"
+                                      maxLength={16}
+                                      className="form-input-custom font-mono pl-9 text-sm"
+                                      value={sub.bankAccountNo || ""}
                                     onChange={(e) => {
                                       if (cfg.isSavedGroup) {
                                         const updatedGroups = [...savedGroups];
@@ -3859,6 +4027,7 @@ export default function RecipientForm({
                                       }
                                     }}
                                   />
+                                  </div>
                                 </div>
                               </div>
 
@@ -4132,34 +4301,6 @@ export default function RecipientForm({
                   </button>
                 )}
               </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-                >
-                  Batalkan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(3);
-                  }}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
-                >
-                  Kembali
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(5);
-                  }}
-                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                >
-                  Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -4167,7 +4308,7 @@ export default function RecipientForm({
         {/* SECTION 5: SUB TABEL PENERIMA TERDAFTAR (LIST IN ACTIVE FORM - KONFIRMASI) */}
         {currentStep === 5 && (
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-2 border-b border-slate-100/80 gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                   <Layers className="w-5 h-5" />
@@ -4182,11 +4323,22 @@ export default function RecipientForm({
                   </p>
                 </div>
               </div>
-              {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) > 0 && (
-                <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 font-extrabold px-3 py-1 rounded-full">
-                  {subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)} Orang Ditambahkan
-                </span>
-              )}
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                {(subRecipients.length + savedGroups.reduce((acc, g) => acc + g.subRecipients.length, 0)) > 0 && (
+                  <div className="relative w-full sm:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Cari Nama atau NIK..."
+                      className="form-input-custom font-medium pl-9 text-sm"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="overflow-hidden border border-slate-200/60 rounded-xl">
@@ -4272,7 +4424,11 @@ export default function RecipientForm({
                         ...savedGroups.map((g, i) => ({ isSavedGroup: true, rData: g.registrationData, subs: g.subRecipients, sIdx: i }))
                       ].map((cfg, cIdx) => (
                         <React.Fragment key={cIdx}>
-                          {cfg.subs.map((sub: any, idx: number) => {
+                          {cfg.subs.filter((sub: any) => {
+                            if (!searchQuery) return true;
+                            const q = searchQuery.toLowerCase();
+                            return (sub.name || "").toLowerCase().includes(q) || (sub.nik || "").includes(q);
+                          }).map((sub: any, idx: number) => {
                             const currentIdx = cIdx === 0 
                               ? idx 
                               : subRecipients.length + savedGroups.slice(0, cIdx - 1).reduce((acc, g) => acc + g.subRecipients.length, 0) + idx;
@@ -4513,33 +4669,75 @@ export default function RecipientForm({
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-4">
-              <div className="flex items-center gap-3">
+            {/* REKAPITULASI TOTAL BANTUAN & STATISTIK */}
+            <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-4">
+                <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
+                  <User className="w-6 h-6 text-slate-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-slate-800">Statistik Penerima</h4>
+                  <div className="text-xs text-slate-600 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Total: <strong>{[...subRecipients, ...savedGroups.flatMap(g => g.subRecipients)].length} Orang</strong></span>
+                    <span>Laki-laki: <strong>{[...subRecipients, ...savedGroups.flatMap(g => g.subRecipients)].filter(r => r.gender === 'Laki-laki').length}</strong></span>
+                    <span>Perempuan: <strong>{[...subRecipients, ...savedGroups.flatMap(g => g.subRecipients)].filter(r => r.gender === 'Perempuan').length}</strong></span>
+                    <span>Kecamatan: <strong>{new Set([...subRecipients, ...savedGroups.flatMap(g => g.subRecipients)].map(r => r.district).filter(Boolean)).size} Wilayah</strong></span>
+                  </div>
+                </div>
               </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer"
-                >
-                  Batalkan
-                </button>
+              <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex flex-col justify-center">
+                <h4 className="text-sm font-bold text-indigo-900 mb-1">Total Bantuan (Keseluruhan)</h4>
+                <div className="text-2xl font-black text-indigo-700 font-mono">
+                  Rp {new Intl.NumberFormat("id-ID").format(
+                    [...subRecipients, ...savedGroups.flatMap(g => g.subRecipients)].reduce((acc, sub) => acc + (Number(sub.amountProposed) || 0), 0)
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* FORM NAVIGATION ACTION BAR (Moved to Card) */}
+        <div className="bg-white border border-slate-200 shadow-sm p-4 sm:p-5 rounded-xl animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              {currentStep > 1 && (
                 <button
                   type="button"
                   onClick={() => {
-                    setCurrentStep(4);
+                    setCurrentStep(prev => prev - 1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-full sm:w-auto justify-center"
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
                 >
                   Kembali
                 </button>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 sm:px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-150 rounded-xl transition-colors cursor-pointer w-full sm:w-auto"
+              >
+                Batalkan
+              </button>
+              
+              {currentStep < 5 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                >
+                  Berikutnya <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              ) : (
                 <button
                   onClick={handleSaveAllData}
                   type="button"
                   disabled={isSavingAll}
                   className={cn(
-                    "px-6 sm:px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-black flex items-center gap-2 transition-all shadow-md",
+                    "px-6 sm:px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-black flex items-center justify-center gap-2 transition-all shadow-md w-full sm:w-auto",
                     isSavingAll
                       ? "opacity-75 cursor-not-allowed"
                       : "hover:bg-emerald-750 active:scale-95 cursor-pointer",
@@ -4558,10 +4756,10 @@ export default function RecipientForm({
                         : "Simpan"}
                   </span>
                 </button>
-              </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </form>
 
       {/* PREVIEW DOCUMENT MODAL */}
