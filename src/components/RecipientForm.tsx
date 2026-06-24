@@ -3703,9 +3703,10 @@ export default function RecipientForm({
                                 </div>
                               </div>
                               <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi <span className="text-red-500">*</span></label>
                                 <select
                                   className="form-input-custom font-medium"
+                                  required
                                   value={sub.transactionType || ""}
                                   onChange={(e) => {
                                     if (cfg.isSavedGroup) {
@@ -3720,12 +3721,8 @@ export default function RecipientForm({
                                   }}
                                 >
                                   <option value="">Pilih Transaksi</option>
-                                  <option value="Uang Muka">Uang Muka</option>
-                                  <option value="Reimbursment">Reimbursment</option>
-                                  <option value="Pembayaran">Pembayaran</option>
-                                  <option value="Piutang Penyaluran">Piutang Penyaluran</option>
-                                  <option value="Bank Program">Bank Program</option>
-                                  <option value="Lain-lain">Lain-lain</option>
+                                  <option value="Cash">Cash</option>
+                                  <option value="Transfer">Transfer</option>
                                 </select>
                               </div>
                             </div>

@@ -205,7 +205,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
         }
         
         if (recipient.transactionType) {
-          parsed.transactionType = ['Uang Muka', 'Reimbursment', 'Pembayaran', 'Piutang Penyaluran', 'Bank Program', 'Lain-lain'].includes(recipient.transactionType) ? 'TRANSFER' : 'CASH';
+          parsed.transactionType = recipient.transactionType.toUpperCase() === 'CASH' ? 'CASH' : 'TRANSFER';
         }
 
         
@@ -573,7 +573,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
       ashnaf: recipient.ashnaf || '',
       source: recipient.fundingSource || '',
       budgetPost: `Program ${recipient.programName || ''}`,
-      transactionType: (!recipient.transactionType || ['Uang Muka', 'Reimbursment', 'Pembayaran', 'Piutang Penyaluran', 'Bank Program', 'Lain-lain'].includes(recipient.transactionType)) ? 'TRANSFER' : 'CASH',
+      transactionType: (!recipient.transactionType || recipient.transactionType.toUpperCase() === 'TRANSFER') ? 'TRANSFER' : 'CASH',
       columns: [
         { key: 'description', label: 'Uraian' },
         { key: 'name', label: 'Nama' },
