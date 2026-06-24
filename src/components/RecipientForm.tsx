@@ -3702,28 +3702,56 @@ export default function RecipientForm({
                                   />
                                 </div>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi <span className="text-red-500">*</span></label>
-                                <select
-                                  className="form-input-custom font-medium"
-                                  required
-                                  value={sub.transactionType || ""}
-                                  onChange={(e) => {
-                                    if (cfg.isSavedGroup) {
-                                      const updatedGroups = [...savedGroups];
-                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, transactionType: e.target.value };
-                                      setSavedGroups(updatedGroups);
-                                    } else {
-                                      const updated = [...subRecipients];
-                                      updated[idx] = { ...sub, transactionType: e.target.value };
-                                      setSubRecipients(updated);
-                                    }
-                                  }}
-                                >
-                                  <option value="">Pilih Transaksi</option>
-                                  <option value="Cash">Cash</option>
-                                  <option value="Transfer">Transfer</option>
-                                </select>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi (E-PPD)</label>
+                                  <select
+                                    className="form-input-custom font-medium"
+                                    value={sub.transactionType || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, transactionType: e.target.value };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, transactionType: e.target.value };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">Pilih Transaksi</option>
+                                    <option value="Uang Muka">Uang Muka</option>
+                                    <option value="Reimbursment">Reimbursment</option>
+                                    <option value="Pembayaran">Pembayaran</option>
+                                    <option value="Piutang Penyaluran">Piutang Penyaluran</option>
+                                    <option value="Bank Program">Bank Program</option>
+                                    <option value="Lain-lain">Lain-lain</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">Jenis Transaksi (MPZIS) <span className="text-red-500">*</span></label>
+                                  <select
+                                    className="form-input-custom font-medium"
+                                    required
+                                    value={sub.jenisTransaksiMPZIS || ""}
+                                    onChange={(e) => {
+                                      if (cfg.isSavedGroup) {
+                                        const updatedGroups = [...savedGroups];
+                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, jenisTransaksiMPZIS: e.target.value as 'Cash' | 'Transfer' };
+                                        setSavedGroups(updatedGroups);
+                                      } else {
+                                        const updated = [...subRecipients];
+                                        updated[idx] = { ...sub, jenisTransaksiMPZIS: e.target.value as 'Cash' | 'Transfer' };
+                                        setSubRecipients(updated);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">Pilih Transaksi</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Transfer">Transfer</option>
+                                  </select>
+                                </div>
                               </div>
                             </div>
 

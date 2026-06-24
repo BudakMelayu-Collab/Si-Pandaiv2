@@ -93,6 +93,7 @@ export interface Recipient {
   isReceiptGenerated?: boolean;
   isSurveyGenerated?: boolean;
   isTermsAccepted: boolean;
+  jenisTransaksiMPZIS?: 'Cash' | 'Transfer';
   
   // Custom data for specific programs
   monthlyPaymentStatus?: 'Active' | 'Stopped' | 'Finished';
