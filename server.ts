@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -44,7 +45,20 @@ async function verifyFirebaseIdToken(idToken: string): Promise<string | null> {
 // Fetch settings/gdrive_service_account document REST-fully
 async function fetchServiceAccountFromFirestoreRes(idToken: string): Promise<any> {
   const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-  const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || "(default)";
+  
+  let databaseId = process.env.VITE_FIREBASE_DATABASE_ID || "(default)";
+  try {
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.firestoreDatabaseId) {
+        databaseId = config.firestoreDatabaseId;
+      }
+    }
+  } catch(e) {
+    console.error("Error reading firebase config:", e);
+  }
+
   if (!projectId) {
     throw new Error("VITE_FIREBASE_PROJECT_ID environment variable is not defined on the Server.");
   }
