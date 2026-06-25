@@ -272,6 +272,10 @@ export default function RecipientForm({
     isTermsAccepted: true,
     status: "Masuk Berkas",
     documents: [],
+    tujuanPengajuan: "",
+    budgetCode: "",
+    budgetName: "",
+    transactionType: "",
   };
 
   // Main Registration Data State (Tabel Utama)
@@ -446,6 +450,10 @@ export default function RecipientForm({
         isTermsAccepted: true,
         status: first.status || "Masuk Berkas",
         documents: [],
+        tujuanPengajuan: first.tujuanPengajuan || "",
+        budgetCode: first.budgetCode || "",
+        budgetName: first.budgetName || "",
+        transactionType: first.transactionType || "",
       });
       setSubRecipients(initialGroupRecipients || []);
     }
@@ -3609,6 +3617,135 @@ export default function RecipientForm({
                         Parameter Registrasi Tersimpan: {cfg.rData.registrationId}
                       </h4>
                     )}
+
+                    {/* E-PPD Group Fields */}
+                    <div className="p-5 rounded-2xl border border-blue-200 bg-blue-50/60 shadow-sm mb-6">
+                      <div className="flex items-center gap-2 mb-4 pb-2 border-b border-blue-100">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <h4 className="text-sm font-bold text-blue-800 uppercase tracking-widest">Parameter E-PPD</h4>
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold ml-auto">Berlaku untuk {cfg.subs.length} Penerima</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-600 uppercase">Tujuan Pengajuan E-PPD</label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const bulan = new Date().toLocaleString("id-ID", { month: "long" });
+                                const generated = `Permohonan Pencairan Dana ${cfg.rData.fundingSource || ""} ${cfg.rData.programName || ""} Sebanyak ${cfg.subs.length} Orang Bulan ${bulan}`.trim().replace(/\s+/g, " ");
+                                if (cfg.isSavedGroup) {
+                                  const updatedGroups = [...savedGroups];
+                                  updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: generated };
+                                  setSavedGroups(updatedGroups);
+                                } else {
+                                  setRegistrationData(prev => ({ ...prev, tujuanPengajuan: generated }));
+                                }
+                              }}
+                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                            >
+                              <Wand2 className="w-3 h-3" /> Buat Otomatis
+                            </button>
+                          </div>
+                          <textarea
+                            className="form-input-custom min-h-[60px] font-medium bg-white"
+                            value={cfg.rData.tujuanPengajuan || ""}
+                            onChange={(e) => {
+                              if (cfg.isSavedGroup) {
+                                const updatedGroups = [...savedGroups];
+                                updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: e.target.value };
+                                setSavedGroups(updatedGroups);
+                              } else {
+                                setRegistrationData(prev => ({ ...prev, tujuanPengajuan: e.target.value }));
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-slate-600 uppercase">Kode Anggaran</label>
+                              <select
+                                className="form-input-custom font-medium truncate bg-white"
+                                value={cfg.rData.budgetCode || ""}
+                                onChange={(e) => {
+                                  const selectedCode = e.target.value;
+                                  const foundBudget = BUDGET_OPTIONS.find(b => b.code === selectedCode);
+                                  const newName = foundBudget ? foundBudget.name : "";
+                                  
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].registrationData = { 
+                                      ...updatedGroups[cfg.sIdx].registrationData, 
+                                      budgetCode: selectedCode,
+                                      budgetName: newName
+                                    };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    setRegistrationData(prev => ({ 
+                                      ...prev, 
+                                      budgetCode: selectedCode,
+                                      budgetName: newName
+                                    }));
+                                  }
+                                }}
+                              >
+                                <option value="">Pilih Kode Anggaran</option>
+                                {BUDGET_OPTIONS.map((b) => (
+                                  <option key={b.code} value={b.code} className="truncate">
+                                    {b.code} - {b.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-slate-600 uppercase">Nama Anggaran</label>
+                              <input
+                                type="text"
+                                className="form-input-custom font-medium bg-white"
+                                value={cfg.rData.budgetName || ""}
+                                placeholder="Otomatis terisi..."
+                                onChange={(e) => {
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, budgetName: e.target.value };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    setRegistrationData(prev => ({ ...prev, budgetName: e.target.value }));
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-600 uppercase">Jenis Transaksi (E-PPD)</label>
+                            <select
+                              className="form-input-custom font-medium bg-white"
+                              value={cfg.rData.transactionType || ""}
+                              onChange={(e) => {
+                                if (cfg.isSavedGroup) {
+                                  const updatedGroups = [...savedGroups];
+                                  updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, transactionType: e.target.value };
+                                  setSavedGroups(updatedGroups);
+                                } else {
+                                  setRegistrationData(prev => ({ ...prev, transactionType: e.target.value }));
+                                }
+                              }}
+                            >
+                              <option value="">Pilih Transaksi</option>
+                              <option value="Uang Muka">Uang Muka</option>
+                              <option value="Reimbursment">Reimbursment</option>
+                              <option value="Pembayaran">Pembayaran</option>
+                              <option value="Piutang Penyaluran">Piutang Penyaluran</option>
+                              <option value="Bank Program">Bank Program</option>
+                              <option value="Lain-lain">Lain-lain</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="space-y-6">
                       {cfg.subs.map((sub: any, idx: number) => (
                         <div
@@ -3754,138 +3891,11 @@ export default function RecipientForm({
                               </div>
 
                               <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Pengajuan E-PPD</label>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const bulan = new Date().toLocaleString("id-ID", { month: "long" });
-                                      const rtRw = [sub.rt || "-", sub.rw || "-"].join("/");
-                                      const generated = `Permohonan Pencairan Dana ${cfg.rData.fundingSource || ""} ${cfg.rData.programName || ""} a.n ${sub.name || ""} Sebanyak ${cfg.subs.length} Orang Bulan ${bulan} ${sub.address || ""} ${rtRw} kampung ${sub.kampung || ""} kecamatan ${sub.district || ""}`.trim().replace(/\s+/g, " ");
-                                      if (cfg.isSavedGroup) {
-                                        const updatedGroups = [...savedGroups];
-                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: generated };
-                                        setSavedGroups(updatedGroups);
-                                      } else {
-                                        const updated = [...subRecipients];
-                                        updated[idx] = { ...sub, tujuanPengajuan: generated };
-                                        setSubRecipients(updated);
-                                      }
-                                    }}
-                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
-                                  >
-                                    <Wand2 className="w-3 h-3" /> Buat Otomatis
-                                  </button>
-                                </div>
-                                <textarea
-                                  className="form-input-custom min-h-[60px] font-medium"
-                                  value={sub.tujuanPengajuan || ""}
-                                  onChange={(e) => {
-                                    if (cfg.isSavedGroup) {
-                                      const updatedGroups = [...savedGroups];
-                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPengajuan: e.target.value };
-                                      setSavedGroups(updatedGroups);
-                                    } else {
-                                      const updated = [...subRecipients];
-                                      updated[idx] = { ...sub, tujuanPengajuan: e.target.value };
-                                      setSubRecipients(updated);
-                                    }
-                                  }}
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3 pt-2">
-                                <div className="space-y-1">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Kode Anggaran</label>
-                                  <select
-                                    className="form-input-custom font-medium truncate"
-                                    value={sub.budgetCode || ""}
-                                    onChange={(e) => {
-                                      const selectedCode = e.target.value;
-                                      const foundBudget = BUDGET_OPTIONS.find(b => b.code === selectedCode);
-                                      const newName = foundBudget ? foundBudget.name : "";
-                                      
-                                      if (cfg.isSavedGroup) {
-                                        const updatedGroups = [...savedGroups];
-                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { 
-                                          ...sub, 
-                                          budgetCode: selectedCode,
-                                          budgetName: newName
-                                        };
-                                        setSavedGroups(updatedGroups);
-                                      } else {
-                                        const updated = [...subRecipients];
-                                        updated[idx] = { 
-                                          ...sub, 
-                                          budgetCode: selectedCode,
-                                          budgetName: newName
-                                        };
-                                        setSubRecipients(updated);
-                                      }
-                                    }}
-                                  >
-                                    <option value="">Pilih Kode Anggaran</option>
-                                    {BUDGET_OPTIONS.map((b) => (
-                                      <option key={b.code} value={b.code} className="truncate">
-                                        {b.code} - {b.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Nama Anggaran</label>
-                                  <input
-                                    type="text"
-                                    className="form-input-custom font-medium"
-                                    value={sub.budgetName || ""}
-                                    placeholder="Otomatis terisi..."
-                                    onChange={(e) => {
-                                      if (cfg.isSavedGroup) {
-                                        const updatedGroups = [...savedGroups];
-                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, budgetName: e.target.value };
-                                        setSavedGroups(updatedGroups);
-                                      } else {
-                                        const updated = [...subRecipients];
-                                        updated[idx] = { ...sub, budgetName: e.target.value };
-                                        setSubRecipients(updated);
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-xs font-bold text-slate-500 uppercase">Jenis Transaksi (E-PPD)</label>
-                                  <select
-                                    className="form-input-custom font-medium"
-                                    value={sub.transactionType || ""}
-                                    onChange={(e) => {
-                                      if (cfg.isSavedGroup) {
-                                        const updatedGroups = [...savedGroups];
-                                        updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, transactionType: e.target.value };
-                                        setSavedGroups(updatedGroups);
-                                      } else {
-                                        const updated = [...subRecipients];
-                                        updated[idx] = { ...sub, transactionType: e.target.value };
-                                        setSubRecipients(updated);
-                                      }
-                                    }}
-                                  >
-                                    <option value="">Pilih Transaksi</option>
-                                    <option value="Uang Muka">Uang Muka</option>
-                                    <option value="Reimbursment">Reimbursment</option>
-                                    <option value="Pembayaran">Pembayaran</option>
-                                    <option value="Piutang Penyaluran">Piutang Penyaluran</option>
-                                    <option value="Bank Program">Bank Program</option>
-                                    <option value="Lain-lain">Lain-lain</option>
-                                  </select>
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">Jenis Transaksi (MPZIS) <span className="text-red-500">*</span></label>
-                                  <select
-                                    className="form-input-custom font-medium"
-                                    required
-                                    value={sub.jenisTransaksiMPZIS || ""}
+                                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">Jenis Transaksi (MPZIS) <span className="text-red-500">*</span></label>
+                                <select
+                                  className="form-input-custom font-medium"
+                                  required
+                                  value={sub.jenisTransaksiMPZIS || ""}
                                     onChange={(e) => {
                                       if (cfg.isSavedGroup) {
                                         const updatedGroups = [...savedGroups];
@@ -3904,10 +3914,9 @@ export default function RecipientForm({
                                   </select>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* PENDIDIKAN & PERBANKAN BLOK */}
-                            <div className="space-y-4">
+                              {/* PENDIDIKAN & PERBANKAN BLOK */}
+                              <div className="space-y-4">
                               <div className="flex items-center space-x-2 border-b border-slate-100 pb-1.5 mt-2">
                                 <BookOpen className="h-4 w-4 text-indigo-500" />
                                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Pendidikan (Opsional)</h4>
