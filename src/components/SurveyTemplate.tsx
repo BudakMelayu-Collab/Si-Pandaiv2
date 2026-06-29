@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipient } from '../types';
-import { ChevronRight, Printer, Save, FileText, ImageIcon, AlertCircle, Upload, Settings, Loader2, MessageSquare } from 'lucide-react';
+import { ChevronRight, Printer, Save, FileText, ImageIcon, AlertCircle, Upload, Settings, Loader2, MessageSquare, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db, updateRecipientSurveyPdf } from '../firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -21,6 +21,7 @@ const Checkbox = ({ label, fontSize }: { label: string, fontSize?: number }) => 
 
 export default function SurveyTemplate({ recipient, onClose, isEmbedded }: SurveyTemplateProps) {
   const [activeTab, setActiveTab] = useState<'template' | 'scan' | 'config' | 'isi-data'>('template');
+  const [isBlankMode, setIsBlankMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [surveyData, setSurveyData] = useState({
     skmp: recipient.skmp || '',
@@ -369,7 +370,18 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsBlankMode(false);
+    setTimeout(() => {
+      window.print();
+    }, 0);
+  };
+
+  const handlePrintBlank = () => {
+    setIsBlankMode(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsBlankMode(false), 500);
+    }, 100);
   };
 
   const handleRekapPdf = async () => {
@@ -541,6 +553,12 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={handlePrintBlank}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-xl text-xs font-bold border border-white/10"
+          >
+            <Download className="w-4 h-4" /> Download Template Kosong
+          </button>
           <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-300 hover:bg-white/10 rounded-xl text-xs font-bold border border-white/10"
@@ -1124,14 +1142,14 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
            <div className="grid grid-cols-2 gap-x-8 mb-6 bg-slate-50/30 p-4 border border-black/5 rounded-sm" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
               <div className="space-y-1.5">
                 {[
-                  { label: "ID Registrasi", value: recipient.registrationId },
-                  { label: "Sumber Berkas", value: recipient.source },
-                  { label: "Tgl Masuk Berkas", value: recipient.submissionDate ? new Date(recipient.submissionDate).toLocaleDateString('id-ID') : '-' },
-                  { label: "Nama", value: recipient.name, bold: true, upper: true },
-                  { label: "NIK", value: recipient.nik },
-                  { label: "Alamat", value: `${recipient.address}, ${recipient.kampung}`, italic: true },
-                  { label: "Nomor Hp", value: recipient.contact || '-' },
-                  { label: "Rekening", value: `${recipient.bankName || '-'} / ${recipient.bankAccountNo || '-'} / ${recipient.bankAccountHolder || '-'}` },
+                  { label: "ID Registrasi", value: isBlankMode ? "" : recipient.registrationId },
+                  { label: "Sumber Berkas", value: isBlankMode ? "" : recipient.source },
+                  { label: "Tgl Masuk Berkas", value: isBlankMode ? "" : (recipient.submissionDate ? new Date(recipient.submissionDate).toLocaleDateString('id-ID') : '-') },
+                  { label: "Nama", value: isBlankMode ? "" : recipient.name, bold: true, upper: true },
+                  { label: "NIK", value: isBlankMode ? "" : recipient.nik },
+                  { label: "Alamat", value: isBlankMode ? "" : `${recipient.address}, ${recipient.kampung}`, italic: true },
+                  { label: "Nomor Hp", value: isBlankMode ? "" : (recipient.contact || '-') },
+                  { label: "Rekening", value: isBlankMode ? "" : `${recipient.bankName || '-'} / ${recipient.bankAccountNo || '-'} / ${recipient.bankAccountHolder || '-'}` },
                 ].map((item, idx) => (
                   <div key={idx} className="grid grid-cols-[120px_10px_1fr] items-baseline">
                     <span>{item.label}</span>
@@ -1149,15 +1167,15 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
               </div>
               <div className="space-y-1.5">
                 {[
-                  { label: "Bidang", value: recipient.sector },
-                  { label: "Sub Bidang", value: recipient.subSector },
-                  { label: "Jenis Bantuan", value: recipient.aidType },
-                  { label: "Nama Program", value: recipient.programName },
-                  { label: "Untuk", value: recipient.purpose },
-                  { label: "Nama Sekolah", value: recipient.schoolName || '-' },
-                  { label: "No Hp Sekolah", value: recipient.schoolPhone || '-' },
-                  { label: "Tingkatan/Kelas", value: `${recipient.schoolLevel || '-'}${recipient.schoolClass ? ` / ${recipient.schoolClass}` : ''}` },
-                  { label: "SKMP / Tgl Survey", value: `${surveyData.skmp || recipient.skmp || '-'} / ${surveyData.tanggalSurvei ? (() => {
+                  { label: "Bidang", value: isBlankMode ? "" : recipient.sector },
+                  { label: "Sub Bidang", value: isBlankMode ? "" : recipient.subSector },
+                  { label: "Jenis Bantuan", value: isBlankMode ? "" : recipient.aidType },
+                  { label: "Nama Program", value: isBlankMode ? "" : recipient.programName },
+                  { label: "Untuk", value: isBlankMode ? "" : recipient.purpose },
+                  { label: "Nama Sekolah", value: isBlankMode ? "" : (recipient.schoolName || '-') },
+                  { label: "No Hp Sekolah", value: isBlankMode ? "" : (recipient.schoolPhone || '-') },
+                  { label: "Tingkatan/Kelas", value: isBlankMode ? "" : `${recipient.schoolLevel || '-'}${recipient.schoolClass ? ` / ${recipient.schoolClass}` : ''}` },
+                  { label: "SKMP / Tgl Survey", value: isBlankMode ? "" : `${surveyData.skmp || recipient.skmp || '-'} / ${surveyData.tanggalSurvei ? (() => {
                     try {
                       const d = new Date(surveyData.tanggalSurvei);
                       return !isNaN(d.getTime()) ? d.toLocaleDateString('id-ID') : surveyData.tanggalSurvei;
@@ -1368,38 +1386,38 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                      <tbody>
                        <tr className="h-7 text-center">
                          <td className="border border-black">1</td>
-                         <td className="border border-black px-2 text-left">Usaha Pokok Suami : {(surveyData as any).usahaSuamiKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaSuami)}</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Suami : {isBlankMode ? '..................................' : ((surveyData as any).usahaSuamiKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.usahaSuami)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">2</td>
-                         <td className="border border-black px-2 text-left">Usaha Pokok Istri : {(surveyData as any).usahaIstriKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaIstri)}</td>
+                         <td className="border border-black px-2 text-left">Usaha Pokok Istri : {isBlankMode ? '..................................' : ((surveyData as any).usahaIstriKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.usahaIstri)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">3</td>
-                         <td className="border border-black px-2 text-left">Usaha Lainnya : {(surveyData as any).usahaLainKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.usahaLain)}</td>
+                         <td className="border border-black px-2 text-left">Usaha Lainnya : {isBlankMode ? '..................................' : ((surveyData as any).usahaLainKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.usahaLain)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">4</td>
-                         <td className="border border-black px-2 text-left">Dari orang tua : {(surveyData as any).dariOrtuKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.dariOrtu)}</td>
+                         <td className="border border-black px-2 text-left">Dari orang tua : {isBlankMode ? '..................................' : ((surveyData as any).dariOrtuKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.dariOrtu)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">5</td>
-                         <td className="border border-black px-2 text-left">Dari anak/menantu : {(surveyData as any).dariAnakKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.dariAnak)}</td>
+                         <td className="border border-black px-2 text-left">Dari anak/menantu : {isBlankMode ? '..................................' : ((surveyData as any).dariAnakKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.dariAnak)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">6</td>
-                         <td className="border border-black px-2 text-left">Penghasilan lainnya, sebutkan : {surveyData.penghasilanLainKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.penghasilanLain)}</td>
+                         <td className="border border-black px-2 text-left">Penghasilan lainnya, sebutkan : {isBlankMode ? '..................................' : (surveyData.penghasilanLainKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.penghasilanLain)}</td>
                        </tr>
                        <tr className="h-8 bg-gray-50 font-bold uppercase">
                          <td colSpan={2} className="border border-black px-2 text-right">TOTAL PENDAPATAN (A)</td>
                          <td className="border border-black font-bold">
-                           {(() => {
+                           {isBlankMode ? '' : (() => {
                              const total = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
                                .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
                              return total > 0 ? total.toLocaleString('id-ID') : '';
@@ -1423,38 +1441,38 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                      <tbody>
                        <tr className="h-7 text-center">
                          <td className="border border-black">1</td>
-                         <td className="border border-black px-2 text-left">Kebutuhan Dapur (Sembako, dll) : {surveyData.kebutuhanDapurKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.kebutuhanDapur)}</td>
+                         <td className="border border-black px-2 text-left">Kebutuhan Dapur (Sembako, dll) : {isBlankMode ? '..................................' : (surveyData.kebutuhanDapurKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.kebutuhanDapur)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">2</td>
-                         <td className="border border-black px-2 text-left">Pendidikan (SPP, Kursus, dll) : {surveyData.pendidikanKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.pendidikan)}</td>
+                         <td className="border border-black px-2 text-left">Pendidikan (SPP, Kursus, dll) : {isBlankMode ? '..................................' : (surveyData.pendidikanKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.pendidikan)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">3</td>
-                         <td className="border border-black px-2 text-left">Kesehatan (Obat, Kontrol, BPJS, dll) : {surveyData.kesehatanKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.kesehatan)}</td>
+                         <td className="border border-black px-2 text-left">Kesehatan (Obat, Kontrol, BPJS, dll) : {isBlankMode ? '..................................' : (surveyData.kesehatanKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.kesehatan)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">4</td>
-                         <td className="border border-black px-2 text-left font-bold">Biaya iuran rutin (Listrik, Air, Kebersihan-Siskamling) : {surveyData.biayaIuranKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.biayaIuran)}</td>
+                         <td className="border border-black px-2 text-left font-bold">Biaya iuran rutin (Listrik, Air, Kebersihan-Siskamling) : {isBlankMode ? '..................................' : (surveyData.biayaIuranKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.biayaIuran)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">5</td>
-                         <td className="border border-black px-2 text-left">Transportasi (BBM, Ongkos, Maintenance) : {surveyData.transportasiKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.transportasi)}</td>
+                         <td className="border border-black px-2 text-left">Transportasi (BBM, Ongkos, Maintenance) : {isBlankMode ? '..................................' : (surveyData.transportasiKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.transportasi)}</td>
                        </tr>
                        <tr className="h-7 text-center">
                          <td className="border border-black">6</td>
-                         <td className="border border-black px-2 text-left">Pengeluaran lainnya : Sewa Rumah / {surveyData.pengeluaranLainKet || '..................................'}</td>
-                         <td className="border border-black font-bold">{formatCurrency(surveyData.pengeluaranLain)}</td>
+                         <td className="border border-black px-2 text-left">Pengeluaran lainnya : Sewa Rumah / {isBlankMode ? '..................................' : (surveyData.pengeluaranLainKet || '..................................')}</td>
+                         <td className="border border-black font-bold">{isBlankMode ? '' : formatCurrency(surveyData.pengeluaranLain)}</td>
                        </tr>
                        <tr className="h-8 bg-gray-50 font-bold uppercase">
                          <td colSpan={2} className="border border-black px-2 text-right">TOTAL PENGELUARAN (B)</td>
                          <td className="border border-black font-bold">
-                           {(() => {
+                           {isBlankMode ? '' : (() => {
                              const total = [surveyData.kebutuhanDapur, surveyData.pendidikan, surveyData.kesehatan, surveyData.biayaIuran, surveyData.transportasi, surveyData.pengeluaranLain]
                                .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
                              return total > 0 ? total.toLocaleString('id-ID') : '';
@@ -1469,7 +1487,7 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                     <div className="grid grid-cols-[300px_1fr]">
                       <span>SISA PENDAPATAN PER BULAN (A-B)</span>
                       <span className="font-bold">
-                        {(() => {
+                        {isBlankMode ? '= ( - ) - ( - ) = ( - )' : (() => {
                           const totalA = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
                             .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
                           const totalB = [surveyData.kebutuhanDapur, surveyData.pendidikan, surveyData.kesehatan, surveyData.biayaIuran, surveyData.transportasi, surveyData.pengeluaranLain]
@@ -1482,7 +1500,7 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                     <div className="grid grid-cols-[300px_1fr]">
                       <span>Jumlah Pendapatan (Total A) / Anggota Keluarga</span>
                       <span className="font-bold">
-                        {(() => {
+                        {isBlankMode ? '= ( - ) / ( - ) = ( - )' : (() => {
                           const totalA = [surveyData.usahaSuami, surveyData.usahaIstri, surveyData.usahaLain, surveyData.dariOrtu, surveyData.dariAnak, surveyData.penghasilanLain]
                             .reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
                           const divisor = parseInt(surveyData.jumlahKeluarga) || 1;
@@ -1497,9 +1515,9 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                     <p className="font-bold mb-2 uppercase underline text-[13px] font-sans">Catatan Hasil Survei :</p>
                     <div className={cn(
                       "text-[13px] font-sans break-words whitespace-pre-wrap",
-                      !surveyData.penjelasanKeuangan && "italic text-gray-400"
+                      (!surveyData.penjelasanKeuangan || isBlankMode) && "italic text-gray-400"
                     )}>
-                      {surveyData.penjelasanKeuangan || 'Tuliskan catatan hasil survei jika ada...'}
+                      {isBlankMode ? 'Tuliskan catatan hasil survei jika ada...' : (surveyData.penjelasanKeuangan || 'Tuliskan catatan hasil survei jika ada...')}
                     </div>
                  </div>
                  <div className="mt-4 border border-black p-3 flex-1">
@@ -1684,7 +1702,7 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                      <span className="font-bold uppercase underline" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Petugas Survey</span>
                      <div className="w-full flex flex-col items-center gap-1 pb-2">
                         <div className="w-full text-center border-b border-black font-bold uppercase min-h-[1.2rem]" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
-                           {surveyData.namaPetugas}
+                           {isBlankMode ? "" : surveyData.namaPetugas}
                         </div>
                         <span style={{ fontSize: `${templateConfig.fontSize - 2}pt` }}>( Tanda Tangan & Nama Terang )</span>
                      </div>
@@ -1696,7 +1714,7 @@ export default function SurveyTemplate({ recipient, onClose, isEmbedded }: Surve
                      <span className="font-bold uppercase underline" style={{ fontSize: `${templateConfig.fontSize}pt` }}>Mustahik / Pemohon</span>
                      <div className="w-full flex flex-col items-center gap-1 pb-2">
                         <div className="w-full text-center border-b border-black font-bold uppercase min-h-[1.2rem]" style={{ fontSize: `${templateConfig.fontSize}pt` }}>
-                           {surveyData.namaMustahik}
+                           {isBlankMode ? "" : surveyData.namaMustahik}
                         </div>
                         <span style={{ fontSize: `${templateConfig.fontSize - 2}pt` }}>( Tanda Tangan & Nama Terang )</span>
                      </div>
