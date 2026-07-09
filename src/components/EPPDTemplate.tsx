@@ -505,13 +505,12 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
         const isMultiple = itemsToUse.length > 1;
         const currentRekeningStr = `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
+        const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
+        parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
         
         if (!isMultiple) {
           parsed.transferDetails = currentRekeningStr;
           parsed.paidFor = itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '';
-          if (parsed.transactionType === 'Transfer' && currentRekeningStr.length < 5) {
-             parsed.transactionType = 'Tunai'; 
-          }
         } else {
           if (!parsed.transferDetails || parsed.transferDetails.trim() === '') {
              parsed.transferDetails = 'Terlampir';
@@ -586,7 +585,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           refNo: '-',
           requestDisbursement: transactionTypeDefault,
           transferDetails: transferDetailsDefault,
-          transactionType: recipient.transactionType || transactionTypeDefault,
+          transactionType: recipient.transactionType || 'Pembayaran',
           rows: [
             { id: Date.now(), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: calculatedTotalAmount }
           ],

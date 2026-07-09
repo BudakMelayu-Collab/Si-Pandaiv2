@@ -273,6 +273,7 @@ export default function RecipientForm({
     status: "Masuk Berkas",
     documents: [],
     tujuanPengajuan: "",
+    tujuanPenyaluranMPZIS: "",
     budgetCode: "",
     budgetName: "",
     transactionType: "",
@@ -451,6 +452,7 @@ export default function RecipientForm({
         status: first.status || "Masuk Berkas",
         documents: [],
         tujuanPengajuan: first.tujuanPengajuan || "",
+        tujuanPenyaluranMPZIS: first.tujuanPenyaluranMPZIS || "",
         budgetCode: first.budgetCode || "",
         budgetName: first.budgetName || "",
         transactionType: first.transactionType || "",
@@ -3626,40 +3628,61 @@ export default function RecipientForm({
                         <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold ml-auto">Berlaku untuk {cfg.subs.length} Penerima</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-600 uppercase">Tujuan Pengajuan E-PPD</label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const bulan = new Date().toLocaleString("id-ID", { month: "long" });
-                                const generated = `Permohonan Pencairan Dana ${cfg.rData.fundingSource || ""} ${cfg.rData.programName || ""} Sebanyak ${cfg.subs.length} Orang Bulan ${bulan}`.trim().replace(/\s+/g, " ");
+                        <div className="space-y-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-600 uppercase">Tujuan Pengajuan E-PPD</label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const bulan = new Date().toLocaleString("id-ID", { month: "long" });
+                                  const generated = `Permohonan Pencairan Dana ${cfg.rData.fundingSource || ""} ${cfg.rData.programName || ""} Sebanyak ${cfg.subs.length} Orang Bulan ${bulan}`.trim().replace(/\s+/g, " ");
+                                  if (cfg.isSavedGroup) {
+                                    const updatedGroups = [...savedGroups];
+                                    updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: generated };
+                                    setSavedGroups(updatedGroups);
+                                  } else {
+                                    setRegistrationData(prev => ({ ...prev, tujuanPengajuan: generated }));
+                                  }
+                                }}
+                                className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
+                              >
+                                <Wand2 className="w-3 h-3" /> Buat Otomatis
+                              </button>
+                            </div>
+                            <textarea
+                              className="form-input-custom min-h-[60px] font-medium bg-white"
+                              value={cfg.rData.tujuanPengajuan || ""}
+                              onChange={(e) => {
                                 if (cfg.isSavedGroup) {
                                   const updatedGroups = [...savedGroups];
-                                  updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: generated };
+                                  updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: e.target.value };
                                   setSavedGroups(updatedGroups);
                                 } else {
-                                  setRegistrationData(prev => ({ ...prev, tujuanPengajuan: generated }));
+                                  setRegistrationData(prev => ({ ...prev, tujuanPengajuan: e.target.value }));
                                 }
                               }}
-                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 active:scale-95 duration-100 transition-colors cursor-pointer"
-                            >
-                              <Wand2 className="w-3 h-3" /> Buat Otomatis
-                            </button>
+                            />
                           </div>
-                          <textarea
-                            className="form-input-custom min-h-[60px] font-medium bg-white"
-                            value={cfg.rData.tujuanPengajuan || ""}
-                            onChange={(e) => {
-                              if (cfg.isSavedGroup) {
-                                const updatedGroups = [...savedGroups];
-                                updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPengajuan: e.target.value };
-                                setSavedGroups(updatedGroups);
-                              } else {
-                                setRegistrationData(prev => ({ ...prev, tujuanPengajuan: e.target.value }));
-                              }
-                            }}
-                          />
+
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-600 uppercase">Tujuan Penyaluran MPZIS</label>
+                            <input
+                              type="text"
+                              className="form-input-custom font-medium bg-white"
+                              placeholder={`Melaksanakan Program ${cfg.rData.programName || ""}`}
+                              value={cfg.rData.tujuanPenyaluranMPZIS || ""}
+                              onChange={(e) => {
+                                if (cfg.isSavedGroup) {
+                                  const updatedGroups = [...savedGroups];
+                                  updatedGroups[cfg.sIdx].registrationData = { ...updatedGroups[cfg.sIdx].registrationData, tujuanPenyaluranMPZIS: e.target.value };
+                                  setSavedGroups(updatedGroups);
+                                } else {
+                                  setRegistrationData(prev => ({ ...prev, tujuanPenyaluranMPZIS: e.target.value }));
+                                }
+                              }}
+                            />
+                          </div>
                         </div>
 
                         <div className="space-y-4">
@@ -3825,27 +3848,6 @@ export default function RecipientForm({
                                     }}
                                   />
                                 </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Tujuan Penyaluran MPZIS</label>
-                                <input
-                                  type="text"
-                                  className="form-input-custom font-medium"
-                                  placeholder={`Melaksanakan Program ${cfg.rData.programName || ""}`}
-                                  value={sub.tujuanPenyaluranMPZIS || ""}
-                                  onChange={(e) => {
-                                    if (cfg.isSavedGroup) {
-                                      const updatedGroups = [...savedGroups];
-                                      updatedGroups[cfg.sIdx].subRecipients[idx] = { ...sub, tujuanPenyaluranMPZIS: e.target.value };
-                                      setSavedGroups(updatedGroups);
-                                    } else {
-                                      const updated = [...subRecipients];
-                                      updated[idx] = { ...sub, tujuanPenyaluranMPZIS: e.target.value };
-                                      setSubRecipients(updated);
-                                    }
-                                  }}
-                                />
                               </div>
 
                               <div className="space-y-1">
