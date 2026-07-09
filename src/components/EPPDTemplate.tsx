@@ -506,13 +506,15 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         const isMultiple = itemsToUse.length > 1;
         const currentRekeningStr = `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
         const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
-        parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
+        if (!parsed.requestDisbursement || parsed.requestDisbursement === 'Transfer' || parsed.requestDisbursement === 'Tunai') {
+          parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
+        }
         
         if (!isMultiple) {
           parsed.transferDetails = currentRekeningStr;
           parsed.paidFor = itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '';
         } else {
-          if (!parsed.transferDetails || parsed.transferDetails.trim() === '') {
+          if (!parsed.transferDetails || parsed.transferDetails.trim() === '' || parsed.transferDetails === currentRekeningStr) {
              parsed.transferDetails = 'Terlampir';
           }
           parsed.paidFor = 'Terlampir';
