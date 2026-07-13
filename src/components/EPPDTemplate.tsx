@@ -504,7 +504,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         }
 
         const isMultiple = itemsToUse.length > 1;
-        const currentRekeningStr = `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
+        const primaryItem = itemsToUse[0] || recipient;
+        const currentRekeningStr = `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
         const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
         if (!parsed.requestDisbursement || parsed.requestDisbursement === 'Transfer' || parsed.requestDisbursement === 'Tunai') {
           parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
@@ -548,7 +549,8 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         const transactionTypeDefault = hasRekening ? 'Transfer' : 'Tunai';
         let transferDetailsDefault = '';
         if (transactionTypeDefault === 'Transfer') {
-           transferDetailsDefault = isMultiple ? 'Terlampir' : `${recipient.bankAccountNo || ''} / ${recipient.bankName || ''} / ${recipient.bankAccountHolder || ''}`.trim();
+           const primaryItem = itemsToUse[0] || recipient;
+           transferDetailsDefault = isMultiple ? 'Terlampir' : `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
         }
 
         const calculatedTotalAmount = itemsToUse.reduce((sum, r) => sum + (Number(r.amountProposed) || 0), 0);
