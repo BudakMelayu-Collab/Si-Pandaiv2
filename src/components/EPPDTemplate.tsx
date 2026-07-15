@@ -505,21 +505,25 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
         const isMultiple = itemsToUse.length > 1;
         const primaryItem = itemsToUse[0] || recipient;
-        const currentRekeningStr = `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
-        const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
-        if (!parsed.requestDisbursement) {
+        
+        const uniqueRekening = new Set(itemsToUse.map(r => `${r.bankAccountNo || ''} / ${r.bankName || ''} / ${r.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim()).filter(r => r !== ''));
+        const hasRekening = uniqueRekening.size > 0;
+        const isMultipleRekening = uniqueRekening.size > 1;
+
+        if (!parsed.requestDisbursement || parsed.requestDisbursement === 'Tunai' || parsed.requestDisbursement === 'Transfer') {
           parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
         }
         
-        if (!isMultiple) {
-          parsed.transferDetails = currentRekeningStr;
-          parsed.paidFor = itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '';
-        } else {
+        if (isMultipleRekening) {
+          const currentRekeningStr = `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
           if (!parsed.transferDetails || parsed.transferDetails.trim() === '' || parsed.transferDetails === currentRekeningStr) {
              parsed.transferDetails = 'Terlampir';
           }
-          parsed.paidFor = 'Terlampir';
+        } else if (hasRekening) {
+          parsed.transferDetails = Array.from(uniqueRekening)[0];
         }
+        
+        parsed.paidFor = isMultiple ? 'Terlampir' : (itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '');
 
         // Always update lampiran from selection if it was provided, or if none exists
         // This ensures name and amount updates in subRecipients reflect here too
@@ -550,12 +554,15 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         const isMultiple = itemsToUse.length > 1;
         const proposeForStr = recipient.tujuanPengajuan || recipient.purpose || '';
         const paidForStr = isMultiple ? 'Terlampir' : (itemsToUse[0]?.penerimaDana || itemsToUse[0]?.name || recipient.penerimaDana || recipient.name || '');
-        const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
+        
+        const uniqueRekening = new Set(itemsToUse.map(r => `${r.bankAccountNo || ''} / ${r.bankName || ''} / ${r.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim()).filter(r => r !== ''));
+        const hasRekening = uniqueRekening.size > 0;
+        const isMultipleRekening = uniqueRekening.size > 1;
+        
         const transactionTypeDefault = hasRekening ? 'Transfer' : 'Tunai';
         let transferDetailsDefault = '';
         if (transactionTypeDefault === 'Transfer') {
-           const primaryItem = itemsToUse[0] || recipient;
-           transferDetailsDefault = isMultiple ? 'Terlampir' : `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
+           transferDetailsDefault = isMultipleRekening ? 'Terlampir' : Array.from(uniqueRekening)[0] || '';
         }
 
         const calculatedTotalAmount = itemsToUse.reduce((sum, r) => sum + (Number(r.amountProposed) || 0), 0);
@@ -1235,6 +1242,40 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                     </button>
                   ))}
                 </div>
+              </div>
+              
+              <div className="bg-slate-900/50 p-2 rounded border border-white/5 space-y-2 mt-2">
+                <label className="text-[10px] font-medium text-white/40 block font-medium">Rekening Tujuan Tersentralisasi (Opsional):</label>
+                <input 
+                  className="w-full bg-slate-700 border border-white/10 rounded px-2 py-1.5 text-white text-[10px]"
+                  placeholder="Nama Bank (misal: BSI)"
+                  value={ppdData.centralBankName || ''} 
+                  onChange={e => {
+                    const newVal = e.target.value;
+                    const combined = `${ppdData.centralBankNo || ''} / ${newVal} / ${ppdData.centralBankHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
+                    setPpdData({...ppdData, centralBankName: newVal, transferDetails: combined});
+                  }}
+                />
+                <input 
+                  className="w-full bg-slate-700 border border-white/10 rounded px-2 py-1.5 text-white text-[10px]"
+                  placeholder="Nomor Rekening"
+                  value={ppdData.centralBankNo || ''} 
+                  onChange={e => {
+                    const newVal = e.target.value;
+                    const combined = `${newVal} / ${ppdData.centralBankName || ''} / ${ppdData.centralBankHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
+                    setPpdData({...ppdData, centralBankNo: newVal, transferDetails: combined});
+                  }}
+                />
+                <input 
+                  className="w-full bg-slate-700 border border-white/10 rounded px-2 py-1.5 text-white text-[10px]"
+                  placeholder="Nama Pemilik Rekening"
+                  value={ppdData.centralBankHolder || ''} 
+                  onChange={e => {
+                    const newVal = e.target.value;
+                    const combined = `${ppdData.centralBankNo || ''} / ${ppdData.centralBankName || ''} / ${newVal}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
+                    setPpdData({...ppdData, centralBankHolder: newVal, transferDetails: combined});
+                  }}
+                />
               </div>
 
               {/* Kamus / Budget Dictionary Section */}
