@@ -244,7 +244,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
           parsed.rows = lampiranItems.map(r => {
             const existingRow = parsed.rows?.find((pr: any) => pr.nik === r.nik || pr.name === r.name);
             return {
-              id: existingRow ? existingRow.id : (Date.now() + Math.random()),
+              id: existingRow ? existingRow.id : (Date.now().toString() + Math.random().toString(36).substring(2)),
               description: r.purpose || recipient.purpose || '',
               name: r.name || existingRow?.name || '',
               nik: r.nik || existingRow?.nik || '',
@@ -586,7 +586,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
       ],
       rows: lampiranItems && lampiranItems.length > 0 
         ? lampiranItems.map(r => ({
-            id: Date.now() + Math.random(),
+            id: Date.now().toString() + Math.random().toString(36).substring(2),
             description: r.purpose || recipient.purpose || '',
             name: r.name || '',
             nik: r.nik || '',
@@ -594,7 +594,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
           }))
         : [
         { 
-          id: Date.now(), 
+          id: Date.now().toString() + Math.random().toString(36).substring(2), 
           description: recipient.purpose || '', 
           name: recipient.name, 
           nik: recipient.nik,
@@ -707,7 +707,7 @@ export default function MPZISTemplate({ recipient, lampiranItems, onClose, isEmb
   const addRow = () => {
     setMemoData({
       ...memoData,
-      rows: [...memoData.rows, { id: Date.now() + Math.random(), description: '', name: '', nik: '', bank: '', amount: 0 }]
+      rows: [...memoData.rows, { id: Date.now().toString() + Math.random().toString(36).substring(2), description: '', name: '', nik: '', bank: '', amount: 0 }]
     });
   };
 

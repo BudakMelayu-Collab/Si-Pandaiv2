@@ -3562,6 +3562,11 @@ export default function RecipientForm({
                                 .map((sub: any, j: number) => ({
                                   ...group.registrationData,
                                   ...sub,
+                                  tujuanPengajuan: group.registrationData.tujuanPengajuan || sub.tujuanPengajuan,
+                                  tujuanPenyaluranMPZIS: group.registrationData.tujuanPenyaluranMPZIS || sub.tujuanPenyaluranMPZIS,
+                                  budgetCode: group.registrationData.budgetCode || sub.budgetCode,
+                                  budgetName: group.registrationData.budgetName || sub.budgetName,
+                                  transactionType: group.registrationData.transactionType || sub.transactionType,
                                   id: sub.id || `${mockIdPrefix}-${i}-${j}`,
                                   registrationId: group.registrationData.registrationId || `${mockIdPrefix}-${i}`,
                                 }));
@@ -4245,12 +4250,22 @@ export default function RecipientForm({
                             return {
                                 ...group.registrationData,
                                 ...subForBase,
+                                tujuanPengajuan: group.registrationData.tujuanPengajuan || subForBase.tujuanPengajuan,
+                                tujuanPenyaluranMPZIS: group.registrationData.tujuanPenyaluranMPZIS || subForBase.tujuanPenyaluranMPZIS,
+                                budgetCode: group.registrationData.budgetCode || subForBase.budgetCode,
+                                budgetName: group.registrationData.budgetName || subForBase.budgetName,
+                                transactionType: group.registrationData.transactionType || subForBase.transactionType,
                                 id: subForBase.id || `${mockIdPrefix}-${i}`,
                                 registrationId: group.registrationData.registrationId,
                                 signersBottom: dynamicSigners,
                                 lampiranItems: validChildren.map((child: any) => ({
                                     ...group.registrationData,
-                                    ...child
+                                    ...child,
+                                    tujuanPengajuan: group.registrationData.tujuanPengajuan || child.tujuanPengajuan,
+                                    tujuanPenyaluranMPZIS: group.registrationData.tujuanPenyaluranMPZIS || child.tujuanPenyaluranMPZIS,
+                                    budgetCode: group.registrationData.budgetCode || child.budgetCode,
+                                    budgetName: group.registrationData.budgetName || child.budgetName,
+                                    transactionType: group.registrationData.transactionType || child.transactionType,
                                 }))
                             };
                         })
@@ -4288,11 +4303,21 @@ export default function RecipientForm({
                             return {
                                 ...group.registrationData,
                                 ...subForBase,
+                                tujuanPengajuan: group.registrationData.tujuanPengajuan || subForBase.tujuanPengajuan,
+                                tujuanPenyaluranMPZIS: group.registrationData.tujuanPenyaluranMPZIS || subForBase.tujuanPenyaluranMPZIS,
+                                budgetCode: group.registrationData.budgetCode || subForBase.budgetCode,
+                                budgetName: group.registrationData.budgetName || subForBase.budgetName,
+                                transactionType: group.registrationData.transactionType || subForBase.transactionType,
                                 id: subForBase.id || `${mockIdPrefix}-${i}`,
                                 registrationId: group.registrationData.registrationId,
                                 lampiranItems: validChildren.map((child: any) => ({
                                     ...group.registrationData,
-                                    ...child
+                                    ...child,
+                                    tujuanPengajuan: group.registrationData.tujuanPengajuan || child.tujuanPengajuan,
+                                    tujuanPenyaluranMPZIS: group.registrationData.tujuanPenyaluranMPZIS || child.tujuanPenyaluranMPZIS,
+                                    budgetCode: group.registrationData.budgetCode || child.budgetCode,
+                                    budgetName: group.registrationData.budgetName || child.budgetName,
+                                    transactionType: group.registrationData.transactionType || child.transactionType,
                                 }))
                             };
                         })

@@ -296,7 +296,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     transferDetails: '',
     transactionType: recipient.transactionType || 'Pembayaran',
     rows: [
-      { id: Date.now(), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: 0 }
+      { id: Date.now().toString() + Math.random().toString(36).substring(2), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: 0 }
     ],
     signers: {
       staff: { name: '', role: 'Staf' },
@@ -311,7 +311,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
     attachment: '',
     lampiranRows: [
       {
-        id: Date.now(),
+        id: Date.now().toString() + Math.random().toString(36).substring(2),
         nama: recipient.name || '',
         nik: recipient.nik || '',
         noHp: recipient.contact || '',
@@ -424,7 +424,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
 
       const itemsToUse = lampiranItems && lampiranItems.length > 0 ? lampiranItems : [recipient];
       const initialLampiranRows = itemsToUse.map(r => ({
-        id: Date.now() + Math.random(),
+        id: Date.now().toString() + Math.random().toString(36).substring(2),
         nama: r.name || '',
         nik: r.nik || '',
         noHp: r.contact || '',
@@ -507,7 +507,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         const primaryItem = itemsToUse[0] || recipient;
         const currentRekeningStr = `${primaryItem.bankAccountNo || ''} / ${primaryItem.bankName || ''} / ${primaryItem.bankAccountHolder || ''}`.replace(/^\s*\/\s*\/\s*$/, '').trim();
         const hasRekening = itemsToUse.some(r => r.bankAccountNo && r.bankAccountNo.trim() !== '');
-        if (!parsed.requestDisbursement || parsed.requestDisbursement === 'Transfer' || parsed.requestDisbursement === 'Tunai') {
+        if (!parsed.requestDisbursement) {
           parsed.requestDisbursement = hasRekening ? 'Transfer' : 'Tunai';
         }
         
@@ -525,8 +525,13 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
         // This ensures name and amount updates in subRecipients reflect here too
         parsed.lampiranRows = initialLampiranRows;
         
-        parsed.proposeFor = recipient.tujuanPengajuan || recipient.purpose || parsed.proposeFor || '';
-        parsed.attachment = recipient.tujuanPengajuan || recipient.purpose || parsed.attachment || '';
+        if (recipient.tujuanPengajuan) {
+          parsed.proposeFor = recipient.tujuanPengajuan;
+          parsed.attachment = recipient.tujuanPengajuan;
+        } else if (!parsed.proposeFor) {
+          parsed.proposeFor = recipient.purpose || '';
+          parsed.attachment = recipient.purpose || '';
+        }
 
         setPpdData(parsed);
       } else {
@@ -591,7 +596,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
           transferDetails: transferDetailsDefault,
           transactionType: recipient.transactionType || 'Pembayaran',
           rows: [
-            { id: Date.now(), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: calculatedTotalAmount }
+            { id: Date.now().toString() + Math.random().toString(36).substring(2), budgetCode: recipient.budgetCode || '', classification: recipient.budgetName || '', total: calculatedTotalAmount }
           ],
           signers: {
             staff: { name: '', role: 'Staf' },
@@ -1282,7 +1287,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                   <label className="text-[10px]  text-white/40 font-bold uppercase tracking-wider">Data Anggaran/ Budget</label>
                   <button 
                     onClick={() => {
-                        const newRows = [...ppdData.rows, { id: Date.now(), budgetCode: '', classification: '', total: 0 }];
+                        const newRows = [...ppdData.rows, { id: Date.now().toString() + Math.random().toString(36).substring(2), budgetCode: '', classification: '', total: 0 }];
                         setPpdData({...ppdData, rows: newRows});
                     }}
                     className="p-1 hover:bg-white/10 rounded text-amber-500 transition-colors"
@@ -2584,7 +2589,7 @@ export default function EPPDTemplate({ recipient, lampiranItems, records, onSave
                             ...ppdData,
                             lampiranRows: [
                               ...ppdData.lampiranRows,
-                              { id: Date.now(), nama: '', nik: '', noHp: '', kecamatan: '', rekening: '', alamat: '', kampung: '', jumlah: 0 }
+                              { id: Date.now().toString() + Math.random().toString(36).substring(2), nama: '', nik: '', noHp: '', kecamatan: '', rekening: '', alamat: '', kampung: '', jumlah: 0 }
                             ]
                           });
                         }} className="flex items-center justify-center gap-2 w-full py-2 hover:text-emerald-600 font-bold text-[10px] ">
