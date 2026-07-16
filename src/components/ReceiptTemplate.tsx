@@ -667,9 +667,25 @@ export default function ReceiptTemplate({ recipient, onClose, onEdit, isEmbedded
           )}
         </div>
       </div>
-
-
       
+      {/* Call Center Info for PEMOHON copy */}
+      {type === 'PEMOHON' && (
+        <div className="mt-8 pt-3 border-t border-black/20 flex flex-col items-center justify-center text-center">
+          <p className="font-bold text-[0.85em] uppercase tracking-wide">LAYANAN KONTER BAZNAS SIAK</p>
+          {isEditing ? (
+            <input 
+              className="border-b border-indigo-200 focus:border-indigo-500 outline-none bg-indigo-50/30 text-center text-[0.85em] mt-0.5 min-w-[300px]"
+              value={receiptData.callCenter || 'NO HP/WHATSAPP : 0822-8544-8137'}
+              onChange={e => setReceiptData({...receiptData, callCenter: e.target.value})}
+            />
+          ) : (
+            <p className="text-[0.85em] mt-0.5 font-bold">
+              {receiptData.callCenter || 'NO HP/WHATSAPP : 0822-8544-8137'}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Watermark */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none -rotate-12 text-center">
         <h1 className="text-5xl leading-none font-black">BADAN AMIL ZAKAT NASIONAL</h1>

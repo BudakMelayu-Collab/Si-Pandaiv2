@@ -1,0 +1,157 @@
+--- src/components/ReceiptTemplate.tsx
++++ src/components/ReceiptTemplate.tsx
+@@ -615,75 +615,67 @@
+-              <span className="text-black font-sans leading-tight">{d        })}
+-      </div>
+-
+-      {/* Signatures */}
+-      {isEditing ? (
+-        <div className="flex justify-between items-start pt-4">
+-          <div className="text-center w-52">
+-            <input 
+-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-10 capitalize" style={{ fontSize: '0.9em' }}
+-              value={receiptData.receiverLabel}
+-              onChange={e => setReceiptData({...receiptData, receiverLabel: e.target.value})}
+-            />
+-            <input 
+-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center" style={{ fontSize: '1.05em' }}
+-              value={receiptData.receiverName}
+-              onChange={e => setReceiptData({...receiptData, receiverName: e.target.value})}
+-            />
+-          </div>
+-          <div className="text-center w-56">
+-            <p className="mb-10 text-black">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+-            <div className="mb-0.5">
+-              <input 
+-                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center"
+-                style={{ fontSize: '1.05em' }}
+-                value={receiptData.giverName}
+-                onChange={e => setReceiptData({...receiptData, giverName: e.target.value})}
+-              />
+-            </div>
+-            <input 
+-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center capitalize"
+-              style={{ fontSize: '0.9em' }}
+-              value={receiptData.giverLabel}
+-              onChange={e => setReceiptData({...receiptData, giverLabel: e.target.value})}
+-            />
+-          </div>
+-        </div>
+-      ) : (
+-        <div className="flex justify-between items-start pt-4">
+-          <div className="text-center w-52">
+-            <p className="mb-10 underline capitalize">{receiptData.receiverLabel},</p>
+-            <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.receiverName}</p>
+-          </div>
+-          <div className="text-center w-56">
+-            <p className="mb-10 text-black">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+-            <div className="mb-0.5">
+-              <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.giverName || '(....................................)'}</p>
+-            </div>
+-            <p className="text-black capitalize" style={{ fontSize: '0.9em' }}>{receiptData.giverLabel}</p>
+-          </div>
+-        </div>
+-      )}
+-
+-      {/* Call Center Info for PEMOHON copy */}
+-      {type === 'PEMOHON' && (
+-        <div className="mt-6 pt-3 border-t border-black/20 flex flex-col items-center justify-center text-center">
+-          <p className="font-bold text-[0.85em] tracking-wide uppercase">Layanan BAZNAS (Call Center)</p>
+-          {isEditing ? (
+-            <input 
+-              className="border-b border-indigo-200 focus:border-indigo-500 outline-none bg-indigo-50/30 text-center text-[0.85em] mt-0.5 min-w-[200px]"
+-              value={receiptData.callCenter || '0822-8788-7711'}
+-              onChange={e => setReceiptData({...receiptData, callCenter: e.target.value})}
+-            />
+-          ) : (
+-            <p className="text-[0.85em] mt-0.5">
+-              {receiptData.callCenter || '0822-8788-7711'}
+-            </p>
+-          )}
+-        </div>
+-      )}
+-
+-      {/* Watermark */}
+-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none -rotate-12 text-center">      )}
+-
+-      {/* Watermark */}div>
+-      </div>
+-      
+-      
+-        
+-      {/* Watermark */}
+-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none -rotate-12 text-center">
+-        <h1 className="text-5xl leading-none font-black">BADAN AMIL ZAKAT NASIONAL</h1>
+-      </div>
+-    </div>
++              <span className="text-black font-sans leading-tight">{doc || '-'}</span>
++            </div>
++          );
++        })}
++      </div>
++
++      {/* Signatures */}
++      <div className="flex justify-between items-start pt-4">
++        <div className="text-center w-52">
++          {isEditing ? (
++            <input 
++              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center mb-10 capitalize" style={{ fontSize: '0.9em' }}
++              value={receiptData.receiverLabel}
++              onChange={e => setReceiptData({...receiptData, receiverLabel: e.target.value})}
++            />
++          ) : (
++            <p className="mb-10 underline capitalize">{receiptData.receiverLabel},</p>
++          )}
++          
++          {isEditing ? (
++            <input 
++              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center" style={{ fontSize: '1.05em' }}
++              value={receiptData.receiverName}
++              onChange={e => setReceiptData({...receiptData, receiverName: e.target.value})}
++            />
++          ) : (
++            <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.receiverName}</p>
++          )}
++        </div>
++        <div className="text-center w-56">
++          <p className="mb-10 text-black">Siak, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
++          <div className="mb-0.5">
++            {isEditing ? (
++              <input 
++                className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center"
++                style={{ fontSize: '1.05em' }}
++                value={receiptData.giverName}
++                onChange={e => setReceiptData({...receiptData, giverName: e.target.value})}
++              />
++            ) : (
++              <p className="border-b border-black pb-0.5 uppercase tracking-tighter" style={{ fontSize: '1.05em' }}>{receiptData.giverName || '(....................................)'}</p>
++            )}
++          </div>
++          {isEditing ? (
++            <input 
++              className="border-b border-indigo-200 focus:border-indigo-500 outline-none w-full bg-indigo-50/30 text-center capitalize"
++              style={{ fontSize: '0.9em' }}
++              value={receiptData.giverLabel}
++              onChange={e => setReceiptData({...receiptData, giverLabel: e.target.value})}
++            />
++          ) : (
++            <p className="text-black capitalize" style={{ fontSize: '0.9em' }}>{receiptData.giverLabel}</p>
++          )}
++        </div>
++      </div>
++
++      {/* Call Center Info for PEMOHON copy */}
++      {type === 'PEMOHON' && (
++        <div className="mt-8 pt-3 border-t border-black/20 flex flex-col items-center justify-center text-center">
++          <p className="font-bold text-[0.85em] uppercase tracking-wide">Layanan BAZNAS (Call Center)</p>
++          <p className="text-[0.85em] flex items-center gap-1.5 mt-0.5">
++            Informasi & Layanan: <span className="font-bold">0822-8788-7711</span>
++          </p>
++        </div>
++      )}
++
++      {/* Watermark */}
++      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none -rotate-12 text-center">
++        <h1 className="text-5xl leading-none font-black">BADAN AMIL ZAKAT NASIONAL</h1>
++      </div>
++    </div>
