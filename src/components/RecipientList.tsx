@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Plus,
   Copy,
+  Printer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AID_TYPES, AID_STATUSES, STATUS_COLORS } from "../constants";
@@ -43,6 +44,8 @@ interface RecipientListProps {
   onEPPD: (recipient: Recipient, checkedRecipients?: Recipient[]) => void;
   onInternalMemo?: (recipient: Recipient) => void;
   onSurvey: (recipient: Recipient) => void;
+  onSuratPernyataan?: (recipient: Recipient) => void;
+  onMassSuratPernyataan?: (recipients: Recipient[]) => void;
   onDeleteRecipient?: (recipient: Recipient) => void;
   onDeleteGroup?: (group: Recipient[]) => void;
   onEditRecipient?: (recipient: Recipient) => void;
@@ -141,6 +144,8 @@ export default function RecipientList({
   onEPPD,
   onInternalMemo,
   onSurvey,
+  onSuratPernyataan,
+  onMassSuratPernyataan,
   onDeleteRecipient,
   onDeleteGroup,
   onEditRecipient,
@@ -700,6 +705,16 @@ export default function RecipientList({
                                               <ClipboardList className="w-3.5 h-3.5" />
                                               <span>Lembar Verifikasi</span>
                                             </button>
+                                            <button
+                                              onClick={() => {
+                                                if (onSuratPernyataan) onSuratPernyataan(item);
+                                              }}
+                                              className="w-full py-1.5 px-2.5 text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-start gap-2 text-sm font-normal cursor-pointer"
+                                            >
+                                              <FileText className="w-3.5 h-3.5" />
+                                              <span>Surat Pernyataan</span>
+                                            </button>
+
 
                                             <div className="h-px bg-slate-100 my-1"></div>
 
@@ -837,6 +852,37 @@ export default function RecipientList({
                                                   </>
                                                 )}
                                               </button>
+                                              {onMassSuratPernyataan && (
+                                                <button
+                                                  type="button"
+                                                  disabled={
+                                                    groupItems.filter(
+                                                      (sub) =>
+                                                        !!selectedSubItemIds[
+                                                          sub.id
+                                                        ],
+                                                    ).length === 0
+                                                  }
+                                                  onClick={() => {
+                                                    const checked = groupItems.filter(
+                                                      (sub) => !!selectedSubItemIds[sub.id]
+                                                    );
+                                                    onMassSuratPernyataan(checked);
+                                                  }}
+                                                  className="text-xs font-bold bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-xs transition-all active:scale-95 duration-150"
+                                                  title="Cetak massal surat pernyataan untuk penerima yang dicentang"
+                                                >
+                                                  <Printer className="w-4 h-4" />
+                                                  Cetak Massal Surat Pernyataan ({
+                                                    groupItems.filter(
+                                                      (sub) =>
+                                                        !!selectedSubItemIds[
+                                                          sub.id
+                                                        ],
+                                                    ).length
+                                                  })
+                                                </button>
+                                              )}
                                             </div>
                                           </div>
                                           <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
@@ -1132,6 +1178,17 @@ export default function RecipientList({
                                                               title="Lembar Verifikasi"
                                                             >
                                                               <ClipboardList className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (onSuratPernyataan) onSuratPernyataan(subItem);
+                                                              }}
+                                                              className="inline-flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 p-1.5 rounded-lg focus:outline-none transition-colors active:scale-95 duration-150"
+                                                              title="Surat Pernyataan"
+                                                            >
+                                                              <FileText className="w-3.5 h-3.5" />
                                                             </button>
                                                             {subItem.contact && (
                                                               <a

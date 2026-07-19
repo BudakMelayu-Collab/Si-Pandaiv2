@@ -87,9 +87,11 @@ export interface Recipient {
   hasSignedReceiptPdf?: boolean;
   hasSignedMPZISPdf?: boolean;
   hasInternalMemoPdf?: boolean;
+  hasSignedPernyataanPdf?: boolean;
   hasSignedSurveyPdf?: boolean;
   isMPZISGenerated?: boolean;
   isEPPDGenerated?: boolean;
+  isPernyataanGenerated?: boolean;
   isReceiptGenerated?: boolean;
   isSurveyGenerated?: boolean;
   isTermsAccepted: boolean;

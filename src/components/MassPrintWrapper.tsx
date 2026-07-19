@@ -4,10 +4,11 @@ import ReceiptTemplate from './ReceiptTemplate';
 import SurveyTemplate from './SurveyTemplate';
 import MPZISTemplate from './MPZISTemplate';
 import EPPDTemplate from './EPPDTemplate';
+import SuratPernyataanTemplate from './SuratPernyataanTemplate';
 import { Printer, ChevronRight } from 'lucide-react';
 
 interface MassPrintWrapperProps {
-  type: 'receipt' | 'survey' | 'mpzis' | 'eppd';
+  type: 'receipt' | 'survey' | 'mpzis' | 'eppd' | 'statement';
   recipients: Recipient[];
   onClose: () => void;
 }
@@ -120,7 +121,7 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
           </button>
           <div>
             <h3 className="font-bold text-white leading-tight">
-              Cetak Massal {type === 'receipt' ? 'Tanda Terima' : type === 'survey' ? 'Data Survey' : type === 'mpzis' ? 'MPZIS' : 'E-PPD'}
+              Cetak Massal {type === 'receipt' ? 'Tanda Terima' : type === 'survey' ? 'Data Survey' : type === 'mpzis' ? 'MPZIS' : type === 'statement' ? 'Surat Pernyataan' : 'E-PPD'}
             </h3>
             <p className="text-xs text-slate-400 font-medium">Banyaknya: {recipients.length} Dokumen</p>
           </div>
@@ -170,6 +171,13 @@ export default function MassPrintWrapper({ type, recipients, onClose }: MassPrin
                   records={[]} 
                   onSaveRecord={() => {}} 
                   onDeleteRecord={() => {}} 
+                  onClose={() => {}} 
+                  isEmbedded={true}
+                />
+              )}
+              {type === 'statement' && (
+                <SuratPernyataanTemplate 
+                  recipient={rec} 
                   onClose={() => {}} 
                   isEmbedded={true}
                 />

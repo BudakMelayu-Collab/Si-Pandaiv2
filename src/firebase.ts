@@ -1122,6 +1122,8 @@ export const saveRecipientTemplateData = async (recipientId: string, templateTyp
       await updateDoc(recipientRef, { isMPZISGenerated: true, updatedAt: serverTimestamp() });
     } else if (templateType === 'eppd') {
       await updateDoc(recipientRef, { isEPPDGenerated: true, updatedAt: serverTimestamp() });
+    } else if (templateType === 'pernyataan') {
+      await updateDoc(recipientRef, { isPernyataanGenerated: true, updatedAt: serverTimestamp() });
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -1234,6 +1236,41 @@ export const updateInternalMemoPdf = async (id: string, pdfBase64: string | null
     
     await updateDoc(ref, {
       hasInternalMemoPdf: hasFile,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
+export const updateRecipientPernyataanPdf = async (id: string, pdfBase64: string | null) => {
+  const path = `recipients/${id}`;
+  try {
+    const ref = doc(db, 'recipients', id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Recipient not found');
+    
+    const recipient = snap.data() as Recipient;
+    const finalBase64 = pdfBase64 ? await syncFileToGoogleDriveIfConnected(pdfBase64, 'Surat Pernyataan', recipient.name || id, recipient.nik || '', recipient.sector || 'Umum', recipient.programName || '') : null;
+    const hasFile = !!finalBase64 && finalBase64.length > 5;
+
+    // Save heavy file/delete from subcollection
+    const scanRef = doc(db, 'recipients', id, 'scans', 'pernyataan');
+    if (finalBase64) {
+      await setDoc(scanRef, {
+        base64: finalBase64,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      const snapScan = await safeGetDoc(scanRef);
+      if (snapScan.exists()) {
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(scanRef);
+      }
+    }
+    
+    await updateDoc(ref, {
+      hasSignedPernyataanPdf: hasFile,
       updatedAt: serverTimestamp()
     });
   } catch (error) {

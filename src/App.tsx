@@ -22,6 +22,7 @@ import EPPDTemplate from "./components/EPPDTemplate";
 import EPPDModule from "./components/EPPDModule";
 import PPDRecap from "./components/PPDRecap";
 import SurveyTemplate from "./components/SurveyTemplate";
+import SuratPernyataanTemplate from "./components/SuratPernyataanTemplate";
 import InternalMemoTemplate from "./components/InternalMemoTemplate";
 import CompanionCatalog from "./components/CompanionCatalog";
 import Settings from "./components/Settings";
@@ -51,8 +52,10 @@ import {
   Trash2,
   Link as LinkIcon,
   Share2,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import * as XLSX from "xlsx";
 import {
   auth,
   loginWithGoogle,
@@ -98,6 +101,7 @@ export default function App() {
   const [selectedMassSurveys, setSelectedMassSurveys] = useState<Recipient[] | null>(null);
   const [selectedMassMPZIS, setSelectedMassMPZIS] = useState<Recipient[] | null>(null);
   const [selectedMassEPPD, setSelectedMassEPPD] = useState<Recipient[] | null>(null);
+  const [selectedMassSuratPernyataan, setSelectedMassSuratPernyataan] = useState<Recipient[] | null>(null);
   const [prefilledGroupData, setPrefilledGroupData] = useState<
     Recipient[] | null
   >(null);
@@ -110,6 +114,118 @@ export default function App() {
     setInitialInputStep(step);
     setEditingGroupData(group);
     setActiveTab("input");
+  };
+
+  const getExportDataForTab = (tab: string): Recipient[] => {
+    if (tab === "recipients") {
+      return recipients.filter(
+        (r) =>
+          r.serviceType !== "Program Bulanan" &&
+          !r.programName?.toLowerCase().includes("atm beras") &&
+          !r.programName?.toLowerCase().includes("rumah singgah")
+      );
+    } else if (tab.startsWith("siak-")) {
+      const currentSector = tab
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      return recipients.filter(
+        (r) =>
+          r.sector === currentSector &&
+          !r.programName?.toLowerCase().includes("atm beras") &&
+          !r.programName?.toLowerCase().includes("rumah singgah")
+      );
+    }
+    return [];
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = getExportDataForTab(activeTab);
+    if (dataToExport.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+
+    const headers = [
+      "ID Registrasi",
+      "Tanggal Masuk",
+      "Nama Penerima",
+      "NIK",
+      "KK",
+      "Tempat Lahir",
+      "Tanggal Lahir",
+      "Jenis Kelamin",
+      "Status Keluarga",
+      "Kepala Keluarga",
+      "No. Telepon",
+      "Alamat",
+      "RT",
+      "RW",
+      "Kampung",
+      "Kecamatan",
+      "Asnaf",
+      "Bidang",
+      "Sub Bidang",
+      "Nama Program",
+      "Jenis Bantuan",
+      "Uraian Pengajuan",
+      "Nominal Pengajuan",
+      "Nominal Disalurkan",
+      "Tanggal Penyaluran",
+      "Nama Bank",
+      "No Rekening",
+      "Pemilik Rekening",
+      "Status Bantuan",
+      "Keterangan"
+    ];
+
+    const rows = dataToExport.map((r) => [
+      r.registrationId || "",
+      r.submissionDate || "",
+      r.name || "",
+      r.nik || "",
+      r.kk || "",
+      r.pob || "",
+      r.dob || "",
+      r.gender || "",
+      r.familyStatus || "",
+      r.headOfFamilyName || "",
+      r.contact || "",
+      r.address || "",
+      r.rt || "",
+      r.rw || "",
+      r.kampung || "",
+      r.district || "",
+      r.ashnaf || "",
+      r.sector || "",
+      r.subSector || "",
+      r.programName || "",
+      r.aidType || "",
+      r.purpose || "",
+      r.amountProposed || 0,
+      r.amountDisbursed || 0,
+      r.disbursementDate || "",
+      r.bankName || "",
+      r.bankAccountNo || "",
+      r.bankAccountHolder || "",
+      r.status || "",
+      r.notes || ""
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Penerima");
+
+    let fileName = "Data_Penerima_Layanan";
+    if (activeTab === "recipients") {
+      fileName = "Penerima_Konter_Layanan";
+    } else if (activeTab.startsWith("siak-")) {
+      const sectorName = activeTab.replace("siak-", "");
+      fileName = `Penerima_Siak_${sectorName.charAt(0).toUpperCase() + sectorName.slice(1)}`;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(wb, `${fileName}_${today}.xlsx`);
   };
 
   const handleUpdateGroupData = async (data: any) => {
@@ -164,6 +280,7 @@ export default function App() {
   const [isShowingEPPD, setIsShowingEPPD] = useState(false);
   const [isShowingInternalMemo, setIsShowingInternalMemo] = useState(false);
   const [isShowingSurvey, setIsShowingSurvey] = useState(false);
+  const [isShowingSuratPernyataan, setIsShowingSuratPernyataan] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastConfig, setToastConfig] = useState<{
     title: string;
@@ -885,6 +1002,11 @@ export default function App() {
                     setSelectedRecipient(rec);
                     setIsShowingInternalMemo(true);
                   }}
+                  onSuratPernyataan={(rec) => {
+                    setSelectedRecipient(rec);
+                    setIsShowingSuratPernyataan(true);
+                  }}
+                  onMassSuratPernyataan={(recs) => setSelectedMassSuratPernyataan(recs)}
                   onSurvey={(rec) => {
                     setSelectedRecipient(rec);
                     setIsShowingSurvey(true);
@@ -919,6 +1041,11 @@ export default function App() {
                       setSelectedRecipient(rec);
                       setIsShowingInternalMemo(true);
                     }}
+                    onSuratPernyataan={(rec) => {
+                      setSelectedRecipient(rec);
+                      setIsShowingSuratPernyataan(true);
+                    }}
+                    onMassSuratPernyataan={(recs) => setSelectedMassSuratPernyataan(recs)}
                     onSurvey={(rec) => {
                       setSelectedRecipient(rec);
                       setIsShowingSurvey(true);
@@ -1162,16 +1289,25 @@ export default function App() {
             (activeTab === "dashboard" ||
             activeTab === "recipients" ||
             activeTab.startsWith("siak-") ? (
-              <div className={cn("flex items-center mb-8", "justify-end")}>
+              <div className={cn("flex items-center mb-8", "justify-end", "gap-3")}>
                 {(activeTab === "recipients" ||
                   activeTab.startsWith("siak-")) && (
-                  <button
-                    onClick={() => setActiveTab("input")}
-                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 scale-100 hover:scale-105 active:scale-95"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Tambah Penerima
-                  </button>
+                  <>
+                    <button
+                      onClick={handleExportExcel}
+                      className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 scale-100 hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <Download className="w-5 h-5" />
+                      Export Excel
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("input")}
+                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 scale-100 hover:scale-105 active:scale-95"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Tambah Penerima
+                    </button>
+                  </>
                 )}
               </div>
             ) : null)}
@@ -1246,6 +1382,15 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {isShowingSuratPernyataan && selectedRecipient && (
+          <SuratPernyataanTemplate
+            recipient={selectedRecipient}
+            onClose={() => setIsShowingSuratPernyataan(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {isShowingSurvey && selectedRecipient && (
           <SurveyTemplate
             recipient={selectedRecipient}
@@ -1290,6 +1435,16 @@ export default function App() {
             type="eppd"
             recipients={selectedMassEPPD}
             onClose={() => setSelectedMassEPPD(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMassSuratPernyataan && (
+          <MassPrintWrapper
+            type="statement"
+            recipients={selectedMassSuratPernyataan}
+            onClose={() => setSelectedMassSuratPernyataan(null)}
           />
         )}
       </AnimatePresence>
