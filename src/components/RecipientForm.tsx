@@ -158,6 +158,7 @@ const DEFAULT_RECIPIENT_INPUT = {
 
 const BUDGET_OPTIONS = [
   { code: "5,2,01", name: "Penyaluran/Infaq/InfaqTerikat" },
+  { code: "5,2,02", name: "Penyaluran/Infaq/Infaq Tidak Terikat" },
   { code: "5.1.02.03.02.01", name: "Penyaluran zakat maal asnaf miskin Program Siak Sehat Bantuan Biaya Transportasi Pasien" },
   { code: "5.1.02.03.02.02", name: "Penyaluran zakat maal asnaf miskin Program Siak Sehat Bantuan Biaya Pendamping Pasien" },
   { code: "5.1.02.03.03.01", name: "Penyaluran zakat maal asnaf miskin Program Siak Sejahtera Produktif Zchicken" },
